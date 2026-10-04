@@ -1,0 +1,9 @@
+# Normalize text files in the repository; Windows scripts keep CRLF in the working tree.
+* text=auto
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Never diff or merge these as text
+*.sav binary
+*.apworld binary
+*.zip binary

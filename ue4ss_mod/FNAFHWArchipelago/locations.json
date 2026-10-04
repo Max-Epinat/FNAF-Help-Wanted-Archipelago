@@ -1,0 +1,1945 @@
+{
+  "version": "2.0.0",
+  "game": "Five Nights at Freddy's: Help Wanted",
+  "location_offset": 101100000,
+  "item_offset": 101000000,
+  "total_locations": 177,
+  "minigames": [
+    {
+      "row_id": 0,
+      "location_id": 101100166,
+      "location_name": "Complete Dark Rooms - Plushtrap",
+      "category": "Dark Rooms",
+      "hard_mode": false,
+      "map_name": "Flashlight_Game_Ver_1_Bigger",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 1,
+      "location_id": 101100168,
+      "location_name": "Complete Dark Rooms - Nightmare BB",
+      "category": "Dark Rooms",
+      "hard_mode": false,
+      "map_name": "Flashlight_Game_Ver_1_Bigger",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 2,
+      "location_id": 101100167,
+      "location_name": "Complete Dark Rooms - Plushbaby",
+      "category": "Dark Rooms",
+      "hard_mode": false,
+      "map_name": "Flashlight_Game_Ver_2",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 3,
+      "location_id": 101100169,
+      "location_name": "Complete Dark Rooms - Funtime Foxy",
+      "category": "Dark Rooms",
+      "hard_mode": false,
+      "map_name": "Funtime_Foxy",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 4,
+      "location_id": 101100138,
+      "location_name": "Beat FNAF 1 - Night 1",
+      "category": "FNAF 1",
+      "hard_mode": false,
+      "map_name": "NightGuard_Office01",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 5,
+      "location_id": 101100139,
+      "location_name": "Beat FNAF 1 - Night 2",
+      "category": "FNAF 1",
+      "hard_mode": false,
+      "map_name": "NightGuard_Office01",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 6,
+      "location_id": 101100140,
+      "location_name": "Beat FNAF 1 - Night 3",
+      "category": "FNAF 1",
+      "hard_mode": false,
+      "map_name": "NightGuard_Office01",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 7,
+      "location_id": 101100141,
+      "location_name": "Beat FNAF 1 - Night 4",
+      "category": "FNAF 1",
+      "hard_mode": false,
+      "map_name": "NightGuard_Office01",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 8,
+      "location_id": 101100142,
+      "location_name": "Beat FNAF 1 - Night 5 (Hard)",
+      "category": "FNAF 1",
+      "hard_mode": true,
+      "map_name": "NightGuard_Office01",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 9,
+      "location_id": 101100143,
+      "location_name": "Beat FNAF 2 - Night 1",
+      "category": "FNAF 2",
+      "hard_mode": false,
+      "map_name": "NightGuard_Office02",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 10,
+      "location_id": 101100144,
+      "location_name": "Beat FNAF 2 - Night 2",
+      "category": "FNAF 2",
+      "hard_mode": false,
+      "map_name": "NightGuard_Office02",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 11,
+      "location_id": 101100145,
+      "location_name": "Beat FNAF 2 - Night 3",
+      "category": "FNAF 2",
+      "hard_mode": false,
+      "map_name": "NightGuard_Office02",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 12,
+      "location_id": 101100146,
+      "location_name": "Beat FNAF 2 - Night 4",
+      "category": "FNAF 2",
+      "hard_mode": false,
+      "map_name": "NightGuard_Office02",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 13,
+      "location_id": 101100147,
+      "location_name": "Beat FNAF 2 - Night 5 (Hard)",
+      "category": "FNAF 2",
+      "hard_mode": true,
+      "map_name": "NightGuard_Office02",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 14,
+      "location_id": 101100149,
+      "location_name": "Beat FNAF 3 - Night 1",
+      "category": "FNAF 3",
+      "hard_mode": false,
+      "map_name": "NightGuard_Office03",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 15,
+      "location_id": 101100150,
+      "location_name": "Beat FNAF 3 - Night 2",
+      "category": "FNAF 3",
+      "hard_mode": false,
+      "map_name": "NightGuard_Office03",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 16,
+      "location_id": 101100151,
+      "location_name": "Beat FNAF 3 - Night 3",
+      "category": "FNAF 3",
+      "hard_mode": false,
+      "map_name": "NightGuard_Office03",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 17,
+      "location_id": 101100152,
+      "location_name": "Beat FNAF 3 - Night 4",
+      "category": "FNAF 3",
+      "hard_mode": false,
+      "map_name": "NightGuard_Office03",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 18,
+      "location_id": 101100153,
+      "location_name": "Beat FNAF 3 - Night 5 (Hard)",
+      "category": "FNAF 3",
+      "hard_mode": true,
+      "map_name": "NightGuard_Office03",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 19,
+      "location_id": 101100154,
+      "location_name": "Complete Parts and Service - Bonnie",
+      "category": "Parts and Service",
+      "hard_mode": false,
+      "map_name": "Repair_Bonnie_Game",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 20,
+      "location_id": 101100155,
+      "location_name": "Complete Parts and Service - Chica",
+      "category": "Parts and Service",
+      "hard_mode": false,
+      "map_name": "Repair_Chica_Game",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 21,
+      "location_id": 101100156,
+      "location_name": "Complete Parts and Service - Freddy",
+      "category": "Parts and Service",
+      "hard_mode": false,
+      "map_name": "Repair_Freddy_Game",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 22,
+      "location_id": 101100157,
+      "location_name": "Complete Parts and Service - Foxy",
+      "category": "Parts and Service",
+      "hard_mode": false,
+      "map_name": "Repair_Foxy_Game",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 23,
+      "location_id": 101100162,
+      "location_name": "Complete Vent Repair - Mangle",
+      "category": "Vent Repair",
+      "hard_mode": false,
+      "map_name": "Vent_Game_Mangle_1",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 24,
+      "location_id": 101100163,
+      "location_name": "Complete Vent Repair - Ennard",
+      "category": "Vent Repair",
+      "hard_mode": false,
+      "map_name": "Vent_Game_Ennard_2",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 25,
+      "location_id": 101100175,
+      "location_name": "Complete Night Terrors - Funtime Freddy",
+      "category": "Night Terrors",
+      "hard_mode": false,
+      "map_name": "NightTerror_FunTime_Freddy",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 26,
+      "location_id": 101100177,
+      "location_name": "Complete Night Terrors - Nightmarionne",
+      "category": "Night Terrors",
+      "hard_mode": false,
+      "map_name": "NightTerror_Nightmarionne",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 27,
+      "location_id": 101100174,
+      "location_name": "Complete Night Terrors - Circus Baby",
+      "category": "Night Terrors",
+      "hard_mode": false,
+      "map_name": "NightTerror_CircusBaby",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 28,
+      "location_id": 101100176,
+      "location_name": "Complete Night Terrors - Nightmare Fredbear",
+      "category": "Night Terrors",
+      "hard_mode": false,
+      "map_name": "NightTerror_Fredbear",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 29,
+      "location_id": 101100002,
+      "location_name": "Complete Pizza Party",
+      "category": "Finale",
+      "hard_mode": true,
+      "map_name": "Finale_Ending",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 30,
+      "location_id": 101100170,
+      "location_name": "Complete Dark Rooms (Hard) - Plushtrap",
+      "category": "Dark Rooms",
+      "hard_mode": true,
+      "map_name": "Flashlight_Game_Ver_1_Bigger",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 31,
+      "location_id": 101100171,
+      "location_name": "Complete Dark Rooms (Hard) - Nightmare BB",
+      "category": "Dark Rooms",
+      "hard_mode": true,
+      "map_name": "Flashlight_Game_Ver_1_Bigger",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 32,
+      "location_id": 101100158,
+      "location_name": "Complete Parts and Service (Hard) - Bonnie",
+      "category": "Parts and Service",
+      "hard_mode": true,
+      "map_name": "Repair_Bonnie_Game",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 33,
+      "location_id": 101100159,
+      "location_name": "Complete Parts and Service (Hard) - Chica",
+      "category": "Parts and Service",
+      "hard_mode": true,
+      "map_name": "Repair_Chica_Game",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 34,
+      "location_id": 101100160,
+      "location_name": "Complete Parts and Service (Hard) - Freddy",
+      "category": "Parts and Service",
+      "hard_mode": true,
+      "map_name": "Repair_Freddy_Game",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 35,
+      "location_id": 101100161,
+      "location_name": "Complete Parts and Service (Hard) - Foxy",
+      "category": "Parts and Service",
+      "hard_mode": true,
+      "map_name": "Repair_Foxy_Game",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 36,
+      "location_id": 101100172,
+      "location_name": "Complete Dark Rooms (Hard) - Plushbaby",
+      "category": "Dark Rooms",
+      "hard_mode": true,
+      "map_name": "Flashlight_Game_Ver_2",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 37,
+      "location_id": 101100173,
+      "location_name": "Complete Dark Rooms (Hard) - Funtime Foxy",
+      "category": "Dark Rooms",
+      "hard_mode": true,
+      "map_name": "Funtime_Foxy",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 38,
+      "location_id": 101100164,
+      "location_name": "Complete Vent Repair (Hard) - Mangle",
+      "category": "Vent Repair",
+      "hard_mode": true,
+      "map_name": "Vent_Game_Mangle_1",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 39,
+      "location_id": 101100165,
+      "location_name": "Complete Vent Repair (Hard) - Ennard",
+      "category": "Vent Repair",
+      "hard_mode": true,
+      "map_name": "Vent_Game_Ennard_2",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    },
+    {
+      "row_id": 40,
+      "location_id": 101100148,
+      "location_name": "Beat FNAF 2 - Withered",
+      "category": "FNAF 2",
+      "hard_mode": true,
+      "map_name": "NightGuard_Office02",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveLevelVictory",
+      "secondary_hook": "/Game/ProductionAssets/Blueprints/BackEnd/BP_FNAFGameState.BP_FNAFGameState_C:victory"
+    }
+  ],
+  "tokens": [
+    {
+      "token_number": 1,
+      "location_id": 101100108,
+      "location_name": "Collect Faz Token 01",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 2,
+      "location_id": 101100109,
+      "location_name": "Collect Faz Token 02",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 3,
+      "location_id": 101100110,
+      "location_name": "Collect Faz Token 03",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 4,
+      "location_id": 101100111,
+      "location_name": "Collect Faz Token 04",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 5,
+      "location_id": 101100112,
+      "location_name": "Collect Faz Token 05",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 6,
+      "location_id": 101100113,
+      "location_name": "Collect Faz Token 06",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 7,
+      "location_id": 101100114,
+      "location_name": "Collect Faz Token 07",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 8,
+      "location_id": 101100115,
+      "location_name": "Collect Faz Token 08",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 9,
+      "location_id": 101100116,
+      "location_name": "Collect Faz Token 09",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 10,
+      "location_id": 101100117,
+      "location_name": "Collect Faz Token 10",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 11,
+      "location_id": 101100118,
+      "location_name": "Collect Faz Token 11",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 12,
+      "location_id": 101100119,
+      "location_name": "Collect Faz Token 12",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 13,
+      "location_id": 101100120,
+      "location_name": "Collect Faz Token 13",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 14,
+      "location_id": 101100121,
+      "location_name": "Collect Faz Token 14",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 15,
+      "location_id": 101100122,
+      "location_name": "Collect Faz Token 15",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 16,
+      "location_id": 101100123,
+      "location_name": "Collect Faz Token 16",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 17,
+      "location_id": 101100124,
+      "location_name": "Collect Faz Token 17",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 18,
+      "location_id": 101100125,
+      "location_name": "Collect Faz Token 18",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 19,
+      "location_id": 101100126,
+      "location_name": "Collect Faz Token 19",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 20,
+      "location_id": 101100127,
+      "location_name": "Collect Faz Token 20",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 21,
+      "location_id": 101100128,
+      "location_name": "Collect Faz Token 21",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 22,
+      "location_id": 101100129,
+      "location_name": "Collect Faz Token 22",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 23,
+      "location_id": 101100130,
+      "location_name": "Collect Faz Token 23",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 24,
+      "location_id": 101100131,
+      "location_name": "Collect Faz Token 24",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 25,
+      "location_id": 101100132,
+      "location_name": "Collect Faz Token 25",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 26,
+      "location_id": 101100133,
+      "location_name": "Collect Faz Token 26",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 27,
+      "location_id": 101100134,
+      "location_name": "Collect Faz Token 27",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 28,
+      "location_id": 101100135,
+      "location_name": "Collect Faz Token 28",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 29,
+      "location_id": 101100136,
+      "location_name": "Collect Faz Token 29",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    },
+    {
+      "token_number": 30,
+      "location_id": 101100137,
+      "location_name": "Collect Faz Token 30",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:UnlockCoin",
+      "actor_hook": "/Script/Engine.Actor:K2_DestroyActor",
+      "actor_classes": [
+        "GrabbableToken_C",
+        "GrabbableToken_InitiallyFrozen_C",
+        "HiddenCoin_C"
+      ]
+    }
+  ],
+  "tapes": [
+    {
+      "tape_number": 1,
+      "location_id": 101100010,
+      "location_name": "Collect Prize Counter Intro Tape",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 2,
+      "location_id": 101100011,
+      "location_name": "Collect Glitch Tape 02",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 3,
+      "location_id": 101100012,
+      "location_name": "Collect Glitch Tape 03",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 4,
+      "location_id": 101100013,
+      "location_name": "Collect Glitch Tape 04",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 5,
+      "location_id": 101100014,
+      "location_name": "Collect Glitch Tape 05",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 6,
+      "location_id": 101100015,
+      "location_name": "Collect Glitch Tape 06",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 7,
+      "location_id": 101100016,
+      "location_name": "Collect Glitch Tape 07",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 8,
+      "location_id": 101100017,
+      "location_name": "Collect Glitch Tape 08",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 9,
+      "location_id": 101100018,
+      "location_name": "Collect Glitch Tape 09",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 10,
+      "location_id": 101100019,
+      "location_name": "Collect Glitch Tape 10",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 11,
+      "location_id": 101100020,
+      "location_name": "Collect Glitch Tape 11",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 12,
+      "location_id": 101100021,
+      "location_name": "Collect Glitch Tape 12",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 13,
+      "location_id": 101100022,
+      "location_name": "Collect Glitch Tape 13",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 14,
+      "location_id": 101100023,
+      "location_name": "Collect Glitch Tape 14",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 15,
+      "location_id": 101100024,
+      "location_name": "Collect Glitch Tape 15",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    },
+    {
+      "tape_number": 16,
+      "location_id": 101100025,
+      "location_name": "Collect Glitch Tape 16",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo",
+      "fallback_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardGlitch"
+    }
+  ],
+  "prizes": [
+    {
+      "location_id": 101100027,
+      "location_name": "Prize - Plushie: Freddy Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100028,
+      "location_name": "Prize - Plushie: Bonnie Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100029,
+      "location_name": "Prize - Plushie: Chica Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100030,
+      "location_name": "Prize - Plushie: Foxy Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100031,
+      "location_name": "Prize - Plushie: Golden Freddy Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100032,
+      "location_name": "Prize - Plushie: Springtrap Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100033,
+      "location_name": "Prize - Plushie: Toy Freddy Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100034,
+      "location_name": "Prize - Plushie: Toy Bonnie Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100035,
+      "location_name": "Prize - Plushie: Toy Chica Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100036,
+      "location_name": "Prize - Plushie: Mangle Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100037,
+      "location_name": "Prize - Plushie: BB Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100038,
+      "location_name": "Prize - Plushie: JJ Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100039,
+      "location_name": "Prize - Plushie: Puppet Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100040,
+      "location_name": "Prize - Plushie: Plushtrap Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100041,
+      "location_name": "Prize - Plushie: Nightmare Freddy Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100042,
+      "location_name": "Prize - Plushie: Nightmare Bonnie Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100043,
+      "location_name": "Prize - Plushie: Nightmare Chica Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100044,
+      "location_name": "Prize - Plushie: Nightmare Fredbear Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100045,
+      "location_name": "Prize - Plushie: Nightmarionne Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100046,
+      "location_name": "Prize - Plushie: Helpy Plush",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100047,
+      "location_name": "Prize - Plushie: Plushbaby",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100048,
+      "location_name": "Prize - Plushie: Plushbaby (Scrap Baby ver.)",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100049,
+      "location_name": "Prize - Plushie: Funtime Foxy",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100050,
+      "location_name": "Prize - Plushie: Funtime Freddy",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100051,
+      "location_name": "Prize - Action Figure: Freddy Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100052,
+      "location_name": "Prize - Action Figure: Bonnie Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100053,
+      "location_name": "Prize - Action Figure: Chica Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100054,
+      "location_name": "Prize - Action Figure: Foxy Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100055,
+      "location_name": "Prize - Action Figure: Golden Freddy Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100056,
+      "location_name": "Prize - Action Figure: Springtrap Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100057,
+      "location_name": "Prize - Action Figure: Toy Freddy Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100058,
+      "location_name": "Prize - Action Figure: Toy Bonnie Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100059,
+      "location_name": "Prize - Action Figure: Toy Chica Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100060,
+      "location_name": "Prize - Action Figure: Mangle Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100061,
+      "location_name": "Prize - Action Figure: Puppet Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100062,
+      "location_name": "Prize - Action Figure: Circus Baby Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100063,
+      "location_name": "Prize - Action Figure: Ballora Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100064,
+      "location_name": "Prize - Action Figure: Funtime Freddy Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100065,
+      "location_name": "Prize - Action Figure: Funtime Foxy Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100066,
+      "location_name": "Prize - Action Figure: Ennard Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100067,
+      "location_name": "Prize - Action Figure: Balloon Boy Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100068,
+      "location_name": "Prize - Action Figure: Plushtrap Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100069,
+      "location_name": "Prize - Action Figure: Nightmarionne Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100070,
+      "location_name": "Prize - Action Figure: Nightmare Fredbear Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100071,
+      "location_name": "Prize - Action Figure: Bon-Bon Action Figure",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100072,
+      "location_name": "Prize - Other: Exotic Butters",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100073,
+      "location_name": "Prize - Other: Mr. Cupcake",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100074,
+      "location_name": "Prize - Other: Pizza Slice",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100075,
+      "location_name": "Prize - Other: Faz Soda",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100076,
+      "location_name": "Prize - Other: Bon-Bon Hand Puppet",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100077,
+      "location_name": "Prize - Other: Mini Music Box",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100078,
+      "location_name": "Prize - Other: Candy Bucket",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100079,
+      "location_name": "Prize - Other: Freddy Bobblehead",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100080,
+      "location_name": "Prize - Other: Bonnie Bobblehead",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100081,
+      "location_name": "Prize - Other: Chica Bobblehead",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100082,
+      "location_name": "Prize - Other: Foxy Bobblehead",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100083,
+      "location_name": "Prize - Other: Nightmarionne Bobblehead",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100084,
+      "location_name": "Prize - Other: Mystery Box",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100085,
+      "location_name": "Prize - Other: Prize Counter Poster",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100086,
+      "location_name": "Prize - Food/Drink: Disappointment Chips",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100087,
+      "location_name": "Prize - Food/Drink: El Chip's Tortilla Chips Bold and Spicy",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100088,
+      "location_name": "Prize - Food/Drink: Meat Bites XL",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100089,
+      "location_name": "Prize - Food/Drink: Bonnie Bites",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100090,
+      "location_name": "Prize - Food/Drink: Allergy Friendly Mixed Nuts",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100091,
+      "location_name": "Prize - Food/Drink: Meat Bites",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100092,
+      "location_name": "Prize - Food/Drink: Stick of Butter",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100093,
+      "location_name": "Prize - Food/Drink: Pirate Plunderbar",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100094,
+      "location_name": "Prize - Food/Drink: Foxy Cove Cooler",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100095,
+      "location_name": "Prize - Food/Drink: Butter for One",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100096,
+      "location_name": "Prize - Food/Drink: Freddy Fudgebar",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100097,
+      "location_name": "Prize - Food/Drink: Exotic Beverage",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100098,
+      "location_name": "Prize - Food/Drink: Sodaroni",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100099,
+      "location_name": "Prize - Food/Drink: Chica Chug",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100100,
+      "location_name": "Prize - Food/Drink: El Chip's Tortilla Chips",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100101,
+      "location_name": "Prize - Food/Drink: Fazbar",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100102,
+      "location_name": "Prize - Food/Drink: Lemon Chica Bar",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100103,
+      "location_name": "Prize - Food/Drink: Slice of Cake",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100104,
+      "location_name": "Prize - Toy: Cupcake",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100105,
+      "location_name": "Prize - Toy: Toy phone",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100106,
+      "location_name": "Prize - Toy: Toy Catterpillar",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    },
+    {
+      "location_id": 101100107,
+      "location_name": "Prize - Toy: Toy Robot",
+      "primary_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AwardRandomPrize",
+      "special_hook": "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:AttemptAwardSpecialPrize"
+    }
+  ],
+  "hub_goals": [
+    {
+      "location_id": 101100001,
+      "location_name": "Collect All Hub Trophies"
+    },
+    {
+      "location_id": 101100002,
+      "location_name": "Complete Pizza Party"
+    },
+    {
+      "location_id": 101100003,
+      "location_name": "Complete Normal Ending"
+    },
+    {
+      "location_id": 101100004,
+      "location_name": "Goal - Complete All Minigames and Nights"
+    },
+    {
+      "location_id": 101100005,
+      "location_name": "Goal - Complete All Minigames and Nights (Hard Mode)"
+    },
+    {
+      "location_id": 101100006,
+      "location_name": "Goal - Glitchtrap Ending (You Die)"
+    },
+    {
+      "location_id": 101100007,
+      "location_name": "Goal - Glitchtrap Ending (You Do Not Die)"
+    },
+    {
+      "location_id": 101100008,
+      "location_name": "Goal - 100 Percent"
+    },
+    {
+      "location_id": 101100009,
+      "location_name": "Goal - Faz Token and Tape Quota"
+    }
+  ],
+  "row_id_to_location": {
+    "0": {
+      "id": 101100166,
+      "name": "Complete Dark Rooms - Plushtrap"
+    },
+    "1": {
+      "id": 101100168,
+      "name": "Complete Dark Rooms - Nightmare BB"
+    },
+    "2": {
+      "id": 101100167,
+      "name": "Complete Dark Rooms - Plushbaby"
+    },
+    "3": {
+      "id": 101100169,
+      "name": "Complete Dark Rooms - Funtime Foxy"
+    },
+    "4": {
+      "id": 101100138,
+      "name": "Beat FNAF 1 - Night 1"
+    },
+    "5": {
+      "id": 101100139,
+      "name": "Beat FNAF 1 - Night 2"
+    },
+    "6": {
+      "id": 101100140,
+      "name": "Beat FNAF 1 - Night 3"
+    },
+    "7": {
+      "id": 101100141,
+      "name": "Beat FNAF 1 - Night 4"
+    },
+    "8": {
+      "id": 101100142,
+      "name": "Beat FNAF 1 - Night 5 (Hard)"
+    },
+    "9": {
+      "id": 101100143,
+      "name": "Beat FNAF 2 - Night 1"
+    },
+    "10": {
+      "id": 101100144,
+      "name": "Beat FNAF 2 - Night 2"
+    },
+    "11": {
+      "id": 101100145,
+      "name": "Beat FNAF 2 - Night 3"
+    },
+    "12": {
+      "id": 101100146,
+      "name": "Beat FNAF 2 - Night 4"
+    },
+    "13": {
+      "id": 101100147,
+      "name": "Beat FNAF 2 - Night 5 (Hard)"
+    },
+    "14": {
+      "id": 101100149,
+      "name": "Beat FNAF 3 - Night 1"
+    },
+    "15": {
+      "id": 101100150,
+      "name": "Beat FNAF 3 - Night 2"
+    },
+    "16": {
+      "id": 101100151,
+      "name": "Beat FNAF 3 - Night 3"
+    },
+    "17": {
+      "id": 101100152,
+      "name": "Beat FNAF 3 - Night 4"
+    },
+    "18": {
+      "id": 101100153,
+      "name": "Beat FNAF 3 - Night 5 (Hard)"
+    },
+    "19": {
+      "id": 101100154,
+      "name": "Complete Parts and Service - Bonnie"
+    },
+    "20": {
+      "id": 101100155,
+      "name": "Complete Parts and Service - Chica"
+    },
+    "21": {
+      "id": 101100156,
+      "name": "Complete Parts and Service - Freddy"
+    },
+    "22": {
+      "id": 101100157,
+      "name": "Complete Parts and Service - Foxy"
+    },
+    "23": {
+      "id": 101100162,
+      "name": "Complete Vent Repair - Mangle"
+    },
+    "24": {
+      "id": 101100163,
+      "name": "Complete Vent Repair - Ennard"
+    },
+    "25": {
+      "id": 101100175,
+      "name": "Complete Night Terrors - Funtime Freddy"
+    },
+    "26": {
+      "id": 101100177,
+      "name": "Complete Night Terrors - Nightmarionne"
+    },
+    "27": {
+      "id": 101100174,
+      "name": "Complete Night Terrors - Circus Baby"
+    },
+    "28": {
+      "id": 101100176,
+      "name": "Complete Night Terrors - Nightmare Fredbear"
+    },
+    "29": {
+      "id": 101100002,
+      "name": "Complete Pizza Party"
+    },
+    "30": {
+      "id": 101100170,
+      "name": "Complete Dark Rooms (Hard) - Plushtrap"
+    },
+    "31": {
+      "id": 101100171,
+      "name": "Complete Dark Rooms (Hard) - Nightmare BB"
+    },
+    "32": {
+      "id": 101100158,
+      "name": "Complete Parts and Service (Hard) - Bonnie"
+    },
+    "33": {
+      "id": 101100159,
+      "name": "Complete Parts and Service (Hard) - Chica"
+    },
+    "34": {
+      "id": 101100160,
+      "name": "Complete Parts and Service (Hard) - Freddy"
+    },
+    "35": {
+      "id": 101100161,
+      "name": "Complete Parts and Service (Hard) - Foxy"
+    },
+    "36": {
+      "id": 101100172,
+      "name": "Complete Dark Rooms (Hard) - Plushbaby"
+    },
+    "37": {
+      "id": 101100173,
+      "name": "Complete Dark Rooms (Hard) - Funtime Foxy"
+    },
+    "38": {
+      "id": 101100164,
+      "name": "Complete Vent Repair (Hard) - Mangle"
+    },
+    "39": {
+      "id": 101100165,
+      "name": "Complete Vent Repair (Hard) - Ennard"
+    },
+    "40": {
+      "id": 101100148,
+      "name": "Beat FNAF 2 - Withered"
+    }
+  },
+  "location_name_to_id": {
+    "Collect All Hub Trophies": 101100001,
+    "Complete Pizza Party": 101100002,
+    "Complete Normal Ending": 101100003,
+    "Goal - Complete All Minigames and Nights": 101100004,
+    "Goal - Complete All Minigames and Nights (Hard Mode)": 101100005,
+    "Goal - Glitchtrap Ending (You Die)": 101100006,
+    "Goal - Glitchtrap Ending (You Do Not Die)": 101100007,
+    "Goal - 100 Percent": 101100008,
+    "Goal - Faz Token and Tape Quota": 101100009,
+    "Collect Prize Counter Intro Tape": 101100010,
+    "Collect Glitch Tape 02": 101100011,
+    "Collect Glitch Tape 03": 101100012,
+    "Collect Glitch Tape 04": 101100013,
+    "Collect Glitch Tape 05": 101100014,
+    "Collect Glitch Tape 06": 101100015,
+    "Collect Glitch Tape 07": 101100016,
+    "Collect Glitch Tape 08": 101100017,
+    "Collect Glitch Tape 09": 101100018,
+    "Collect Glitch Tape 10": 101100019,
+    "Collect Glitch Tape 11": 101100020,
+    "Collect Glitch Tape 12": 101100021,
+    "Collect Glitch Tape 13": 101100022,
+    "Collect Glitch Tape 14": 101100023,
+    "Collect Glitch Tape 15": 101100024,
+    "Collect Glitch Tape 16": 101100025,
+    "Win Prize Counter Blackjack": 101100026,
+    "Prize - Plushie: Freddy Plush": 101100027,
+    "Prize - Plushie: Bonnie Plush": 101100028,
+    "Prize - Plushie: Chica Plush": 101100029,
+    "Prize - Plushie: Foxy Plush": 101100030,
+    "Prize - Plushie: Golden Freddy Plush": 101100031,
+    "Prize - Plushie: Springtrap Plush": 101100032,
+    "Prize - Plushie: Toy Freddy Plush": 101100033,
+    "Prize - Plushie: Toy Bonnie Plush": 101100034,
+    "Prize - Plushie: Toy Chica Plush": 101100035,
+    "Prize - Plushie: Mangle Plush": 101100036,
+    "Prize - Plushie: BB Plush": 101100037,
+    "Prize - Plushie: JJ Plush": 101100038,
+    "Prize - Plushie: Puppet Plush": 101100039,
+    "Prize - Plushie: Plushtrap Plush": 101100040,
+    "Prize - Plushie: Nightmare Freddy Plush": 101100041,
+    "Prize - Plushie: Nightmare Bonnie Plush": 101100042,
+    "Prize - Plushie: Nightmare Chica Plush": 101100043,
+    "Prize - Plushie: Nightmare Fredbear Plush": 101100044,
+    "Prize - Plushie: Nightmarionne Plush": 101100045,
+    "Prize - Plushie: Helpy Plush": 101100046,
+    "Prize - Plushie: Plushbaby": 101100047,
+    "Prize - Plushie: Plushbaby (Scrap Baby ver.)": 101100048,
+    "Prize - Plushie: Funtime Foxy": 101100049,
+    "Prize - Plushie: Funtime Freddy": 101100050,
+    "Prize - Action Figure: Freddy Action Figure": 101100051,
+    "Prize - Action Figure: Bonnie Action Figure": 101100052,
+    "Prize - Action Figure: Chica Action Figure": 101100053,
+    "Prize - Action Figure: Foxy Action Figure": 101100054,
+    "Prize - Action Figure: Golden Freddy Action Figure": 101100055,
+    "Prize - Action Figure: Springtrap Action Figure": 101100056,
+    "Prize - Action Figure: Toy Freddy Action Figure": 101100057,
+    "Prize - Action Figure: Toy Bonnie Action Figure": 101100058,
+    "Prize - Action Figure: Toy Chica Action Figure": 101100059,
+    "Prize - Action Figure: Mangle Action Figure": 101100060,
+    "Prize - Action Figure: Puppet Action Figure": 101100061,
+    "Prize - Action Figure: Circus Baby Action Figure": 101100062,
+    "Prize - Action Figure: Ballora Action Figure": 101100063,
+    "Prize - Action Figure: Funtime Freddy Action Figure": 101100064,
+    "Prize - Action Figure: Funtime Foxy Action Figure": 101100065,
+    "Prize - Action Figure: Ennard Action Figure": 101100066,
+    "Prize - Action Figure: Balloon Boy Action Figure": 101100067,
+    "Prize - Action Figure: Plushtrap Action Figure": 101100068,
+    "Prize - Action Figure: Nightmarionne Action Figure": 101100069,
+    "Prize - Action Figure: Nightmare Fredbear Action Figure": 101100070,
+    "Prize - Action Figure: Bon-Bon Action Figure": 101100071,
+    "Prize - Other: Exotic Butters": 101100072,
+    "Prize - Other: Mr. Cupcake": 101100073,
+    "Prize - Other: Pizza Slice": 101100074,
+    "Prize - Other: Faz Soda": 101100075,
+    "Prize - Other: Bon-Bon Hand Puppet": 101100076,
+    "Prize - Other: Mini Music Box": 101100077,
+    "Prize - Other: Candy Bucket": 101100078,
+    "Prize - Other: Freddy Bobblehead": 101100079,
+    "Prize - Other: Bonnie Bobblehead": 101100080,
+    "Prize - Other: Chica Bobblehead": 101100081,
+    "Prize - Other: Foxy Bobblehead": 101100082,
+    "Prize - Other: Nightmarionne Bobblehead": 101100083,
+    "Prize - Other: Mystery Box": 101100084,
+    "Prize - Other: Prize Counter Poster": 101100085,
+    "Prize - Food/Drink: Disappointment Chips": 101100086,
+    "Prize - Food/Drink: El Chip's Tortilla Chips Bold and Spicy": 101100087,
+    "Prize - Food/Drink: Meat Bites XL": 101100088,
+    "Prize - Food/Drink: Bonnie Bites": 101100089,
+    "Prize - Food/Drink: Allergy Friendly Mixed Nuts": 101100090,
+    "Prize - Food/Drink: Meat Bites": 101100091,
+    "Prize - Food/Drink: Stick of Butter": 101100092,
+    "Prize - Food/Drink: Pirate Plunderbar": 101100093,
+    "Prize - Food/Drink: Foxy Cove Cooler": 101100094,
+    "Prize - Food/Drink: Butter for One": 101100095,
+    "Prize - Food/Drink: Freddy Fudgebar": 101100096,
+    "Prize - Food/Drink: Exotic Beverage": 101100097,
+    "Prize - Food/Drink: Sodaroni": 101100098,
+    "Prize - Food/Drink: Chica Chug": 101100099,
+    "Prize - Food/Drink: El Chip's Tortilla Chips": 101100100,
+    "Prize - Food/Drink: Fazbar": 101100101,
+    "Prize - Food/Drink: Lemon Chica Bar": 101100102,
+    "Prize - Food/Drink: Slice of Cake": 101100103,
+    "Prize - Toy: Cupcake": 101100104,
+    "Prize - Toy: Toy phone": 101100105,
+    "Prize - Toy: Toy Catterpillar": 101100106,
+    "Prize - Toy: Toy Robot": 101100107,
+    "Collect Faz Token 01": 101100108,
+    "Collect Faz Token 02": 101100109,
+    "Collect Faz Token 03": 101100110,
+    "Collect Faz Token 04": 101100111,
+    "Collect Faz Token 05": 101100112,
+    "Collect Faz Token 06": 101100113,
+    "Collect Faz Token 07": 101100114,
+    "Collect Faz Token 08": 101100115,
+    "Collect Faz Token 09": 101100116,
+    "Collect Faz Token 10": 101100117,
+    "Collect Faz Token 11": 101100118,
+    "Collect Faz Token 12": 101100119,
+    "Collect Faz Token 13": 101100120,
+    "Collect Faz Token 14": 101100121,
+    "Collect Faz Token 15": 101100122,
+    "Collect Faz Token 16": 101100123,
+    "Collect Faz Token 17": 101100124,
+    "Collect Faz Token 18": 101100125,
+    "Collect Faz Token 19": 101100126,
+    "Collect Faz Token 20": 101100127,
+    "Collect Faz Token 21": 101100128,
+    "Collect Faz Token 22": 101100129,
+    "Collect Faz Token 23": 101100130,
+    "Collect Faz Token 24": 101100131,
+    "Collect Faz Token 25": 101100132,
+    "Collect Faz Token 26": 101100133,
+    "Collect Faz Token 27": 101100134,
+    "Collect Faz Token 28": 101100135,
+    "Collect Faz Token 29": 101100136,
+    "Collect Faz Token 30": 101100137,
+    "Beat FNAF 1 - Night 1": 101100138,
+    "Beat FNAF 1 - Night 2": 101100139,
+    "Beat FNAF 1 - Night 3": 101100140,
+    "Beat FNAF 1 - Night 4": 101100141,
+    "Beat FNAF 1 - Night 5 (Hard)": 101100142,
+    "Beat FNAF 2 - Night 1": 101100143,
+    "Beat FNAF 2 - Night 2": 101100144,
+    "Beat FNAF 2 - Night 3": 101100145,
+    "Beat FNAF 2 - Night 4": 101100146,
+    "Beat FNAF 2 - Night 5 (Hard)": 101100147,
+    "Beat FNAF 2 - Withered": 101100148,
+    "Beat FNAF 3 - Night 1": 101100149,
+    "Beat FNAF 3 - Night 2": 101100150,
+    "Beat FNAF 3 - Night 3": 101100151,
+    "Beat FNAF 3 - Night 4": 101100152,
+    "Beat FNAF 3 - Night 5 (Hard)": 101100153,
+    "Complete Parts and Service - Bonnie": 101100154,
+    "Complete Parts and Service - Chica": 101100155,
+    "Complete Parts and Service - Freddy": 101100156,
+    "Complete Parts and Service - Foxy": 101100157,
+    "Complete Parts and Service (Hard) - Bonnie": 101100158,
+    "Complete Parts and Service (Hard) - Chica": 101100159,
+    "Complete Parts and Service (Hard) - Freddy": 101100160,
+    "Complete Parts and Service (Hard) - Foxy": 101100161,
+    "Complete Vent Repair - Mangle": 101100162,
+    "Complete Vent Repair - Ennard": 101100163,
+    "Complete Vent Repair (Hard) - Mangle": 101100164,
+    "Complete Vent Repair (Hard) - Ennard": 101100165,
+    "Complete Dark Rooms - Plushtrap": 101100166,
+    "Complete Dark Rooms - Plushbaby": 101100167,
+    "Complete Dark Rooms - Nightmare BB": 101100168,
+    "Complete Dark Rooms - Funtime Foxy": 101100169,
+    "Complete Dark Rooms (Hard) - Plushtrap": 101100170,
+    "Complete Dark Rooms (Hard) - Nightmare BB": 101100171,
+    "Complete Dark Rooms (Hard) - Plushbaby": 101100172,
+    "Complete Dark Rooms (Hard) - Funtime Foxy": 101100173,
+    "Complete Night Terrors - Circus Baby": 101100174,
+    "Complete Night Terrors - Funtime Freddy": 101100175,
+    "Complete Night Terrors - Nightmare Fredbear": 101100176,
+    "Complete Night Terrors - Nightmarionne": 101100177
+  },
+  "location_id_to_name": {
+    "101100001": "Collect All Hub Trophies",
+    "101100002": "Complete Pizza Party",
+    "101100003": "Complete Normal Ending",
+    "101100004": "Goal - Complete All Minigames and Nights",
+    "101100005": "Goal - Complete All Minigames and Nights (Hard Mode)",
+    "101100006": "Goal - Glitchtrap Ending (You Die)",
+    "101100007": "Goal - Glitchtrap Ending (You Do Not Die)",
+    "101100008": "Goal - 100 Percent",
+    "101100009": "Goal - Faz Token and Tape Quota",
+    "101100010": "Collect Prize Counter Intro Tape",
+    "101100011": "Collect Glitch Tape 02",
+    "101100012": "Collect Glitch Tape 03",
+    "101100013": "Collect Glitch Tape 04",
+    "101100014": "Collect Glitch Tape 05",
+    "101100015": "Collect Glitch Tape 06",
+    "101100016": "Collect Glitch Tape 07",
+    "101100017": "Collect Glitch Tape 08",
+    "101100018": "Collect Glitch Tape 09",
+    "101100019": "Collect Glitch Tape 10",
+    "101100020": "Collect Glitch Tape 11",
+    "101100021": "Collect Glitch Tape 12",
+    "101100022": "Collect Glitch Tape 13",
+    "101100023": "Collect Glitch Tape 14",
+    "101100024": "Collect Glitch Tape 15",
+    "101100025": "Collect Glitch Tape 16",
+    "101100026": "Win Prize Counter Blackjack",
+    "101100027": "Prize - Plushie: Freddy Plush",
+    "101100028": "Prize - Plushie: Bonnie Plush",
+    "101100029": "Prize - Plushie: Chica Plush",
+    "101100030": "Prize - Plushie: Foxy Plush",
+    "101100031": "Prize - Plushie: Golden Freddy Plush",
+    "101100032": "Prize - Plushie: Springtrap Plush",
+    "101100033": "Prize - Plushie: Toy Freddy Plush",
+    "101100034": "Prize - Plushie: Toy Bonnie Plush",
+    "101100035": "Prize - Plushie: Toy Chica Plush",
+    "101100036": "Prize - Plushie: Mangle Plush",
+    "101100037": "Prize - Plushie: BB Plush",
+    "101100038": "Prize - Plushie: JJ Plush",
+    "101100039": "Prize - Plushie: Puppet Plush",
+    "101100040": "Prize - Plushie: Plushtrap Plush",
+    "101100041": "Prize - Plushie: Nightmare Freddy Plush",
+    "101100042": "Prize - Plushie: Nightmare Bonnie Plush",
+    "101100043": "Prize - Plushie: Nightmare Chica Plush",
+    "101100044": "Prize - Plushie: Nightmare Fredbear Plush",
+    "101100045": "Prize - Plushie: Nightmarionne Plush",
+    "101100046": "Prize - Plushie: Helpy Plush",
+    "101100047": "Prize - Plushie: Plushbaby",
+    "101100048": "Prize - Plushie: Plushbaby (Scrap Baby ver.)",
+    "101100049": "Prize - Plushie: Funtime Foxy",
+    "101100050": "Prize - Plushie: Funtime Freddy",
+    "101100051": "Prize - Action Figure: Freddy Action Figure",
+    "101100052": "Prize - Action Figure: Bonnie Action Figure",
+    "101100053": "Prize - Action Figure: Chica Action Figure",
+    "101100054": "Prize - Action Figure: Foxy Action Figure",
+    "101100055": "Prize - Action Figure: Golden Freddy Action Figure",
+    "101100056": "Prize - Action Figure: Springtrap Action Figure",
+    "101100057": "Prize - Action Figure: Toy Freddy Action Figure",
+    "101100058": "Prize - Action Figure: Toy Bonnie Action Figure",
+    "101100059": "Prize - Action Figure: Toy Chica Action Figure",
+    "101100060": "Prize - Action Figure: Mangle Action Figure",
+    "101100061": "Prize - Action Figure: Puppet Action Figure",
+    "101100062": "Prize - Action Figure: Circus Baby Action Figure",
+    "101100063": "Prize - Action Figure: Ballora Action Figure",
+    "101100064": "Prize - Action Figure: Funtime Freddy Action Figure",
+    "101100065": "Prize - Action Figure: Funtime Foxy Action Figure",
+    "101100066": "Prize - Action Figure: Ennard Action Figure",
+    "101100067": "Prize - Action Figure: Balloon Boy Action Figure",
+    "101100068": "Prize - Action Figure: Plushtrap Action Figure",
+    "101100069": "Prize - Action Figure: Nightmarionne Action Figure",
+    "101100070": "Prize - Action Figure: Nightmare Fredbear Action Figure",
+    "101100071": "Prize - Action Figure: Bon-Bon Action Figure",
+    "101100072": "Prize - Other: Exotic Butters",
+    "101100073": "Prize - Other: Mr. Cupcake",
+    "101100074": "Prize - Other: Pizza Slice",
+    "101100075": "Prize - Other: Faz Soda",
+    "101100076": "Prize - Other: Bon-Bon Hand Puppet",
+    "101100077": "Prize - Other: Mini Music Box",
+    "101100078": "Prize - Other: Candy Bucket",
+    "101100079": "Prize - Other: Freddy Bobblehead",
+    "101100080": "Prize - Other: Bonnie Bobblehead",
+    "101100081": "Prize - Other: Chica Bobblehead",
+    "101100082": "Prize - Other: Foxy Bobblehead",
+    "101100083": "Prize - Other: Nightmarionne Bobblehead",
+    "101100084": "Prize - Other: Mystery Box",
+    "101100085": "Prize - Other: Prize Counter Poster",
+    "101100086": "Prize - Food/Drink: Disappointment Chips",
+    "101100087": "Prize - Food/Drink: El Chip's Tortilla Chips Bold and Spicy",
+    "101100088": "Prize - Food/Drink: Meat Bites XL",
+    "101100089": "Prize - Food/Drink: Bonnie Bites",
+    "101100090": "Prize - Food/Drink: Allergy Friendly Mixed Nuts",
+    "101100091": "Prize - Food/Drink: Meat Bites",
+    "101100092": "Prize - Food/Drink: Stick of Butter",
+    "101100093": "Prize - Food/Drink: Pirate Plunderbar",
+    "101100094": "Prize - Food/Drink: Foxy Cove Cooler",
+    "101100095": "Prize - Food/Drink: Butter for One",
+    "101100096": "Prize - Food/Drink: Freddy Fudgebar",
+    "101100097": "Prize - Food/Drink: Exotic Beverage",
+    "101100098": "Prize - Food/Drink: Sodaroni",
+    "101100099": "Prize - Food/Drink: Chica Chug",
+    "101100100": "Prize - Food/Drink: El Chip's Tortilla Chips",
+    "101100101": "Prize - Food/Drink: Fazbar",
+    "101100102": "Prize - Food/Drink: Lemon Chica Bar",
+    "101100103": "Prize - Food/Drink: Slice of Cake",
+    "101100104": "Prize - Toy: Cupcake",
+    "101100105": "Prize - Toy: Toy phone",
+    "101100106": "Prize - Toy: Toy Catterpillar",
+    "101100107": "Prize - Toy: Toy Robot",
+    "101100108": "Collect Faz Token 01",
+    "101100109": "Collect Faz Token 02",
+    "101100110": "Collect Faz Token 03",
+    "101100111": "Collect Faz Token 04",
+    "101100112": "Collect Faz Token 05",
+    "101100113": "Collect Faz Token 06",
+    "101100114": "Collect Faz Token 07",
+    "101100115": "Collect Faz Token 08",
+    "101100116": "Collect Faz Token 09",
+    "101100117": "Collect Faz Token 10",
+    "101100118": "Collect Faz Token 11",
+    "101100119": "Collect Faz Token 12",
+    "101100120": "Collect Faz Token 13",
+    "101100121": "Collect Faz Token 14",
+    "101100122": "Collect Faz Token 15",
+    "101100123": "Collect Faz Token 16",
+    "101100124": "Collect Faz Token 17",
+    "101100125": "Collect Faz Token 18",
+    "101100126": "Collect Faz Token 19",
+    "101100127": "Collect Faz Token 20",
+    "101100128": "Collect Faz Token 21",
+    "101100129": "Collect Faz Token 22",
+    "101100130": "Collect Faz Token 23",
+    "101100131": "Collect Faz Token 24",
+    "101100132": "Collect Faz Token 25",
+    "101100133": "Collect Faz Token 26",
+    "101100134": "Collect Faz Token 27",
+    "101100135": "Collect Faz Token 28",
+    "101100136": "Collect Faz Token 29",
+    "101100137": "Collect Faz Token 30",
+    "101100138": "Beat FNAF 1 - Night 1",
+    "101100139": "Beat FNAF 1 - Night 2",
+    "101100140": "Beat FNAF 1 - Night 3",
+    "101100141": "Beat FNAF 1 - Night 4",
+    "101100142": "Beat FNAF 1 - Night 5 (Hard)",
+    "101100143": "Beat FNAF 2 - Night 1",
+    "101100144": "Beat FNAF 2 - Night 2",
+    "101100145": "Beat FNAF 2 - Night 3",
+    "101100146": "Beat FNAF 2 - Night 4",
+    "101100147": "Beat FNAF 2 - Night 5 (Hard)",
+    "101100148": "Beat FNAF 2 - Withered",
+    "101100149": "Beat FNAF 3 - Night 1",
+    "101100150": "Beat FNAF 3 - Night 2",
+    "101100151": "Beat FNAF 3 - Night 3",
+    "101100152": "Beat FNAF 3 - Night 4",
+    "101100153": "Beat FNAF 3 - Night 5 (Hard)",
+    "101100154": "Complete Parts and Service - Bonnie",
+    "101100155": "Complete Parts and Service - Chica",
+    "101100156": "Complete Parts and Service - Freddy",
+    "101100157": "Complete Parts and Service - Foxy",
+    "101100158": "Complete Parts and Service (Hard) - Bonnie",
+    "101100159": "Complete Parts and Service (Hard) - Chica",
+    "101100160": "Complete Parts and Service (Hard) - Freddy",
+    "101100161": "Complete Parts and Service (Hard) - Foxy",
+    "101100162": "Complete Vent Repair - Mangle",
+    "101100163": "Complete Vent Repair - Ennard",
+    "101100164": "Complete Vent Repair (Hard) - Mangle",
+    "101100165": "Complete Vent Repair (Hard) - Ennard",
+    "101100166": "Complete Dark Rooms - Plushtrap",
+    "101100167": "Complete Dark Rooms - Plushbaby",
+    "101100168": "Complete Dark Rooms - Nightmare BB",
+    "101100169": "Complete Dark Rooms - Funtime Foxy",
+    "101100170": "Complete Dark Rooms (Hard) - Plushtrap",
+    "101100171": "Complete Dark Rooms (Hard) - Nightmare BB",
+    "101100172": "Complete Dark Rooms (Hard) - Plushbaby",
+    "101100173": "Complete Dark Rooms (Hard) - Funtime Foxy",
+    "101100174": "Complete Night Terrors - Circus Baby",
+    "101100175": "Complete Night Terrors - Funtime Freddy",
+    "101100176": "Complete Night Terrors - Nightmare Fredbear",
+    "101100177": "Complete Night Terrors - Nightmarionne"
+  }
+}

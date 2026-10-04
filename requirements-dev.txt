@@ -1,0 +1,3 @@
+# Everything the test suite needs (the standalone client needs only ap_client/requirements.txt).
+-r ap_client/requirements.txt
+lupa>=2.0   # runs the mod's Lua logic in the tests; those tests skip when it is missing

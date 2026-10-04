@@ -1,0 +1,4 @@
+[
+  { "source": "ap_client/bridge_core.py", "target": "bridge_core.py" },
+  { "source": "ap_client/save_reader.py", "target": "save_reader.py" }
+]

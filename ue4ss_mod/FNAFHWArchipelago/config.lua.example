@@ -1,0 +1,15 @@
+return {
+    -- Bridge directory path (where ap_inbox, ap_outbox, and connection profiles are stored)
+    -- NOTE: install-mod.ps1 writes this file for you (the bridge folder defaults to <this mod folder>/bridge).
+    -- If configuring manually, give an absolute path with forward slashes to an existing folder.
+    bridge_dir = "C:/path/to/the/bridge",
+
+    -- In-game UI toggle key (default F1)
+    ui_key = "F1",
+
+    -- Enable verbose debug logging in UE4SS console
+    debug_logging = true,
+
+    -- Developer tools (console commands ap_scan / ap_watch, read-only). Off by default.
+    -- enable_research_tools = true,
+}

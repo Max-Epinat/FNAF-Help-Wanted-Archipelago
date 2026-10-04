@@ -1,0 +1,117 @@
+# ==============================================================================
+# FNAF Help Wanted × Archipelago - .gitignore
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Python
+# ------------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python Build & Distribution
+build/
+dist/
+*.egg-info/
+*.egg
+eggs/
+.eggs/
+wheels/
+*.whl
+
+# Testing, Coverage & Linters
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+
+# ------------------------------------------------------------------------------
+# Archipelago releases and the local runtime bridge folder
+# ------------------------------------------------------------------------------
+*.apworld
+# Runtime files shared between the clients and the game mod (inbox, outbox, sessions, profile, locks).
+# Players get this folder inside the installed mod; on a developer machine it may live in the repo.
+bridge/
+*.lock
+
+# ------------------------------------------------------------------------------
+# Game Saves & Progression (Private user progression data - never commit)
+# ------------------------------------------------------------------------------
+*.sav
+*.sav.bak
+*.sav.tmp
+*.bak
+
+# ------------------------------------------------------------------------------
+# UE4SS Mod & Game Runtime Artifacts
+# ------------------------------------------------------------------------------
+# Local mod configuration (contains machine-specific paths; keep template tracked)
+ue4ss_mod/**/config.lua
+!ue4ss_mod/**/config.lua.example
+
+# UE4SS runtime logs and diagnostics
+UE4SS.log
+ap_name_dump.txt
+**/ap_name_dump.txt
+*.log
+*.dmp
+
+# Unreal Engine Assets & Packages (proprietary game assets)
+*.uasset
+*.uexp
+*.pak
+*.sig
+
+# ------------------------------------------------------------------------------
+# Scratch, Reverse-Engineering & Temporary Workspace
+# ------------------------------------------------------------------------------
+scratch/
+.agents/
+AGENTS.md
+all minigames.txt
+all rewards.txt
+
+# ------------------------------------------------------------------------------
+# Editors & IDEs
+# ------------------------------------------------------------------------------
+.vscode/
+.idea/
+.vs/
+*.swp
+*.swo
+*~
+
+# ------------------------------------------------------------------------------
+# Operating System Artifacts
+# ------------------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ------------------------------------------------------------------------------
+# Local AI / code-intelligence tooling (per developer)
+# ------------------------------------------------------------------------------
+.claude/
+CLAUDE.md
+PROMPT.txt
+.gitnexus/
+
+# Obsolete local client config from earlier versions (no longer read by anything)
+ap_client/config.json

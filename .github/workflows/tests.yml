@@ -1,0 +1,20 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    # The suite includes PowerShell installer and packaging tests, so it runs on Windows (where the project is used).
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run the test suite
+        # No game, no Archipelago and no save files are needed: saves are synthetic and Archipelago modules are stubbed.
+        run: python -m unittest discover -s tests -v
