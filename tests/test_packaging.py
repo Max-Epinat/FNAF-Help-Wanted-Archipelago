@@ -138,15 +138,31 @@ class TestYamlTemplate(unittest.TestCase):
         self.assertIn("the item alone unlocks the level", source)
 
 
+def short_temp_folder(parent: Path) -> Path:
+    """A temp folder given as an 8.3 short path (RUNNER~1 style), like on GitHub's Windows runners. Falls back to the plain path."""
+    import ctypes
+    long_dir = parent / "fnafhw a long temp folder name"
+    long_dir.mkdir(exist_ok=True)
+    buffer = ctypes.create_unicode_buffer(1024)
+    if ctypes.windll.kernel32.GetShortPathNameW(str(long_dir), buffer, 1024) and buffer.value:
+        return Path(buffer.value)
+    return long_dir
+
+
 @unittest.skipUnless(sys.platform == "win32", "release packaging is a PowerShell script")
 class TestReleasePackage(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        import os
         cls.out = Path(tempfile.mkdtemp(prefix="fnafhw_release_"))
+        # Seen on GitHub Actions: the build's temp folder was a short path while file names came back long, which cut entry names in
+        # the middle ("ge/fnaf_help_wanted/..."). Build the way the runner does, and with a compiled cache present in the world folder.
+        cls.short_temp = short_temp_folder(cls.out)
+        env = dict(os.environ, TEMP=str(cls.short_temp), TMP=str(cls.short_temp))
         result = subprocess.run(
             ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(project_root / "scripts" / "build-release.ps1"),
              "-OutputDir", str(cls.out)],
-            capture_output=True, text=True, encoding="utf-8", errors="replace")
+            capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
         cls.result = result
         zips = list(cls.out.glob("*.zip"))
         cls.zip_path = zips[0] if zips else None
@@ -190,6 +206,15 @@ class TestReleasePackage(unittest.TestCase):
             names = [i.orig_filename for i in z.infolist()]
         self.assertEqual([n for n in names if "\\" in n], [])
         self.assertIn("fnaf_help_wanted/__init__.py", names)
+
+    def test_the_apworld_has_only_clean_entries_even_with_a_short_temp_folder(self):
+        with zipfile.ZipFile(self.zip_path) as z:
+            apworld = [n for n in z.namelist() if n.endswith("fnaf_help_wanted.apworld")][0]
+            (Path(self.out) / "clean.apworld").write_bytes(z.read(apworld))
+        with zipfile.ZipFile(Path(self.out) / "clean.apworld") as z:
+            names = z.namelist()
+        self.assertTrue(all(n.startswith("fnaf_help_wanted/") for n in names), names)
+        self.assertEqual([n for n in names if "__pycache__" in n or n.endswith(".pyc")], [])
 
     def test_the_packaged_apworld_is_complete(self):
         with zipfile.ZipFile(self.zip_path) as z:

@@ -1,4 +1,4 @@
-"""Keep tests away from the real %LOCALAPPDATA%\freddys\Saved\SaveGames (the user's saves).
+"""Keep tests away from the real save folder under %LOCALAPPDATA% (freddys/Saved/SaveGames: the user's saves).
 
 APBridgeClient._on_connected archives and recreates Playerarchi.sav under LOCALAPPDATA, so any test
 that connects a client must redirect it first.

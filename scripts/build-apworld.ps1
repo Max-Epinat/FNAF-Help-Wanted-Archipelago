@@ -19,6 +19,10 @@ New-Item -ItemType Directory -Path $tempPackageRoot -Force | Out-Null
 
 Copy-Item -Path $sourceWorldDir -Destination (Join-Path $tempPackageRoot "fnaf_help_wanted") -Recurse -Force
 
+# Never ship compiled Python caches (they appear after any test run or import of the world).
+Get-ChildItem -Path $tempPackageRoot -Recurse -Force -Directory | Where-Object { $_.Name -eq "__pycache__" } |
+    ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
+
 # The launcher client reuses the transport-free client core and the save reader: they are copied into the package at
 # build time (single source of truth in ap_client/ and bridge/), listed in scripts/vendored_client_files.json.
 $vendoredList = Get-Content (Join-Path $PSScriptRoot "vendored_client_files.json") -Raw | ConvertFrom-Json

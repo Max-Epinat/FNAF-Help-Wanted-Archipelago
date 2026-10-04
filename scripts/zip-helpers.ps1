@@ -17,13 +17,24 @@ function New-StandardZip {
     $source = (Resolve-Path $SourceDir).Path.TrimEnd('\')
     $prefix = if ($IncludeBaseDirectory) { (Split-Path $source -Leaf) + "/" } else { "" }
 
+    # Entry names are built while walking the tree, never by cutting the source path off a file's FullName: on a CI runner the temp
+    # folder is given as an 8.3 short path (RUNNER~1) while FullName comes back long, and the cut then lands inside a name.
+    function Add-Directory {
+        param($Archive, [string]$Directory, [string]$EntryPrefix)
+        foreach ($item in Get-ChildItem -LiteralPath $Directory -Force) {
+            if ($item.PSIsContainer) {
+                Add-Directory -Archive $Archive -Directory $item.FullName -EntryPrefix ($EntryPrefix + $item.Name + "/")
+            }
+            else {
+                [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                    $Archive, $item.FullName, ($EntryPrefix + $item.Name), [System.IO.Compression.CompressionLevel]::Optimal)
+            }
+        }
+    }
+
     $archive = [System.IO.Compression.ZipFile]::Open($ZipPath, [System.IO.Compression.ZipArchiveMode]::Create)
     try {
-        Get-ChildItem -Path $source -Recurse -File -Force | ForEach-Object {
-            $relative = $_.FullName.Substring($source.Length + 1).Replace('\', '/')
-            [void][System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
-                $archive, $_.FullName, ($prefix + $relative), [System.IO.Compression.CompressionLevel]::Optimal)
-        }
+        Add-Directory -Archive $archive -Directory $source -EntryPrefix $prefix
     }
     finally {
         $archive.Dispose()
