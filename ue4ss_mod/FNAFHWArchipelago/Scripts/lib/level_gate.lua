@@ -143,7 +143,10 @@ local function describe(v)
     return tostring(v)
 end
 
-function LevelGate.init()
+-- params (optional): every(name, ms, fn) runs fn periodically on the game thread (fn returning true stops it); the default is LoopAsync.
+function LevelGate.init(params)
+    params = params or {}
+    local every = params.every or function(_, ms, fn) if LoopAsync then LoopAsync(ms, fn) end end
     -- item_authorized is derived from the server's received items (authoritative, replaced
     -- wholesale by every snapshot); debug_authorized holds manual console grants only.
     local state = {
@@ -251,12 +254,10 @@ function LevelGate.init()
         end
     end
 
-    if LoopAsync then
-        LoopAsync(1000, function()
-            pcall(try_hook)
-            return hooked
-        end)
-    end
+    every("level_gate_hook", 1000, function()
+        pcall(try_hook)
+        return hooked
+    end)
 
     if RegisterConsoleCommandHandler then
         local function arg1(a1)

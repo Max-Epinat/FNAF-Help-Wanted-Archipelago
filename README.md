@@ -7,8 +7,10 @@ Play the game's nights and minigames normally; what you *get* for them is decide
 
 ## What it does
 
-- **177 locations**: 40 levels (FNAF 1–3 nights, Parts & Service, Vent Repair, Dark Rooms, Night Terrors, including the hard versions),
-  30 Faz Tokens, 16 Glitch Tapes, 81 prizes, the Blackjack win, the hub trophies, Pizza Party, the normal ending, and 6 goals.
+- **153 locations**: 40 levels (FNAF 1–3 nights, Parts & Service, Vent Repair, Dark Rooms, Night Terrors, including the hard versions),
+  30 Faz Tokens, 16 Glitch Tapes, 57 prizes, the Blackjack win, the hub trophies, Pizza Party, the normal ending, and 6 goals.
+  (The game's list has 81 prizes, but 24 of them have no id in the save, so nothing could ever report them: they are not created.
+  Their location ids stay reserved. Details in [docs/game-research.md](docs/game-research.md).)
 - **Level unlocks come from items.** In `per_section` mode one item unlocks a whole section; in `per_level` mode every level has its own
   item. An item unlocks its level on its own, even when the game's usual order (Night 1 before Night 2) would not allow it yet.
   Gameplay and check sending are untouched: the mod only decides what the game shows as unlocked.
@@ -60,6 +62,11 @@ Not finished or not verified yet:
 - **Pizza Party**: the mod never locks it, and the unlock rule of the game is not known, so the logic expects every level to be cleared first.
 - **Items without an in-game effect**: Glitch Tape, Prize Counter Key, Nightmare Mode License (effect unverified) and the traps only matter for logic today.
 - `hard_variants: separate` has been generated and tested but not played in a room. VR launch has not been tested (flat mode has).
+- **Crashes** (2026-10-04 analysis, [docs/game-research.md](docs/game-research.md#crashes)): the game's own crash a few seconds after launch is not
+  caused by the mod; just relaunch. A crash during play (about once an hour) was traced to the mod running UE4SS timers off the game thread and
+  decoding garbage strings. The fix is in, **HYPOTHESIS until it has survived long play sessions**. The log now has `[DIAG]` lines for that.
+- **Tape count**: the number of tapes shown in the tape area follows the Glitch Tape items you received (`derived_counters.lua`). **Verified in game with a forced value** (0 tapes in the save, forced 2 -> 2 tapes in the room); **verified with a real room**: one `!getitem Glitch Tape` gave a tape in the room. Not yet checked: several items, a reconnect, and which tapes are shown.
+- **The TV's 5/10/... coin prizes still follow the vanilla pickup**, not the Faz Token items you received. Open; needs a probe of the award path.
 
 Details and the running list: [docs/TODO.md](docs/TODO.md).
 
@@ -82,7 +89,7 @@ Architecture, protocol and research notes are in [docs/](docs/README.md).
 | `fnaf_help_wanted/` | The apworld: items, locations, options, rules, and the launcher client (`client.py`). |
 | `ap_client/` | The standalone client and the shared, transport-free core (`bridge_core.py`, `save_reader.py`). |
 | `ue4ss_mod/FNAFHWArchipelago/` | The UE4SS Lua mod. |
-| `scripts/` | Build, install and launch scripts. |
+| `scripts/` | Build, install and launch scripts, and `crash_report.py` (summarises a game crash dump for a bug report). |
 | `templates/` | The player yaml template. |
 | `tests/` | The test suite (no game or save files needed). |
 | `docs/` | Documentation. |

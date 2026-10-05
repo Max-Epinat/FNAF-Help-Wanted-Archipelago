@@ -150,6 +150,41 @@ PRIZE_CHECKS = (
     + [f"Prize - Toy: {name}" for name in TOY_PRIZES]
 )
 
+# Prize locations whose prize id is not in the client's save-id map (ap_client/save_reader.py DEFAULT_PRIZE_MAP), so no save the
+# client reads can ever report them: not even a 100 % save has them (its 66 prizes map to 57 locations; 9 ids have no location).
+# They stay in LOCATION_TABLE so every location id is unchanged (ids are append-only), but no region creates them: a location
+# that can never be checked would hold an item nobody can receive, and the fill may put a progression item there.
+# tests/test_world_gating.py keeps this set equal to "PRIZE_CHECKS minus the client's map". To bring one back, find its save
+# prize id (play, diff the Prizes list in Playerarchi.sav), add it to DEFAULT_PRIZE_MAP, and remove its name from here.
+UNDETECTABLE_PRIZE_CHECKS = frozenset({
+    "Prize - Plushie: Golden Freddy Plush",
+    "Prize - Plushie: Springtrap Plush",
+    "Prize - Plushie: Mangle Plush",
+    "Prize - Plushie: BB Plush",
+    "Prize - Plushie: JJ Plush",
+    "Prize - Plushie: Plushtrap Plush",
+    "Prize - Plushie: Nightmare Freddy Plush",
+    "Prize - Plushie: Nightmare Bonnie Plush",
+    "Prize - Plushie: Nightmare Chica Plush",
+    "Prize - Plushie: Nightmare Fredbear Plush",
+    "Prize - Action Figure: Golden Freddy Action Figure",
+    "Prize - Action Figure: Springtrap Action Figure",
+    "Prize - Action Figure: Ballora Action Figure",
+    "Prize - Other: Exotic Butters",
+    "Prize - Other: Mr. Cupcake",
+    "Prize - Other: Pizza Slice",
+    "Prize - Other: Faz Soda",
+    "Prize - Other: Bon-Bon Hand Puppet",
+    "Prize - Other: Mini Music Box",
+    "Prize - Other: Candy Bucket",
+    "Prize - Other: Foxy Bobblehead",
+    "Prize - Other: Nightmarionne Bobblehead",
+    "Prize - Other: Mystery Box",
+    "Prize - Other: Prize Counter Poster",
+})
+
+ACTIVE_PRIZE_CHECKS = [name for name in PRIZE_CHECKS if name not in UNDETECTABLE_PRIZE_CHECKS]
+
 FAZ_TOKEN_CHECKS = [f"Collect Faz Token {index:02d}" for index in range(1, 31)]
 
 GLITCH_TAPE_CHECKS = [
@@ -209,7 +244,7 @@ FULL_CLEAR_CHECKS = [
     "Win Prize Counter Blackjack",
     "Complete Pizza Party",
     "Complete Normal Ending",
-    *PRIZE_CHECKS,
+    *ACTIVE_PRIZE_CHECKS,
     *FAZ_TOKEN_CHECKS,
 ]
 
@@ -303,7 +338,13 @@ REGION_LOCATIONS = {
     ],
 }
 
+# Ids come from the FULL list above (never renumber); the regions of a multiworld only get the locations that can be detected.
 LOCATION_TABLE = _build_location_table(REGION_LOCATIONS)
+
+ACTIVE_REGION_LOCATIONS = {
+    region: [name for name in names if name not in UNDETECTABLE_PRIZE_CHECKS] for region, names in REGION_LOCATIONS.items()
+}
+ACTIVE_LOCATION_COUNT = sum(len(names) for names in ACTIVE_REGION_LOCATIONS.values())
 
 REGION_CONNECTIONS = {
     "Menu": ["Hub"],

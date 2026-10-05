@@ -77,8 +77,6 @@ ap_name_dump.txt
 # Scratch, Reverse-Engineering & Temporary Workspace
 # ------------------------------------------------------------------------------
 scratch/
-.agents/
-AGENTS.md
 all minigames.txt
 all rewards.txt
 
@@ -112,6 +110,9 @@ $RECYCLE.BIN/
 CLAUDE.md
 PROMPT.txt
 .gitnexus/
+.agents/
+AGENTS.md
+HANDOVER.md
 
 # Obsolete local client config from earlier versions (no longer read by anything)
 ap_client/config.json

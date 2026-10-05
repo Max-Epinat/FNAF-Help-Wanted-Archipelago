@@ -505,7 +505,7 @@ class DesktopGUI:
             try:
                 chk_count = len(self.client.state.checked_locations)
                 item_count = self.client.received_items_count
-                self.lbl_stats.config(text=f"Checks: {chk_count} / 177 | Items: {item_count}")
+                self.lbl_stats.config(text=f"Checks: {chk_count} / 153 | Items: {item_count}")
             except Exception:
                 pass
         self.root.after(0, _do_stats)

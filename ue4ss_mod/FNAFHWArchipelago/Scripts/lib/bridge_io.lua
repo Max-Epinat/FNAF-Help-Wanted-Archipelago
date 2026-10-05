@@ -196,6 +196,24 @@ return function(env)
         end
     end
 
+    -- Replay of the inbox at game launch. Every connect writes a self-contained block (CONNECTED, SESSION_SYNC, baseline,
+    -- confirmed checks, DEATH_LINK_MODE, gate table/items, APPLIED_ITEMS, RECEIVED_SNAPSHOT: see docs/bridge-protocol.md), and
+    -- SESSION_SYNC resets everything the blocks before it set. So only the last block (and what follows it) matters; replaying
+    -- the whole history (hundreds of snapshots after a few sessions) only made the mod do hundreds of pointless state changes in
+    -- the busiest second of startup. Returns the 1-based index of the first line to process (1 = all of them).
+    local function replay_start(lines)
+        local last_sync
+        for i = #lines, 1, -1 do
+            if lines[i]:sub(1, 12) == "SESSION_SYNC" then
+                last_sync = i
+                break
+            end
+        end
+        if not last_sync then return 1 end
+        if last_sync > 1 and lines[last_sync - 1] == "CONNECTED" then return last_sync - 1 end
+        return last_sync
+    end
+
     local inbox_position = 0
     local first_poll_done = false
     local function poll_inbox()
@@ -206,17 +224,34 @@ return function(env)
 
         -- the inbox is append-only and read from the start at every game launch: the first pass is history
         local is_replay = not first_poll_done
+        local size = f:seek("end")
+        if not is_replay and size == inbox_position then
+            f:close()
+            return
+        end
         first_poll_done = true
         f:seek("set", inbox_position)
+        local lines = {}
         for line in f:lines() do
             local trimmed = line:gsub("^%s+", ""):gsub("%s+$", "")
             if trimmed ~= "" then
-                handle_inbox_line(trimmed, is_replay)
+                lines[#lines + 1] = trimmed
             end
         end
-
         inbox_position = f:seek()
         f:close()
+
+        local first = 1
+        if is_replay then
+            first = replay_start(lines)
+            if first > 1 then
+                print(string.format("[SYNC] Inbox replay: skipped %d line(s) of older sessions, replaying the last connect (%d line(s))",
+                    first - 1, #lines - first + 1))
+            end
+        end
+        for i = first, #lines do
+            handle_inbox_line(lines[i], is_replay)
+        end
     end
 
     function APBridge.send_location_check(location_id)
@@ -268,6 +303,7 @@ return function(env)
         ensure_file = ensure_file,
         append_outbox = append_outbox,
         poll_inbox = poll_inbox,
+        replay_start = replay_start,
         APBridge = APBridge,
         loaded_checked_location_names = loaded_checked_location_names,
         baseline_location_names = baseline_location_names,

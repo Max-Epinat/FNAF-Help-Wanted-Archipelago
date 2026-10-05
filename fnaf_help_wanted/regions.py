@@ -1,6 +1,6 @@
 from BaseClasses import Region
 
-from .data import REGION_CONNECTIONS, REGION_LOCATIONS
+from .data import ACTIVE_REGION_LOCATIONS, REGION_CONNECTIONS
 from .locations import FNAFHWLocation, location_name_to_id
 
 
@@ -10,7 +10,7 @@ def create_regions(world) -> None:
 
     for region_name in REGION_CONNECTIONS:
         region = Region(region_name, player, multiworld)
-        for location_name in REGION_LOCATIONS.get(region_name, []):
+        for location_name in ACTIVE_REGION_LOCATIONS.get(region_name, []):
             location = FNAFHWLocation(
                 player,
                 location_name,

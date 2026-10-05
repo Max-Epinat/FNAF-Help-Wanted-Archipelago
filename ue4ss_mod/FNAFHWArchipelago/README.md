@@ -12,7 +12,7 @@ installs the mod, writes `config.lua` and creates the bridge folder.
 | Path | Purpose |
 | :--- | :--- |
 | `Scripts/main.lua` | Entry point: loads the libraries and wires the bridge callbacks. |
-| `Scripts/lib/` | Bridge I/O, event hooks, level gate, item sync, Faz Token count, DeathLink probe, connection panel, console commands. |
+| `Scripts/lib/` | Bridge I/O, game-thread timers and diagnostics (`game_thread.lua`), event hooks, level gate, item sync, Faz Token count, DeathLink, connection panel, console commands. |
 | `locations.json`, `Scripts/lib/locations_data.lua` | Generated from the world data (`scripts/generate_locations_*.py`). Do not edit by hand. |
 | `config.lua.example` | Shape of `config.lua`. The real `config.lua` is machine-specific and written by the installer. |
 

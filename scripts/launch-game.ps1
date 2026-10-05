@@ -4,7 +4,9 @@
 .DESCRIPTION
     1. Verifies UE4SS DLL placement (dwmapi.dll / UE4SS.dll).
     2. Syncs updated mod scripts and locations.json to the game Mods directory.
-    3. Spins up the Archipelago Desktop Client & Bridge.
+    3. Starts the Archipelago client: by default the launcher client ("FNAF Help Wanted Client", opened through the Archipelago launcher;
+       the current apworld is copied into Archipelago first, because the client is part of it). -Client Standalone starts the old
+       tkinter client (ap_client\main.py) instead, -Client None starts none.
     4. Prompts or launches the game in either Normal (Flat / Desktop) or VR mode.
 #>
 
@@ -13,6 +15,8 @@ param(
     [ValidateSet("Ask", "Normal", "VR", "Flat")][string]$Mode = "Ask",
     [switch]$Normal,
     [switch]$VR,
+    [ValidateSet("Launcher", "Standalone", "None")][string]$Client = "Launcher",
+    [string]$ArchipelagoDir = "C:\ProgramData\Archipelago",
     [switch]$HeadlessBridge
 )
 
@@ -90,11 +94,14 @@ Write-Host "      -> Game & UE4SS binaries verified at $effectiveGameRoot." -For
 
 # 2. Sync Mod files to Game Mods folder
 Write-Host "[2/4] Syncing latest mod scripts to game..." -ForegroundColor Yellow
-& (Join-Path $PSScriptRoot "install-mod.ps1") -GameRoot $effectiveGameRoot -BridgeDir (Join-Path $repoRoot "bridge") -SkipApworld
+# The launcher client is inside the apworld: install the current one. The standalone client runs from the repo and needs no apworld.
+$installArgs = @{ GameRoot = $effectiveGameRoot; BridgeDir = (Join-Path $repoRoot "bridge"); ArchipelagoDir = $ArchipelagoDir }
+if ($Client -ne "Launcher") { $installArgs["SkipApworld"] = $true }
+& (Join-Path $PSScriptRoot "install-mod.ps1") @installArgs
 Write-Host "      -> Mod files synchronized." -ForegroundColor Green
 
-# 3. Ensure Archipelago Desktop Client & Bridge is Running
-Write-Host "[3/4] Ensuring Archipelago client is running..." -ForegroundColor Yellow
+# 3. Start the Archipelago client (only one client may run at a time: they share bridge\ap_client.lock)
+Write-Host "[3/4] Starting the Archipelago client ($Client)..." -ForegroundColor Yellow
 
 $existingBridge = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
     Where-Object {
@@ -103,7 +110,21 @@ $existingBridge = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
         $_.CommandLine -match "ap_client[\\/]main\.py"
     }
 
-if ($existingBridge) {
+if ($Client -eq "None") {
+    Write-Host "      -> No client started (-Client None)." -ForegroundColor Yellow
+} elseif ($Client -eq "Launcher") {
+    $launcherExe = Join-Path $ArchipelagoDir "ArchipelagoLauncher.exe"
+    if ($existingBridge) {
+        Write-Warning "The old standalone client is running (PID $((($existingBridge | Select-Object -ExpandProperty ProcessId)) -join ', ')). Close it before using the launcher client: only one client may run."
+    }
+    if (Test-Path $launcherExe) {
+        # The component name selects "FNAF Help Wanted Client"; if this launcher ignores it, the launcher window still opens and you click it.
+        Start-Process -FilePath $launcherExe -ArgumentList '"FNAF Help Wanted Client"' -WorkingDirectory $ArchipelagoDir
+        Write-Host "      -> Opened the Archipelago launcher (FNAF Help Wanted Client)." -ForegroundColor Green
+    } else {
+        Write-Warning "ArchipelagoLauncher.exe not found in $ArchipelagoDir (use -ArchipelagoDir). Start 'FNAF Help Wanted Client' from your Archipelago launcher yourself."
+    }
+} elseif ($existingBridge) {
     $pids = ($existingBridge | Select-Object -ExpandProperty ProcessId) -join ", "
     Write-Host "      -> Archipelago client is already running (PID: $pids)." -ForegroundColor Green
 } else {
@@ -193,7 +214,11 @@ if ($targetMode -eq "Normal") {
 Write-Host "`n==========================================================" -ForegroundColor Cyan
 Write-Host "  Ready to Play!" -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "- Archipelago Client window is open on your desktop." -ForegroundColor White
-Write-Host "- Press [F1] in-game anytime to check status, connect, or bring the window to front." -ForegroundColor White
-Write-Host "- Console commands available: ap_connect, ap_disconnect, ap_status, ap_check_name." -ForegroundColor White
+if ($Client -eq "Launcher") {
+    Write-Host "- In the Archipelago launcher, connect 'FNAF Help Wanted Client' to your room (start it first if it did not open)." -ForegroundColor White
+} elseif ($Client -eq "Standalone") {
+    Write-Host "- Archipelago Client window is open on your desktop." -ForegroundColor White
+    Write-Host "- Press [F1] in-game anytime to check status, connect, or bring the window to front." -ForegroundColor White
+    Write-Host "- Console commands available: ap_connect, ap_disconnect, ap_status, ap_check_name." -ForegroundColor White
+}
 Write-Host "==========================================================" -ForegroundColor Cyan

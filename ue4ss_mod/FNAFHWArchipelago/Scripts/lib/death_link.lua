@@ -94,6 +94,7 @@ end
 -- params.now()              seconds, default os.time (injectable for tests)
 -- params.current_map()      name of the map the player is in ("" when unknown)
 -- params.game_instance()    the BP_FNAF_GameInstance_C object or nil
+-- params.every(name, ms, fn) run fn periodically on the game thread (fn returning true stops it), default LoopAsync
 -- params.on_game_thread(fn) run fn on the game thread (default ExecuteInGameThread, else immediately)
 -- params.later(ms, fn)      run fn after a delay (default ExecuteWithDelay, else immediately)
 function DeathLink.init(params)
@@ -106,6 +107,7 @@ function DeathLink.init(params)
         if ok and gi and gi:IsValid() then return gi end
         return nil
     end
+    local every = params.every or function(_, ms, fn) if LoopAsync then LoopAsync(ms, fn) end end
     local on_game_thread = params.on_game_thread or (ExecuteInGameThread and function(fn) ExecuteInGameThread(fn) end) or function(fn) fn() end
     local later = params.later or (ExecuteWithDelay and function(ms, fn) ExecuteWithDelay(ms, fn) end) or function(_, fn) fn() end
     local state = {
@@ -216,13 +218,11 @@ function DeathLink.init(params)
         return false
     end
 
-    if LoopAsync then
-        LoopAsync(1000, function()
-            local done = false
-            pcall(function() done = register_hook() end)
-            return done
-        end)
-    end
+    every("deathlink_hook", 1000, function()
+        local done = false
+        pcall(function() done = register_hook() end)
+        return done
+    end)
 
     -- ---- experiment commands (console) ---------------------------------------------------------------------------------
 
@@ -277,8 +277,8 @@ function DeathLink.init(params)
                 print("[DEATHLINK] refused: LevelDefeat is hooked and calling a hooked function crashed the game before. Run ap_dl_unhook first.")
                 return true
             end
-            local gi = FindFirstOf and FindFirstOf("BP_FNAF_GameInstance_C")
-            if not gi or not gi:IsValid() then
+            local gi = game_instance()
+            if not gi then
                 print("[DEATHLINK] no game instance yet")
                 return true
             end

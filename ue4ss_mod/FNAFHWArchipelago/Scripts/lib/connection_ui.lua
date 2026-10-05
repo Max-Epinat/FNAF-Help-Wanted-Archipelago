@@ -327,7 +327,7 @@ function ConnectionUI.init(params)
             end
 
             y = y + 8
-            draw_text(string.format("Locations Checked: %d / 177   |   Items Received: %d",
+            draw_text(string.format("Locations Checked: %d / 153   |   Items Received: %d",
                 ConnectionUI.checked_count, ConnectionUI.received_count), x, y, title_color, 1.1)
             y = y + line_height
 

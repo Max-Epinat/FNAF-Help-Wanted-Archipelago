@@ -159,7 +159,7 @@ class TestPlanInvariants(unittest.TestCase):
 
     def test_every_combination(self):
         base_quantity = sum(d.quantity for n, d in data.ITEM_TABLE.items() if n not in levels.MANAGED_ITEM_NAMES)
-        unfilled = len(data.LOCATION_TABLE) - 1  # goal location holds the locked Victory
+        unfilled = data.ACTIVE_LOCATION_COUNT - 1  # goal location holds the locked Victory; undetectable prizes are not created
         for mode, hard, start in ALL_COMBINATIONS:
             with self.subTest(mode=mode, hard=hard, start=start):
                 plan = levels.build_plan(mode, hard, start)
@@ -349,6 +349,69 @@ class TestWorldGlueSource(unittest.TestCase):
     def test_modules_parse(self):
         for name in ("__init__", "options", "rules", "items", "regions", "levels", "data"):
             ast.parse((WORLD_DIR / f"{name}.py").read_text(encoding="utf-8"))
+
+
+
+class TestUndetectablePrizes(unittest.TestCase):
+    """24 of the 81 prize locations have no save prize id, so nothing can ever report them: they are not created in a multiworld,
+    but their ids stay (location ids are append-only)."""
+
+    def setUp(self):
+        from ap_client.save_reader import DEFAULT_PRIZE_MAP
+        self.detectable = set(DEFAULT_PRIZE_MAP.values())
+
+    def test_the_undetectable_set_is_exactly_the_prizes_the_client_cannot_map(self):
+        self.assertEqual(set(data.UNDETECTABLE_PRIZE_CHECKS), set(data.PRIZE_CHECKS) - self.detectable)
+        self.assertEqual(len(data.UNDETECTABLE_PRIZE_CHECKS), 24)
+        self.assertEqual(len(data.ACTIVE_PRIZE_CHECKS), 57)
+
+    def test_every_prize_location_a_multiworld_creates_can_be_detected(self):
+        created = {name for names in data.ACTIVE_REGION_LOCATIONS.values() for name in names}
+        self.assertEqual(created & set(data.PRIZE_CHECKS), set(data.ACTIVE_PRIZE_CHECKS))
+        self.assertLessEqual(set(data.ACTIVE_PRIZE_CHECKS), self.detectable)
+        self.assertFalse(created & set(data.UNDETECTABLE_PRIZE_CHECKS))
+
+    def test_nothing_but_those_prizes_is_left_out(self):
+        every = {name for names in data.REGION_LOCATIONS.values() for name in names}
+        created = {name for names in data.ACTIVE_REGION_LOCATIONS.values() for name in names}
+        self.assertEqual(every - created, set(data.UNDETECTABLE_PRIZE_CHECKS))
+        self.assertEqual(data.ACTIVE_LOCATION_COUNT, len(created))
+        self.assertEqual(data.ACTIVE_LOCATION_COUNT, 153)
+        # no region lost its other locations or its order
+        for region, names in data.REGION_LOCATIONS.items():
+            self.assertEqual(data.ACTIVE_REGION_LOCATIONS[region], [n for n in names if n not in data.UNDETECTABLE_PRIZE_CHECKS])
+
+    def test_location_ids_never_move(self):
+        """Append-only: the full table keeps every id, including the left-out prizes and everything after them."""
+        table = data.LOCATION_TABLE
+        self.assertEqual(len(table), 177)
+        pinned = {
+            "Collect All Hub Trophies": 1, "Collect Prize Counter Intro Tape": 10, "Win Prize Counter Blackjack": 26,
+            "Prize - Plushie: Freddy Plush": 27, "Prize - Plushie: Golden Freddy Plush": 31, "Prize - Other: Mystery Box": 84,
+            "Prize - Toy: Toy Robot": 107, "Collect Faz Token 01": 108, "Beat FNAF 1 - Night 1": 138,
+            "Complete Night Terrors - Nightmarionne": 177,
+        }
+        for name, code in pinned.items():
+            self.assertEqual(table[name].code, code, name)
+        self.assertEqual(sorted(entry.code for entry in table.values()), list(range(1, 178)))
+        for name in data.UNDETECTABLE_PRIZE_CHECKS:
+            self.assertIn(name, table)
+
+    def test_the_full_clear_goal_never_asks_for_a_location_that_does_not_exist(self):
+        created = {name for names in data.ACTIVE_REGION_LOCATIONS.values() for name in names}
+        self.assertLessEqual(set(data.FULL_CLEAR_CHECKS), created)
+        self.assertLessEqual(set(data.MINIGAME_AND_NIGHT_CHECKS), created)
+
+    def test_the_world_creates_regions_from_the_active_table(self):
+        regions = (WORLD_DIR / "regions.py").read_text(encoding="utf-8")
+        self.assertIn("ACTIVE_REGION_LOCATIONS", regions)
+        self.assertNotIn("REGION_LOCATIONS.get", regions.replace("ACTIVE_REGION_LOCATIONS.get", ""))
+
+    def test_the_location_counters_in_the_two_interfaces_match(self):
+        for path in ("ap_client/main.py", "ue4ss_mod/FNAFHWArchipelago/Scripts/lib/connection_ui.lua"):
+            text = (project_root / path).read_text(encoding="utf-8")
+            self.assertIn(f"/ {data.ACTIVE_LOCATION_COUNT}", text, path)
+            self.assertNotIn("/ 177", text, path)
 
 
 if __name__ == "__main__":

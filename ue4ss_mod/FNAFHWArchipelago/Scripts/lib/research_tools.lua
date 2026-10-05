@@ -1,12 +1,14 @@
 -- ==============================================================================
 -- Research tools (console only). They never change the game: they only LOOK and LOG.
 --
---   ap_class <class path>     list the functions and properties of ONE class (its parents up to the engine ones) into
+--   ap_class <class path>     list the functions (with a FLAGS line each) and properties of ONE class (its parents up to the engine ones) into
 --                             <mod folder>/ap_class_<name>.txt, e.g. ap_class /Game/ProductionAssets/Blueprints/JumpScare.JumpScare_C
---   ap_instances <ClassName>  list the live objects of one class (FindAllOf), e.g. ap_instances JumpScare_C
---   ap_hookclass <class path> log every call (log only) of every function the class itself declares (engine parents and noisy
---                             functions skipped). Lines look like "[WATCH] JumpScare_C:Jumpscare called (#1)".
---   ap_hookfn <function path> the same for one function, e.g. ap_hookfn /Game/.../BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:LevelDefeat
+--   ap_instances <ClassName> [max]  list the live objects of one class (FindAllOf, first `max`, default 150), e.g. ap_instances JumpScare_C
+--   ap_hookclass <class path> log every call (log only) of every function the class itself declares (engine parents, noisy and
+--                             unsafe functions skipped). Lines look like "[WATCH] JumpScare_C:Jumpscare called (#1) args=1 [IntProperty=4]"
+--                             (the first three calls also show how many parameters the hook received and their types and values).
+--   ap_hookfn <function path> [force]  the same for one function, e.g. ap_hookfn /Game/.../BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:LevelDefeat
+--                             Refuses the UNSAFE functions (see below) unless the second word is `force`.
 --   ap_scan <word> [max]      list every object in the game whose full name contains <word> (case-insensitive), functions included,
 --                             into <mod folder>/ap_scan_<word>.txt. WARNING: it walks ALL objects and froze the game for good in the hub
 --                             (2026-10-04); prefer ap_class / ap_instances.
@@ -24,6 +26,13 @@ Research.DEFAULT_SCAN_MAX = 400
 Research.DEFAULT_WATCH_MAX = 30
 -- functions that run constantly would drown the log and cost frame time
 Research.NOISY = { "tick", "timeline", "mouse", "hover", "blueprintupdateanimation", "receivedrawtick", "onpaint", "pre_construct" }
+
+-- Functions that must not be hooked, even log-only. Hooking BP_FNAF_GameInstance_C with ap_hookclass (2026-10-05) made UE4SS log
+-- "push_textproperty ... not supported" and "DelegateProperty not supported" and the screen stayed black when entering the tape
+-- area (FadeOut -> FadeOutWithLevelLoad -> ExecuteUbergraph -> LoadCasetteRoom had all been hooked). UE4SS cannot hand text and
+-- delegate parameters to Lua, and a hook on the level-loading / fade / latent-graph functions can break the flow they drive.
+-- Matched against the function NAME only (the part after the colon), case-insensitive.
+Research.UNSAFE = { "ubergraph", "fade", "load", "timer", "restart", "achievement", "instruction", "receiveinit", "spawnlevel", "caveat" }
 
 -- Pure: case-insensitive plain substring test.
 function Research.matches(text, keyword)
@@ -49,6 +58,54 @@ function Research.is_noisy(path)
         if lowered:find(word, 1, true) then return true end
     end
     return false
+end
+
+-- Pure: functions whose hook can break the game's flow (level loading, fades, latent graphs, text/delegate parameters).
+function Research.is_unsafe(path)
+    local name = tostring(path or ""):match(":([%w_]+)$") or tostring(path or "")
+    local lowered = name:lower()
+    for _, word in ipairs(Research.UNSAFE) do
+        if lowered:find(word, 1, true) then return true end
+    end
+    return false
+end
+
+-- Pure: EFunctionFlags (UE 4.23) as hex plus the names that matter when reading a signature. Only the hex is authoritative.
+Research.FUNCTION_FLAGS = {
+    { 0x400, "Native" }, { 0x800, "Event" }, { 0x2000, "Static" }, { 0x400000, "HasOutParms" },
+    { 0x4000000, "BlueprintCallable" }, { 0x8000000, "BlueprintEvent" }, { 0x10000000, "BlueprintPure" }, { 0x40000000, "Const" },
+}
+function Research.describe_flags(flags)
+    local n = tonumber(flags)
+    if not n then return "?" end
+    local names = {}
+    for _, entry in ipairs(Research.FUNCTION_FLAGS) do
+        if n % (entry[1] * 2) >= entry[1] then names[#names + 1] = entry[2] end
+    end
+    return string.format("0x%08X %s", n, table.concat(names, " "))
+end
+
+-- Pure: "args=2 [IntProperty=4, BoolProperty=true]" for the values a hook received (RemoteUnrealParam wrappers). Never raises:
+-- a value that cannot be read is shown as <unreadable>.
+function Research.describe_args(args, count)
+    local parts = {}
+    for i = 1, count do
+        local param = args[i]
+        local kind, value = "?", "<unreadable>"
+        if param ~= nil then
+            local okt, t = pcall(function() return param:type() end)
+            if okt and t ~= nil then kind = tostring(t) end
+            local okv, v = pcall(function() return param:get() end)
+            if okv and v ~= nil then
+                local oks, s = pcall(tostring, v)
+                value = oks and s or "<unprintable>"
+            end
+        else
+            value = "nil"
+        end
+        parts[#parts + 1] = kind .. "=" .. value
+    end
+    return string.format("args=%d [%s]", count, table.concat(parts, ", "))
 end
 
 -- Pure: a file-name-safe version of a search word.
@@ -147,6 +204,11 @@ function Research.init(params)
                 current:ForEachFunction(function(fn)
                     functions = functions + 1
                     lines[#lines + 1] = "  FUNCTION " .. full_name_of(fn)
+                    -- Lua's UFunction has only GetFunctionFlags (no ForEachProperty: that is UStruct), so the signature itself cannot be
+                    -- listed; ap_hookfn shows what a hook really receives. HasOutParms / Const / BlueprintPure help to read it.
+                    pcall(function()
+                        lines[#lines + 1] = "    FLAGS " .. Research.describe_flags(fn:GetFunctionFlags())
+                    end)
                 end)
             end)
             pcall(function()
@@ -168,9 +230,10 @@ function Research.init(params)
     end
 
     -- Live objects of one class by its short name ("JumpScare_C").
-    function Research.instances(class_name)
+    function Research.instances(class_name, max)
+        max = tonumber(max) or 150
         if not class_name or class_name == "" then
-            print("[RESEARCH] usage: ap_instances <ClassName>, e.g. ap_instances JumpScare_C")
+            print("[RESEARCH] usage: ap_instances <ClassName> [max], e.g. ap_instances JumpScare_C")
             return nil
         end
         if not find_all then
@@ -178,11 +241,21 @@ function Research.init(params)
             return nil
         end
         local ok, objects = pcall(find_all, class_name)
-        local names = {}
+        local names, total = {}, 0
         if ok and type(objects) == "table" then
-            for _, object in ipairs(objects) do names[#names + 1] = full_name_of(object) end
+            for _, object in ipairs(objects) do
+                total = total + 1
+                if #names < max then
+                    local line = full_name_of(object)
+                    -- the class path is what ap_class needs next
+                    local okc, class_name = pcall(function() return object:GetClass():GetFullName() end)
+                    if okc and class_name then line = line .. "   [class " .. tostring(class_name):gsub("^%S+%s+", "") .. "]" end
+                    names[#names + 1] = line
+                end
+            end
         end
-        print(string.format("[RESEARCH] %d live object(s) of %s", #names, class_name))
+        print(string.format("[RESEARCH] %d live object(s) of %s%s", total, class_name,
+            total > #names and string.format(" (showing the first %d)", #names) or ""))
         for _, name in ipairs(names) do print("[RESEARCH]   " .. name) end
         return names
     end
@@ -194,7 +267,13 @@ function Research.init(params)
             entry.count = entry.count + 1
             -- the first calls tell the story; after that only occasionally, so a busy function cannot flood the log
             if entry.count <= 3 or entry.count % 50 == 0 then
-                print(string.format("[WATCH] %s called (#%d)", Research.short_name(path), entry.count))
+                local detail = ""
+                if entry.count <= 3 then
+                    local args = { ... }
+                    local okd, text = pcall(Research.describe_args, args, select("#", ...))
+                    detail = okd and (" " .. text) or ""
+                end
+                print(string.format("[WATCH] %s called (#%d)%s", Research.short_name(path), entry.count, detail))
             end
         end)
         if not ok then return false end
@@ -204,9 +283,13 @@ function Research.init(params)
         return true
     end
 
-    function Research.hook_function(path)
+    function Research.hook_function(path, force)
         if not path or path == "" then
-            print("[RESEARCH] usage: ap_hookfn </Game/.../Class.Class_C:Function>")
+            print("[RESEARCH] usage: ap_hookfn </Game/.../Class.Class_C:Function> [force]")
+            return false
+        end
+        if Research.is_unsafe(path) and force ~= "force" then
+            print("[RESEARCH] refused: " .. path .. " drives level loading, fades or text/delegate parameters, and hooking such functions blacked out the screen. Add the word `force` to hook it anyway.")
             return false
         end
         local ok = hook_one(path)
@@ -234,16 +317,18 @@ function Research.init(params)
             end)
         end)
         table.sort(paths)
-        local added, skipped = 0, 0
+        local added, skipped, unsafe = 0, 0, 0
         for _, path in ipairs(paths) do
-            if Research.is_noisy(path) then
+            if Research.is_unsafe(path) then
+                unsafe = unsafe + 1
+            elseif Research.is_noisy(path) then
                 skipped = skipped + 1
             elseif added < max and hook_one(path) then
                 added = added + 1
             end
         end
-        print(string.format("[RESEARCH] watching %d function(s) of %s (%d noisy skipped). Do the action now, then read the [WATCH] lines.",
-            added, class_path, skipped))
+        print(string.format("[RESEARCH] watching %d function(s) of %s (%d noisy and %d unsafe skipped). Do the action now, then read the [WATCH] lines.",
+            added, class_path, skipped, unsafe))
         return added
     end
 
@@ -262,7 +347,7 @@ function Research.init(params)
         local added, skipped = 0, 0
         for _, full in ipairs(found) do
             local path = Research.function_hook_path(full)
-            if path and not Research.is_noisy(path) then
+            if path and not Research.is_noisy(path) and not Research.is_unsafe(path) then
                 if added < max and hook_one(path) then added = added + 1 end
             elseif path then
                 skipped = skipped + 1
@@ -305,7 +390,7 @@ function Research.init(params)
             return true
         end)
         RegisterConsoleCommandHandler("ap_instances", function(_, parameters)
-            Research.instances(arg(parameters, 1))
+            Research.instances(arg(parameters, 1), arg(parameters, 2))
             return true
         end)
         RegisterConsoleCommandHandler("ap_hookclass", function(_, parameters)
@@ -313,7 +398,7 @@ function Research.init(params)
             return true
         end)
         RegisterConsoleCommandHandler("ap_hookfn", function(_, parameters)
-            Research.hook_function(arg(parameters, 1))
+            Research.hook_function(arg(parameters, 1), arg(parameters, 2))
             return true
         end)
         RegisterConsoleCommandHandler("ap_watch", function(_, parameters)

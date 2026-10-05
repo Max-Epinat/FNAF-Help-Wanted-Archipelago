@@ -161,7 +161,8 @@ function ExactHooks.init(params)
         print(string.format("[FNAFHW AP] >>> CHECK EARNED: %s", location_name))
     end
 
-    local function get_game_instance()
+    -- main.lua passes lib/game_thread.lua's cached lookup (no object-array scan per call, none off the game thread)
+    local get_game_instance = params.game_instance or function()
         if not FindFirstOf then return nil end
         local ok, gi = pcall(FindFirstOf, "BP_FNAF_GameInstance_C")
         if ok and gi and gi:IsValid() then
@@ -220,76 +221,35 @@ function ExactHooks.init(params)
         return cleaned
     end
 
+    -- The name of the map the world is showing, "" when unknown. Cut out of World:GetFullName(), which returns a plain string
+    -- ("World /Game/.../NightGuard_Office01.NightGuard_Office01"). World:GetName(), GameplayStatics:GetCurrentLevelName and
+    -- GameInstance.CurrentLevelName come back as an FString that decodes to pointer garbage (seen in game: random wide characters in the Map= log field), and
+    -- Lua's FString:ToString on such a value is the access violation in the 2026-10-04 playtest crash dump. Never use them.
     local function get_current_map_name(gi)
-        local map_name = ""
-        pcall(function()
-            if gi and gi:IsValid() then
-                local world = gi:GetWorld()
-                if world and world:IsValid() then
-                    local wname = get_name_string(world:GetName())
-                    if wname ~= "" and not wname:find("^%s*$") then
-                        map_name = wname
-                    end
-                end
-            end
+        if not gi then return "" end
+        local ok, full = pcall(function()
+            if not gi:IsValid() then return "" end
+            local world = gi:GetWorld()
+            if world and world:IsValid() then return world:GetFullName() end
+            return ""
         end)
-        if map_name == "" or not map_name then
-            pcall(function()
-                local GameplayStatics = StaticFindObject("/Script/Engine.Default__GameplayStatics")
-                if GameplayStatics and GameplayStatics:IsValid() then
-                    local lvl = get_name_string(GameplayStatics:GetCurrentLevelName(gi, true))
-                    if lvl ~= "" then map_name = lvl end
-                end
-            end)
-        end
-        if map_name == "" or not map_name then
-            pcall(function()
-                if gi and gi.CurrentLevelName then
-                    local cln = get_name_string(gi.CurrentLevelName)
-                    if cln ~= "" then map_name = cln end
-                end
-            end)
-        end
-        -- Clean map name: strip path /Game/Maps/ or UEDPIE prefixes
-        if map_name and map_name ~= "" then
-            map_name = map_name:gsub("^UEDPIE_%d+_", "")
-            map_name = map_name:gsub(".+/", "")
-            map_name = map_name:gsub("%.%w+$", "")
-        end
-        return map_name
+        if not ok or not full then return "" end
+        return tostring(full):match("([%w_]+)%s*$") or ""
     end
 
+    -- Only COUNTS the prizes in the save (a diagnostic line when it changes). The elements are never decoded: the ids come back
+    -- as raw pointer strings (not the prize ids), and calling ToString on them is what crashed the game once an hour (UE4SS
+    -- dump, 2026-10-04: wcslen on a bogus FString pointer). Prize locations are sent by the client's save poll, which reads the
+    -- ids from the .sav file. Do not "fix" the decoding here: it would activate a second prize-check sender.
     local function check_and_award_prizes(gi, is_live)
         if not gi or not gi.SaveGameRef then return end
         local save = gi.SaveGameRef
         pcall(function()
             if save.Prizes and save.Prizes.ForEach then
                 local count = 0
-                local mapped = 0
-                save.Prizes:ForEach(function(arg1, arg2)
+                save.Prizes:ForEach(function()
                     count = count + 1
-                    local elem = arg2 ~= nil and arg2 or arg1
-                    local pid = get_name_string(elem)
-                    local prize_loc = prize_id_to_loc[pid]
-                    if prize_loc then
-                        mapped = mapped + 1
-                        local server_checked = emitted_location_names[prize_loc] or baseline_location_names[prize_loc]
-                        local action = (not server_checked) and "SEND" or "IGNORE"
-                        print(string.format("[ARCHI] Prize detected: PrizeID='%s' -> Location='%s', Action=%s",
-                            tostring(pid), prize_loc, action))
-                        if action == "SEND" then
-                            emit_check(prize_loc)
-                        end
-                    end
                 end)
-                -- This poll runs every 2 s. The ids it reads here come back as raw pointer strings (not
-                -- the prize ids), so nothing ever maps and the old per-prize log line was pure spam.
-                -- Prize locations are sent by the client's save poll, not by this path. Do not "fix" the
-                -- decoding without a plan: it would activate a second prize-check sender.
-                if count > 0 and mapped == 0 and not prize_poll_warned then
-                    prize_poll_warned = true
-                    print("[WARN] [ARCHI] Lua prize poll cannot decode prize ids; prize checks come from the client save poll")
-                end
                 if count ~= awarded_prizes_count then
                     print(string.format("[ARCHI] Save prize count changed: %d -> %d", awarded_prizes_count, count))
                 end
@@ -654,18 +614,8 @@ function ExactHooks.init(params)
     end
 
     -- Name of the map the player is in right now ("" when unknown), for modules that must only act inside a level.
-    -- World:GetName() gives an FString that decodes to pointer garbage here (seen in game, like the prize ids), so the name is cut
-    -- out of GetFullName(), which returns a plain string: "World /Game/.../NightGuard_Office01.NightGuard_Office01".
     function ExactHooks.current_map_name()
-        local gi = get_game_instance()
-        if not gi then return "" end
-        local ok, full = pcall(function()
-            local world = gi:GetWorld()
-            if world and world:IsValid() then return world:GetFullName() end
-            return ""
-        end)
-        if not ok or not full then return "" end
-        return tostring(full):match("([%w_]+)%s*$") or ""
+        return get_current_map_name(get_game_instance())
     end
 
     return ExactHooks

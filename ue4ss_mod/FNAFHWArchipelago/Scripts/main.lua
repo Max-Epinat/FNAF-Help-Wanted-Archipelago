@@ -75,12 +75,17 @@ print("[FNAFHW AP] Bridge Directory: " .. bridge_dir)
 local locations_data = dofile(mod_dir .. "/Scripts/lib/locations_data.lua")
 print(string.format("[FNAFHW AP] Loaded %d location mappings from locations_data.lua", locations_data.total_locations or 0))
 
+-- Game-thread timers and a cached game instance (see lib/game_thread.lua: LoopAsync callbacks run on a worker thread, and
+-- scanning the object array from there crashed the game). Every periodic job below goes through game_thread.every.
+local game_thread = dofile(mod_dir .. "/Scripts/lib/game_thread.lua").init()
+
 local processed_item_indexes = {}
 local emitted_location_names = {}
 local exact_hooks = nil
 local level_gate = nil
 local item_sync = nil
 local faz_tokens = nil
+local derived_counters = nil
 local death_link = nil
 
 -- ITEM lines are informational only now: item effects are applied exactly once from the server's
@@ -105,6 +110,7 @@ local bridge_io = bridge_io_builder({
         if level_gate then level_gate.on_session_sync(session_id) end
         if item_sync then item_sync.on_session_sync(session_id) end
         if faz_tokens then faz_tokens.on_session_sync(session_id) end
+        if derived_counters then derived_counters.on_session_sync(session_id) end
     end,
     on_gate_table = function(spec)
         if level_gate then level_gate.set_table(spec) end
@@ -116,6 +122,7 @@ local bridge_io = bridge_io_builder({
         if level_gate then level_gate.apply_items_snapshot(spec) end
         if item_sync then item_sync.on_snapshot(spec) end
         if faz_tokens then faz_tokens.on_snapshot(spec) end
+        if derived_counters then derived_counters.on_snapshot(spec) end
     end,
     on_applied_items = function(spec)
         if item_sync then item_sync.on_applied(spec) end
@@ -146,11 +153,12 @@ exact_hooks = exact_hooks_builder.init({
     emitted_location_names = emitted_location_names,
     baseline_location_names = bridge_io.baseline_location_names,
     mod_dir = mod_dir,
+    game_instance = game_thread.game_instance,
 })
 
 -- Archipelago authority over vanilla level unlocks (FNAF 1 Night 2 first)
 local level_gate_ok, level_gate_or_err = pcall(function()
-    return dofile(mod_dir .. "/Scripts/lib/level_gate.lua").init()
+    return dofile(mod_dir .. "/Scripts/lib/level_gate.lua").init({ every = game_thread.every })
 end)
 if level_gate_ok then
     level_gate = level_gate_or_err
@@ -161,6 +169,8 @@ end
 -- DeathLink (sends a death when a level is lost, applies incoming ones inside levels, see lib/death_link.lua)
 local death_link_ok, death_link_or_err = pcall(function()
     return dofile(mod_dir .. "/Scripts/lib/death_link.lua").init({
+        every = game_thread.every,
+        game_instance = game_thread.game_instance,
         send = function(cause) APBridge.send_deathlink(cause) end,
         current_map = function()
             if not exact_hooks or not exact_hooks.current_map_name then return "" end
@@ -189,12 +199,25 @@ end
 
 -- Faz Token effect: the in-game coin count follows the Faz Token items received (derived state)
 local faz_ok, faz_or_err = pcall(function()
-    return dofile(mod_dir .. "/Scripts/lib/faz_tokens.lua").init()
+    return dofile(mod_dir .. "/Scripts/lib/faz_tokens.lua").init({
+        every = game_thread.every,
+        game_instance = game_thread.game_instance,
+    })
 end)
 if faz_ok then
     faz_tokens = faz_or_err
 else
     print("[ERROR] Faz tokens failed to load: " .. tostring(faz_or_err))
+end
+
+-- Counters the game shows, derived from the items received (the tape count follows the Glitch Tape items), see lib/derived_counters.lua
+local counters_ok, counters_or_err = pcall(function()
+    return dofile(mod_dir .. "/Scripts/lib/derived_counters.lua").init({ every = game_thread.every })
+end)
+if counters_ok then
+    derived_counters = counters_or_err
+else
+    print("[ERROR] Derived counters failed to load: " .. tostring(counters_or_err))
 end
 
 -- One-shot item effects, applied exactly once per item from the server's list (see item_sync.lua)
@@ -268,6 +291,12 @@ if RegisterConsoleCommandHandler then
         return true
     end)
 
+    RegisterConsoleCommandHandler("ap_diag", function()
+        local map = exact_hooks and exact_hooks.current_map_name and exact_hooks.current_map_name() or ""
+        print(game_thread.stats(map))
+        return true
+    end)
+
     RegisterConsoleCommandHandler("ap_goal", function()
         APBridge.send_goal()
         print("[FNAFHW AP] Manual goal status sent")
@@ -289,42 +318,34 @@ if RegisterKeyBind and Key then
     end)
 end
 
--- Main Async Polling Loop (Checks inbox and checks safety net savegame state every 500ms)
-if LoopAsync then
-    LoopAsync(250, function()
-        pcall(function()
-            bridge_io.poll_inbox()
-        end)
-    end)
+-- Polling loops. They all run on the game thread (game_thread.every): the inbox every 250 ms, the savegame safety net every
+-- 2 s, item sync and the late hook registration every second. Errors are logged once per kind as "[ERROR] [LOOP] <name>: ...".
+game_thread.every("inbox", 250, function()
+    bridge_io.poll_inbox()
+end)
 
-    -- SaveGame Safety Net every 2000ms
-    LoopAsync(2000, function()
-        pcall(function()
-            if exact_hooks and exact_hooks.poll_savegame_state then
-                exact_hooks.poll_savegame_state()
-            end
-        end)
-    end)
+game_thread.every("savegame", 2000, function()
+    if exact_hooks and exact_hooks.poll_savegame_state then
+        exact_hooks.poll_savegame_state()
+    end
+end)
 
-    LoopAsync(1000, function()
-        pcall(function()
-            if item_sync then item_sync.tick() end
-        end)
-    end)
+game_thread.every("items", 1000, function()
+    if item_sync then item_sync.tick() end
+end)
 
-    print("[FNAFHW AP] Polling loops started.")
-end
+game_thread.every("hooks", 1000, function()
+    if exact_hooks and exact_hooks.try_register_all then
+        exact_hooks.try_register_all()
+    end
+end)
 
--- Safely register hooks on GameThread via LoopAsync
-if LoopAsync then
-    LoopAsync(1000, function()
-        pcall(function()
-            if exact_hooks and exact_hooks.try_register_all then
-                exact_hooks.try_register_all()
-            end
-        end)
-    end)
-end
+-- Map changes and a heartbeat line in the log ([DIAG]), to see what the game was doing before a crash. Console: ap_diag.
+game_thread.start_diagnostics(function()
+    return exact_hooks and exact_hooks.current_map_name and exact_hooks.current_map_name() or ""
+end)
+
+print("[FNAFHW AP] Polling loops started.")
 
 -- Notify bridge of mod presence
 APBridge.sync()

@@ -32,7 +32,17 @@ local function describe(v)
     return tostring(v)
 end
 
-function FazTokens.init()
+-- params (optional): every(name, ms, fn) runs fn periodically on the game thread (fn returning true stops it);
+-- game_instance() returns the cached BP_FNAF_GameInstance_C or nil. main.lua passes lib/game_thread.lua's; the defaults are
+-- the plain LoopAsync / FindFirstOf calls (used by the tests).
+function FazTokens.init(params)
+    params = params or {}
+    local every = params.every or function(_, ms, fn) if LoopAsync then LoopAsync(ms, fn) end end
+    local game_instance = params.game_instance or function()
+        local ok, gi = pcall(FindFirstOf, "BP_FNAF_GameInstance_C")
+        if ok and gi and gi:IsValid() then return gi end
+        return nil
+    end
     -- forced: debug override. items_count: Faz Token items in the server's list (nil until a snapshot).
     local state = { forced = nil, items_count = nil, session_id = nil, hooked = {}, logged = {}, calls = {} }
 
@@ -90,19 +100,17 @@ function FazTokens.init()
         return true
     end
 
-    if LoopAsync then
-        LoopAsync(1000, function()
-            for _, t in ipairs(TARGETS) do pcall(try_hook, t) end
-            return all_hooked()
-        end)
-    end
+    every("faz_hooks", 1000, function()
+        for _, t in ipairs(TARGETS) do pcall(try_hook, t) end
+        return all_hooked()
+    end)
 
     -- GameInstance.PlayerCoins is a plain IntProperty cache (verified readable, stale at 0 in the
     -- observed session). HYPOTHESIS under test: the prize counter compares it with Tokens_Needed_For_Unlock.
     local function write_cache(value)
         local ok, err = pcall(function()
-            local gi = FindFirstOf("BP_FNAF_GameInstance_C")
-            if not (gi and gi:IsValid()) then error("no game instance") end
+            local gi = game_instance()
+            if not gi then error("no game instance") end
             if state.original_cache == nil then state.original_cache = gi.PlayerCoins end
             if gi.PlayerCoins ~= value then
                 gi.PlayerCoins = value
@@ -157,13 +165,11 @@ function FazTokens.init()
     end
 
     -- Re-assert the cache: the game rewrites PlayerCoins when it refreshes its own cache.
-    if LoopAsync then
-        LoopAsync(1000, function()
-            local want = effective()
-            if want ~= nil then write_cache(want) end
-            return false
-        end)
-    end
+    every("faz_cache", 1000, function()
+        local want = effective()
+        if want ~= nil then write_cache(want) end
+        return false
+    end)
 
     function FazTokens.status()
         local parts = {}
@@ -173,8 +179,8 @@ function FazTokens.init()
         end
         local cached = "n/a"
         pcall(function()
-            local gi = FindFirstOf("BP_FNAF_GameInstance_C")
-            if gi and gi:IsValid() then cached = tostring(gi.PlayerCoins) end
+            local gi = game_instance()
+            if gi then cached = tostring(gi.PlayerCoins) end
         end)
         return string.format("forced=%s; items=%s; effective=%s; GameInstance.PlayerCoins=%s; %s",
             tostring(state.forced), tostring(state.items_count), tostring(effective()), cached,

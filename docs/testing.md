@@ -21,7 +21,8 @@
   | `test_scenarios.py`, `test_full_validation.py`, `test_server_authority.py` | Sessions, restarts, new seeds, server authority, save isolation. |
   | `test_clean_save.py` | Clean `Playerarchi.sav` generation from a completed template (also on a real `100percent.sav` when one is in the repo root). |
   | `test_world_gating.py` | Item codes, the level table against the generated row table, every option combination, rules as data, the `slot_data` round trip. |
-  | `test_lua_logic.py` | The mod's Lua logic run in a real Lua interpreter (`lupa`) with the game's functions stubbed: `death_link.lua` (decisions, the registered hook, the console experiment commands), `level_gate.lua`, `item_sync.lua`. Skipped without `lupa`. |
+  | `test_lua_logic.py` | The mod's Lua logic run in a real Lua interpreter (`lupa`) with the game's functions stubbed: `death_link.lua` (decisions, the registered hook, the console experiment commands), `level_gate.lua`, `item_sync.lua`, `game_thread.lua` (game-thread timers, cached game instance, diagnostics), `derived_counters.lua` (the tape count follows the items), the inbox replay collapse in `bridge_io.lua`, and the crash fixes in `exact_hooks.lua` (no prize id decoded, no `GetName`). Skipped without `lupa`. |
+  | `test_crash_report.py` | `scripts/crash_report.py` on synthetic minidumps (nothing from a real run). |
   | `test_installer.py` | `install-mod.ps1` against a fake game and a fake Archipelago (Windows only). |
   | `test_packaging.py` | The manifest, the yaml template kept in sync with the options, the release zip (contents, nothing private, standard zip entry names). |
 
@@ -46,6 +47,13 @@ real generator: install `dist/fnaf_help_wanted.apworld` into `C:\ProgramData\Arc
 empty folder and run `ArchipelagoGenerate.exe --player_files_path <dir> --outputpath <dir>` (add `--skip_output` for a fill-only
 check). The `slot_data` and precollected items can be read back from the `.archipelago` file inside the zip
 (zlib-compressed pickle after one version byte). Verified 2026-10-04 for per_section grouped/separate and per_level.
+
+Side effect to know: `test_packaging.py` runs `build-release.ps1`, which rebuilds `dist\fnaf_help_wanted.apworld` from the working tree on every
+run (only the zip goes to the test's temp folder). Do not upload `dist\*.apworld` after a test run as if it were an older release build.
+
+Generator check done on 2026-10-05 after dropping the undetectable prizes: the apworld in a trimmed copy of the Archipelago install (never the
+installed `custom_worlds`), six yaml variants (both unlock modes, both hard variants, five goals incl. `hundred_percent`), fill-only: all generate and
+fill 152 items for 153 locations.
 
 ## Fixtures: the suite is hermetic
 

@@ -18,6 +18,10 @@ AP server <-websocket-> client --<bridge>/ap_inbox.txt--> Lua mod (game)
   (`printf 'LINE\n' >> <bridge>/ap_inbox.txt`) or `Add-Content -Encoding ascii`.
 - `ap_inbox.txt` is **append-only and never truncated**, and the mod **re-reads it from the start on every game
   launch**. All state sent through it must therefore be safe to replay in order: the last line of each kind wins.
+  Since every connect writes a self-contained block (see "Order at every connect") and `SESSION_SYNC` resets what the earlier blocks set, the mod
+  replays **only the last block** (from the `CONNECTED` before the last `SESSION_SYNC` on) in that first pass and logs
+  `[SYNC] Inbox replay: skipped N line(s)`. Lines appended later are all delivered. A new line kind must keep working under this rule: anything
+  that has to survive a launch must be re-sent in every connect block.
 - `ap_outbox.txt` is read by the client from a persisted position (`outbox_position` in the session file).
 
 ## Client -> mod (`ap_inbox.txt`)

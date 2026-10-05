@@ -13,7 +13,7 @@ so the mod and the [bridge protocol](bridge-protocol.md) are unchanged.
 3. `/bridge` prints the bridge folder, the session and the counters.
 
 Use **either** this client **or** the standalone one, never both: they share `<bridge>/ap_client.lock` (the second one refuses to start and
-says why). The standalone client stays available (`scripts/start-client.bat`, `scripts/launch-game.bat`, developer helpers).
+says why). The standalone client stays available (`scripts/start-client.bat`, `scripts/launch-game.bat -Client Standalone`, developer helpers). `scripts/launch-game.bat` itself now installs the current apworld and opens the Archipelago launcher on "FNAF Help Wanted Client" (`-Client Launcher`, the default; `-ArchipelagoDir` if Archipelago is not in `C:\ProgramData\Archipelago`).
 
 ## How it finds the bridge folder
 
