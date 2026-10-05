@@ -52,6 +52,8 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
 
 ## Ideas
 
+- **Mod off switch** (done 2026-10-05): `archipelago_enabled = false` in `config.lua`, documented in the install guide (with the `mods.txt` way). Not done: `install-mod.ps1` rewrites `config.lua` and re-adds `FNAFHWArchipelago : 1`
+  to `mods.txt`, so an update turns the mod back on (preserve the line in the installer?), and an automatic switch when the client is closed (needs a client heartbeat; the mod cannot tell a closed client from a running one, and play on the normal save would queue false checks and never reach the room).
 - A `host.yaml` setting for the bridge folder, as an alternative to reading the mod's `config.lua`.
 - Packaging the UE4SS install (it is currently checked and linked, never bundled).
 - Retire the tkinter standalone client once the launcher client has been used for a while.

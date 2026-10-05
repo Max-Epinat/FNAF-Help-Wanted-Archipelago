@@ -12,4 +12,8 @@ return {
 
     -- Developer tools (console commands ap_scan / ap_watch, read-only). Off by default.
     -- enable_research_tools = true,
+
+    -- Play the normal game: uncomment to turn the whole mod off (vanilla game, your normal Player00.sav). Restart the game after changing it.
+    -- Re-running install-mod.ps1 rewrites this file, so add the line again after an update.
+    -- archipelago_enabled = false,
 }

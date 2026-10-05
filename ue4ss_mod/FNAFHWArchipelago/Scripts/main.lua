@@ -43,6 +43,14 @@ if file_exists(config_path) then
     end
 end
 
+-- `archipelago_enabled = false` in config.lua turns the whole mod off: no hooks, no timers, no console commands, no bridge files, no save redirect.
+-- The game then runs vanilla and reads its normal save (Player00.sav). Read once at launch: change it, then restart the game.
+-- Only the value `false` disables the mod; a missing key (or true) keeps it on.
+if user_config.archipelago_enabled == false then
+    print("[FNAFHW AP] archipelago_enabled = false in config.lua: the mod is OFF (nothing hooked, no save redirect, no bridge). Vanilla game, normal save.")
+    return
+end
+
 if not bridge_dir or bridge_dir == "" or not file_exists(bridge_dir .. "/locations.json") then
     -- Check common relative locations or fallback
     local fallback_candidates = {

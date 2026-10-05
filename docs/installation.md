@@ -61,6 +61,28 @@ Notes:
 - Each seed starts from a clean state: tapes, coins, prizes and hub progress are reset in the new file. Starting a new seed while your
   normal save is a *completed* one is verified by tests but not yet by a full in-game run; if tapes or hub items are missing, please report it.
 
+## Playing the normal game (turning the mod off)
+
+While the mod is installed it always uses the Archipelago save (`Playerarchi.sav`), even when no client is running, and it keeps the last session's items. To play the
+unmodified game on your normal save (`Player00.sav`), turn the mod off. Both ways are read when the game starts, so **restart the game** after changing them.
+
+- **Option 1, a line in the mod's config (recommended).** Open `...\Win64\Mods\FNAFHWArchipelago\config.lua` and add one line inside the braces:
+
+  ```lua
+  archipelago_enabled = false,
+  ```
+
+  The mod then does nothing: nothing is hooked, no checks are sent, the save is not redirected. The UE4SS log says `archipelago_enabled = false in config.lua: the mod is OFF`.
+  Remove the line (or set it to `true`) to play Archipelago again.
+- **Option 2, mods.txt.** In `...\Win64\Mods\mods.txt` change `FNAFHWArchipelago : 1` to `FNAFHWArchipelago : 0` (make sure no other line for it says `1`, and that the mod folder has no `enabled.txt`, which UE4SS also treats as "on").
+
+Notes:
+
+- **Updating turns the mod back on.** `install-mod.ps1` rewrites `config.lua` and adds `FNAFHWArchipelago : 1` to `mods.txt` when it is missing, so redo your choice after an update.
+- There is no automatic switch when the client is closed: the mod cannot tell a closed client from a running one, and play on the normal save would not count for the room.
+  Start the client and connect first, then the game, as in the steps above.
+- To go back to Archipelago, remove the line, start the client, connect, then start the game. Your Archipelago save and its progress were not touched.
+
 ## Troubleshooting
 
 | Message / symptom | Meaning and fix |

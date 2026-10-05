@@ -21,4 +21,6 @@ installs the mod, writes `config.lua` and creates the bridge folder.
 `config.lua` sets `bridge_dir` (where the mod and the client meet), the in-game panel key (`F1`) and debug logging. The Archipelago clients read the same
 file to find the bridge folder, so the mod stays the single source of truth.
 
+`archipelago_enabled = false` in `config.lua` turns the whole mod off (vanilla game, normal save); see "Playing the normal game" in `docs/installation.md`.
+
 See `docs/architecture.md` for how the pieces fit together.
