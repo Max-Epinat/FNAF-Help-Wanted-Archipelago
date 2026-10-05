@@ -42,7 +42,7 @@ Level, Faz Token, glitch tape and prize checks, per-section and per-level unlock
 ## Not verified yet, or known problems
 
 - `hard_variants: separate`, VR, the Pizza Party unlock rule, starting a new seed from a completed save.
-- 0.2.0 moved every timer of the mod onto the game thread. Level checks, DeathLink and reconnects were verified on 0.1.0 and have had only a short run on 0.2.0.
+- This release moved every timer of the mod onto the game thread. Level checks, DeathLink and reconnects were verified on 0.1.0; on 0.2.0 they have had only a short run.
 - **The TV's 5/10/... coin prizes still follow the coins you pick up**, not the Faz Token items you receive.
 - The game can crash **a few seconds after launch**. The crash dumps put that crash inside the game's own program, not in the mod's code: just relaunch.
 - The mid-play crash fix above is unproven.

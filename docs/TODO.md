@@ -19,7 +19,8 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
   would allow relaxing that rule.
 
 - **Tape count: the override works with a forced value and with a real item (VERIFIED in game 2026-10-05: `!getitem Glitch Tape` gave a tape in the room).** `GetGlitchCount` hands the hook no parameters, so `:set` was impossible; returning the value from the callback works (0 tapes in the save, `ap_counter_force tapes 2` -> 2 tapes in the room, `off` -> 0).
-  Still to check: the tape room shows exactly as many tapes as Glitch Tape items received with several items, with 0 at the start and after a reconnect, and which tapes it shows (the first N? the ones the save has?). Whether a tape picked up in a level should be visible in the room before its item arrives is a design question for later.
+  Offline, the whole chain (client -> inbox -> mod) is now covered for several items, reconnect, restarts, a new seed at 0 and tape checks (`tests/test_tape_count_flow.py`, 2026-10-05); that is not an in-game confirmation.
+  Still to check in game: the tape room shows exactly as many tapes as Glitch Tape items received with several items, with 0 at the start and after a reconnect, and which tapes it shows (the first N? the ones the save has?). Whether a tape picked up in a level should be visible in the room before its item arrives is a design question for later.
   History of the failed first attempt follows.
 - (history) **Tape count: NOT WORKING (tried 2026-10-05).** `lib/derived_counters.lua` hooks `FNAFSaveGame_C:GetGlitchCount`, but that function reaches the hook with no parameters (`extra_args=0`), so there is no return value to override and the tape area
   showed no change with `ap_counter_force tapes 2`. The engine in `derived_counters.lua` (item count -> override, session handling, console commands, tests) is fine and stays for other targets; the *target* is unknown.
@@ -39,7 +40,7 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
 - **The crash fix** (2026-10-05, HYPOTHESIS): play an hour or more, including level wins, map changes and a restart of the game with the client running. Expect `[DIAG] map:` lines, one
   `[DIAG] up=` line a minute, `gi_scans` staying at 1-2, no `[ERROR] [LOOP]`, `[SYNC] Inbox replay: skipped N line(s)` at launch and no more `PlayerCoins -> 30` flicker.
   After a crash copy `UE4SS.log` first, then run `python scripts/crash_report.py --win64 <Win64 folder>`.
-- A **new seed** from this version: it has 153 locations (57 prizes); the client counter reads `/ 153`.
+- A **new seed** from v0.2.0 on (published): it has 153 locations (57 prizes); the client counter reads `/ 153`.
 
 - `hard_variants: separate` in a real room (generator-verified only).
 - A new seed started while the normal save is a **completed** one: the clean-save generator resets tapes (collected and listened), coins, hub audio and
