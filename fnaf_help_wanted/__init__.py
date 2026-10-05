@@ -96,7 +96,6 @@ class FNAFHWWorld(World):
             "goal": self.options.goal.value,
             "required_tapes": self.options.required_tapes.value,
             "required_faz_tokens": self.options.required_faz_tokens.value,
-            "nightmare_logic": bool(self.options.nightmare_logic.value),
             "death_link": bool(self.options.death_link.value),
             "unlock_mode": self.options.unlock_mode.value,
             "hard_variants": self.options.hard_variants.value,

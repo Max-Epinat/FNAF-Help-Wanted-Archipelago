@@ -133,6 +133,16 @@ MANAGED_ITEM_NAMES = frozenset(SECTION_ITEM_NAMES) | frozenset(HARD_ITEM_CODES) 
 APPENDED_ITEM_CODES = {**HARD_ITEM_CODES, **LEVEL_ITEM_CODES}
 
 
+def may_hold_unlock_item(location_name: str) -> bool:
+    """Unlock items (section, hard and level items) may only sit on level-completion locations.
+
+    A level location needs exactly its own unlock item (VERIFIED in game), so the player can always get an unlock item from a level they already have.
+    Where a tape, a Faz Token or a prize physically is, is NOT modelled: an unlock item there could sit behind the very level it opens and the seed
+    could not be finished. Pizza Party, the hub locations and the goals are excluded too.
+    """
+    return location_name in LEVEL_BY_LOCATION
+
+
 def first_level(section_key: str) -> Level:
     """First level of a section = its normal level with the lowest LevelInfoTable row."""
     candidates = [lv for lv in LEVELS if lv.section == section_key and not lv.hard]

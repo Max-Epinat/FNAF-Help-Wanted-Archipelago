@@ -58,16 +58,35 @@ and the log line `[GAME] tapes observed (...): extra_args=0 vanilla=nil -> N (re
 
 The Archipelago modules are not importable in the dev venv, so the world glue (`__init__.py`, `rules.py`) is verified by the
 real generator: install `dist/fnaf_help_wanted.apworld` into `C:\ProgramData\Archipelago\custom_worlds`, put one yaml in an
-empty folder and run `ArchipelagoGenerate.exe --player_files_path <dir> --outputpath <dir>` (add `--skip_output` for a fill-only
-check). The `slot_data` and precollected items can be read back from the `.archipelago` file inside the zip
+empty folder and run `ArchipelagoGenerate.exe --player_files_path <dir> --outputpath <dir>` (**never add `--skip_output` for a beatability check**: it
+skips it, see below). The `slot_data` and precollected items can be read back from the `.archipelago` file inside the zip
 (zlib-compressed pickle after one version byte). Verified 2026-10-04 for per_section grouped/separate and per_level.
 
 Side effect to know: `test_packaging.py` runs `build-release.ps1`, which rebuilds `dist\fnaf_help_wanted.apworld` from the working tree on every
 run (only the zip goes to the test's temp folder). Do not upload `dist\*.apworld` after a test run as if it were an older release build.
 
 Generator check done on 2026-10-05 after dropping the undetectable prizes: the apworld in a trimmed copy of the Archipelago install (never the
-installed `custom_worlds`), six yaml variants (both unlock modes, both hard variants, five goals incl. `hundred_percent`), fill-only: all generate and
-fill 152 items for 153 locations.
+installed `custom_worlds`), six yaml variants, `--skip_output`: all fill 152 items for 153 locations. **That run proved less than it said:** with `--skip_output` the generator
+does not check that the game can be beaten. A deliberately unbeatable copy of the world (an impossible rule on the goal) also "passed" that way and only failed
+(`FillError: Game appears as unbeatable`, no zip) in a full run. Use a full run, in a scratch copy of Archipelago (`ArchipelagoGenerate.exe`, `lib`, `data`, `share`, the dlls and `host.yaml`; the built apworld alone in `custom_worlds`;
+stdin closed, the exe waits for Enter on a failure), and count a run as good only when the zip is written. The line `Could not access required locations for accessibility check. Missing: [...]` is a **warning** that lists locations the logic cannot reach.
+
+Full-run sweep of 2026-10-05 (6 goals x per_section grouped / separate x per_level, `accessibility` full on seed 1 and minimal on seeds 2-5, deterministic; run before the `nightmare_logic` option was removed, with it off, which is what the world does now):
+
+| Goal | Generates |
+| :--- | :--- |
+| `complete_all_minigames_nights` | yes |
+| `glitchtrap_ending_die`, `glitchtrap_ending_survive` | yes (they failed only with the since-removed `nightmare_logic` on) |
+| `complete_all_minigames_nights_hard_mode` | **never** |
+| `hundred_percent`, `token_tape_quota` | **never** |
+
+Cause (classification, unchanged since the first commit): the goal rules call `state.has("Nightmare Mode License")` and `state.has("Faz Token", n)`, but those items are `useful` / filler, and Archipelago only counts progression items in `state.has`, so the goal location can never be reached.
+These are loud generation failures, not stuck players. The shipped template (goal `complete_all_minigames_nights`) generates.
+
+**Unlock items on level locations only** (rule added 2026-10-05, `levels.may_hold_unlock_item`, applied in `rules.py`): before it, **27 of 27** seeds put at least one unlock item (about 14 per seed) on a tape, token, prize, trophy or blackjack location,
+where the real game may need the very level it unlocks. After it: **297 of 297** runs generated and 0 misplaced (default start, 108 runs on 12 seeds; each of the 7 starting sections, 189 runs; per_section grouped / separate and per_level;
+goals `complete_all_minigames_nights`, `glitchtrap_ending_die`, `glitchtrap_ending_survive`). Repeat it with `py scripts/generator_check.py` (run the tests first, they rebuild the apworld; it only reads your Archipelago install and checks every seed's spoiler).
+What this does NOT prove: that the tape / token / prize locations themselves are reachable in the real game (they may need levels; the unlock items are simply never placed there), or the Pizza Party unlock condition.
 
 ## Fixtures: the suite is hermetic
 

@@ -63,11 +63,6 @@ requires:
     full: 50
     minimal: 0
 
-  nightmare_logic:
-    # Require an extra progression check that represents non-casual routing.
-    'false': 50
-    'true': 0
-
   goal:
     # What counts as game completion for this world.
     complete_all_minigames_nights: 50

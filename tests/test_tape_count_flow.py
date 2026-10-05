@@ -103,6 +103,10 @@ class GameRun:
     def award_glitch(self, gid):
         self.lua.globals()["__hooks"][GI + "AwardGlitch"](None, str(gid))
 
+    def listen_glitch(self, gid):
+        """The player presses play on a tape in the tape room (the game calls SetGlitchListenedTo)."""
+        self.lua.globals()["__hooks"][GI + "SetGlitchListenedTo"](None, str(gid))
+
     def poll_save(self):
         self.hooks_api.poll_savegame_state()
 
@@ -409,6 +413,30 @@ class TestTapeChecksAlongsideTheCount(TapeFlowCase):
                 loc_id = core.location_name_to_id[self.LOCATION]
                 self.assertEqual(self.pump(core), [{"cmd": "LocationChecks", "locations": [loc_id]}])
                 self.assertEqual(game.room(), received)  # a pickup alone never changes what the room shows
+
+    def test_listening_to_a_tape_in_the_room_sends_no_check(self):
+        """Found in game 2026-10-05: with the count following the items, the room shows tapes the player never picked up, and playing one
+        sent its location check (TAPE #2 -> Collect Glitch Tape 03): every Glitch Tape item became a free check. Only a pickup counts."""
+        core, game = self.new_core(), self.new_game()
+        self.connect(core)
+        self.send(core, 0, [TAPE] * 11)
+        self.settle(core, game)
+        for gid in (1, 10, 5):
+            game.listen_glitch(gid)
+        self.assertEqual(self.pump(core), [])
+        self.assertEqual(game.room(), 11)
+        self.assertTrue(any("Tape listened to, no check sent: GlitchID=5" in line for line in game.log()), game.log())
+
+    def test_a_pickup_still_sends_its_check_after_the_tape_was_listened_to(self):
+        core, game = self.new_core(), self.new_game()
+        self.connect(core)
+        self.send(core, 0, [TAPE] * 7)
+        self.settle(core, game)
+        game.listen_glitch(5)  # played in the room first (no check) ...
+        self.assertEqual(self.pump(core), [])
+        game.award_glitch(5)  # ... then really picked up in a level
+        loc_id = core.location_name_to_id[self.LOCATION]
+        self.assertEqual(self.pump(core), [{"cmd": "LocationChecks", "locations": [loc_id]}])
 
     def test_the_tape_the_server_hands_back_raises_the_count_by_exactly_one(self):
         core, game = self.new_core(), self.new_game()

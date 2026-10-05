@@ -432,7 +432,10 @@ function ExactHooks.init(params)
         try_hook("/Game/ProductionAssets/Actors/GrabbableToken.GrabbableToken_C:AttemptGrab", on_coin_actor_grab)
         try_hook("/Game/ProductionAssets/Actors/GrabbableToken_InitiallyFrozen.GrabbableToken_InitiallyFrozen_C:AttemptGrab", on_coin_actor_grab)
 
-        -- 5. Hook Glitch Tape unlocks (both pickup and listen)
+        -- 5. Glitch Tape checks come from a real PICKUP only (AwardGlitch here, and the save's CollectedGlitches in the poll below / the client).
+        -- Playing a tape in the tape room (SetGlitchListenedTo) must NOT send a check: the room shows as many tapes as Glitch Tape ITEMS received
+        -- (derived_counters.lua), so the player can play tapes they never picked up, and each one was a free location check (found in game 2026-10-05:
+        -- TAPE #2 -> Collect Glitch Tape 03). In vanilla a played tape was always a picked-up one, so nothing is lost by ignoring it.
         local awarded_glitches = {}
         local function on_glitch_tape_collected(source_name, GlitchID)
             local gid = tonumber(get_name_string(GlitchID))
@@ -457,8 +460,9 @@ function ExactHooks.init(params)
             on_glitch_tape_collected("AwardGlitch", GlitchID)
         end)
 
+        -- log only: which tape the player played (a diagnostic, never a check)
         try_hook("/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SetGlitchListenedTo", function(self, GlitchID)
-            on_glitch_tape_collected("SetGlitchListenedTo", GlitchID)
+            print(string.format("[ARCHI] Tape listened to, no check sent: GlitchID=%s", tostring(get_name_string(GlitchID))))
         end)
 
         -- 6. Hook AwardRandomPrize and AttemptAwardSpecialPrize

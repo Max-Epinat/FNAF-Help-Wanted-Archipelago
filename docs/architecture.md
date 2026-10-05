@@ -39,7 +39,7 @@
 | :--- | :--- |
 | 40 levels, Pizza Party | `BP_FNAF_GameInstance_C:SaveLevelVictory(row)`, row from the game's `LevelInfoTable`; also read from the save by the client |
 | 30 Faz Tokens | `UnlockCoin` and `GrabbableToken_C:AttemptGrab` hooks |
-| 16 Glitch Tapes | `SetGlitchListenedTo` hook |
+| 16 Glitch Tapes | `AwardGlitch` hook (a real pickup) and the client's poll of `CollectedGlitches`. Playing a tape in the tape room (`SetGlitchListenedTo`) is only logged: the room shows tapes the player never picked up, and a check per played tape was a free check |
 | 57 prizes | The client's save poll, which reads the prize ids from the .sav file. The mod only counts the prizes in the save: it never decodes their ids (that crashed the game). 24 more prizes of the game's list have no save id and are not locations |
 
 The client also polls `Playerarchi.sav` (at most once a second, when it changed), so a check missed by a hook is still found. A live check and a

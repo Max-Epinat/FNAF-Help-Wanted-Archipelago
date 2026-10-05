@@ -1,6 +1,6 @@
 [project]
 name = "fnaf-help-wanted-archipelago"
-version = "0.2.0"
+version = "0.3.0"
 description = "Archipelago multiworld integration for Five Nights at Freddy's: Help Wanted (apworld, launcher client, standalone client and UE4SS mod)"
 readme = "README.md"
 requires-python = ">=3.10"

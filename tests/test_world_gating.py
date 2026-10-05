@@ -352,6 +352,76 @@ class TestWorldGlueSource(unittest.TestCase):
 
 
 
+class TestUnlockItemsOnlyOnLevelLocations(unittest.TestCase):
+    """The fill must never put a level's unlock item where the player can only get it by being inside a gated level.
+
+    Only level locations are gated in the logic (each needs its own unlock item, VERIFIED in game). Where a tape, a Faz Token or a prize physically is
+    is not modelled, so an unlock item on one of those could sit behind the very level it unlocks and the seed could not be finished. Keeping the
+    unlock items on level-completion locations makes every unlock item obtainable by playing levels the player already has.
+    (Found with the real generator: before this rule every seed put unlock items on tapes, tokens, prizes, the trophies or the blackjack win.)
+    """
+
+    OPTIONS = [(mode, hard, section) for mode in (levels.UNLOCK_PER_SECTION, levels.UNLOCK_PER_LEVEL)
+               for hard in (levels.HARD_GROUPED, levels.HARD_SEPARATE) for section in levels.SECTION_BY_KEY]
+
+    def test_only_the_forty_level_locations_may_hold_unlock_items(self):
+        level_locations = {level.location for level in levels.LEVELS}
+        self.assertEqual(len(level_locations), 40)
+        for names in data.ACTIVE_REGION_LOCATIONS.values():
+            for name in names:
+                self.assertEqual(levels.may_hold_unlock_item(name), name in level_locations, name)
+        for name in (levels.PIZZA_PARTY_LOCATION, "Collect Glitch Tape 02", "Collect Faz Token 01", "Win Prize Counter Blackjack",
+                     "Collect All Hub Trophies", "Collect Prize Counter Intro Tape"):
+            self.assertFalse(levels.may_hold_unlock_item(name), name)
+
+    def test_every_item_a_plan_hands_out_is_restricted(self):
+        for options in self.OPTIONS:
+            plan = levels.build_plan(*options)
+            self.assertLessEqual(set(plan.pool_items) | set(plan.start_items), set(levels.MANAGED_ITEM_NAMES), options)
+
+    def test_there_is_always_room_for_every_unlock_item(self):
+        """Each unlock item needs its own level location, and never the one it opens (that location requires it). A perfect matching must exist."""
+        for options in self.OPTIONS:
+            plan = levels.build_plan(*options)
+            items = list(plan.pool_items)
+            spots = {item: [loc for loc, needed in plan.location_items.items()
+                            if loc != levels.PIZZA_PARTY_LOCATION and item not in needed] for item in items}
+            owner = {}
+
+            def place(item, seen):
+                for loc in spots[item]:
+                    if loc in seen:
+                        continue
+                    seen.add(loc)
+                    if loc not in owner or place(owner[loc], seen):
+                        owner[loc] = item
+                        return True
+                return False
+
+            unplaced = [item for item in items if not place(item, set())]
+            self.assertEqual(unplaced, [], options)
+
+    def test_rules_py_applies_the_restriction(self):
+        rules = (WORLD_DIR / "rules.py").read_text(encoding="utf-8")
+        for needle in ("add_item_rule", "may_hold_unlock_item", "MANAGED_ITEM_NAMES"):
+            self.assertIn(needle, rules)
+
+
+class TestNightmareLogicIsGone(unittest.TestCase):
+    """`nightmare_logic` was an invented extra requirement (the Nightmare Mode License is not a progression item, so a goal that needed it could never be generated)."""
+
+    def test_the_option_the_slot_data_and_the_template_no_longer_have_it(self):
+        for path in ("options.py", "__init__.py"):
+            self.assertNotIn("nightmare_logic", (WORLD_DIR / path).read_text(encoding="utf-8"), path)
+        self.assertNotIn("nightmare_logic", (project_root / "templates" / "Five Nights at Freddy's Help Wanted.yaml").read_text(encoding="utf-8"))
+        self.assertNotIn("nightmare_logic", (project_root / "README.md").read_text(encoding="utf-8"))
+
+    def test_only_the_hard_mode_goal_still_asks_for_the_license(self):
+        """Still true today and still a generation failure (the item is `useful`, not progression): see docs/TODO.md, "Logic to check"."""
+        rules = (WORLD_DIR / "rules.py").read_text(encoding="utf-8")
+        self.assertEqual(rules.count("Nightmare Mode License"), 1)
+
+
 class TestUndetectablePrizes(unittest.TestCase):
     """24 of the 81 prize locations have no save prize id, so nothing can ever report them: they are not created in a multiworld,
     but their ids stay (location ids are append-only)."""

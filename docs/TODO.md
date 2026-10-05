@@ -35,6 +35,22 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
   pickup should still show a tape the player has not "received" yet (the check is sent either way).
 - **Find the ids of the 24 dropped prize locations** (see "Prizes" in [game-research.md](game-research.md)); every id found can be switched back on.
 
+## Changes since v0.2.0 (for the next release notes)
+
+- `archipelago_enabled = false` in `config.lua` turns the mod off (play the normal game); documented in the install guide.
+- **Unlock items are only placed on level-completion locations** (new seeds from the new apworld; rooms already generated keep their placements). Before, every seed put about 14 unlock items on tapes, tokens, prizes and similar locations, which could make a seed unfinishable if the real pickup is behind that level. Checked with 297 real-generator runs (`scripts/generator_check.py`).
+- Playing a tape in the tape room no longer sends a location check (it did, because the room shows tapes by item count: every Glitch Tape item was a free check). Only a real pickup counts. In-game confirmation pending.
+
+## Logic to check
+
+- **Done 2026-10-05: unlock items only on level-completion locations**, so a tape, token or prize that is physically inside a gated level can never hold that level's unlock item (before: every seed did that, about 14 per seed). 297 real-generator runs, 0 misplaced; see docs/testing.md.
+  Still open: where tapes, tokens and prizes really are (they have no access rule, which only matters now for the other progression items: Glitch Tapes, Prize Counter Key, Nightmare Mode License, all needed only for goals), and the Pizza Party unlock condition.
+- **Three of the six goals cannot be generated** (full generator run, 2026-10-05, deterministic): `complete_all_minigames_nights_hard_mode`, `hundred_percent` and `token_tape_quota` always fail with `Game appears as unbeatable`, (the Glitchtrap goals failed only with the `nightmare_logic` option, removed on 2026-10-05: it was an invented extra requirement for the Nightmare Mode License).
+  Cause: the rules need `Nightmare Mode License` (classified `useful`) and `Faz Token` copies (not progression), which Archipelago does not count. Fix (a world change, needs a decision): make the 30 base Faz Tokens and the License progression (keep the filler Faz Tokens filler), then re-run the sweep in docs/testing.md. Until then hide or warn about those goals in the template.
+- The earlier "generator verified" runs used `--skip_output` and never checked beatability (see docs/testing.md).
+- **Tape and Faz Token locations have no access rule in the world** (`Prize Counter` and `Faz Tokens` regions connect from the Hub with no requirement; only levels are gated). If a tape or token is physically inside a gated level, a seed can put that level's
+  access item on that tape and soft-lock the player. Needs the tape-id -> level map from the game (`AwardGlitch` logs `GlitchID` and the map name); pre-existing, not caused by the listen change.
+
 ## To verify in game
 
 - **The crash fix** (2026-10-05, HYPOTHESIS): play an hour or more, including level wins, map changes and a restart of the game with the client running. Expect `[DIAG] map:` lines, one

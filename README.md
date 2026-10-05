@@ -42,7 +42,6 @@ Full instructions and troubleshooting: [docs/installation.md](docs/installation.
 | :--- | :--- | :--- |
 | `goal` | 6 goals | What completes your game (all levels, all levels in hard mode, the Glitchtrap endings, 100 %, a Faz Token and tape quota). |
 | `required_tapes`, `required_faz_tokens` | numbers | Quotas for the goals that use them. |
-| `nightmare_logic` | on / off | Adds the Nightmare Mode License to some goal logic. |
 | `unlock_mode` | `per_section` / `per_level` | One item per section, or one per level. |
 | `hard_variants` | `grouped` / `separate` | `per_section` only: hard levels share the section item or need their own. |
 | `starting_section` | 7 sections | Which section you start in (its item, or only its first level in `per_level`). |
@@ -65,7 +64,9 @@ Not finished or not verified yet:
 - **Crashes** (2026-10-04 analysis, [docs/game-research.md](docs/game-research.md#crashes)): the game's own crash a few seconds after launch is not
   caused by the mod; just relaunch. A crash during play (about once an hour) was traced to the mod running UE4SS timers off the game thread and
   decoding garbage strings. The fix is in, **HYPOTHESIS until it has survived long play sessions**. The log now has `[DIAG]` lines for that.
-- **Tape count**: the number of tapes shown in the tape area follows the Glitch Tape items you received (`derived_counters.lua`). **Verified in game with a forced value** (0 tapes in the save, forced 2 -> 2 tapes in the room); **verified with a real room**: one `!getitem Glitch Tape` gave a tape in the room. Not yet checked: several items, a reconnect, and which tapes are shown.
+- **Tape count**: the number of tapes shown in the tape area follows the Glitch Tape items you received (`derived_counters.lua`). **Verified in game with a forced value** (0 tapes in the save, forced 2 -> 2 tapes in the room); **verified with a real room**: 11 items in a row, a reconnect and a game restart (with and without the client) all gave the right number, and the shelf fills in order from `TAPE #1`. The room only re-reads the count when it loads, so leave it and re-enter after an item arrives. A save that never unlocked the tape room may keep it closed (HYPOTHESIS: a save flag, see docs/game-research.md). Playing a tape sends no check; only picking one up does.
+- **Turning the mod off**: `archipelago_enabled = false,` in the mod's `config.lua` (or `FNAFHWArchipelago : 0` in `mods.txt`) gives the normal game on your normal save; see the install guide. Tested offline, not yet in a real launch.
+- **Three goals cannot be generated** (`complete_all_minigames_nights_hard_mode`, `hundred_percent`, `token_tape_quota`): the logic asks for items Archipelago does not count. The default goal and the Glitchtrap endings work. See docs/TODO.md.
 - **The TV's 5/10/... coin prizes still follow the vanilla pickup**, not the Faz Token items you received. Open; needs a probe of the award path.
 
 Details and the running list: [docs/TODO.md](docs/TODO.md).

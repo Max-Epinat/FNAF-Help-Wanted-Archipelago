@@ -1,12 +1,6 @@
 from dataclasses import dataclass
 
-from Options import Choice, DeathLink, PerGameCommonOptions, Range, Toggle
-
-
-class NightmareLogic(Toggle):
-    """Require an extra progression check that represents non-casual routing."""
-
-    display_name = "Nightmare Logic"
+from Options import Choice, DeathLink, PerGameCommonOptions, Range
 
 
 class Goal(Choice):
@@ -91,7 +85,6 @@ class StartingSection(Choice):
 
 @dataclass
 class FNAFHWOptions(PerGameCommonOptions):
-    nightmare_logic: NightmareLogic
     goal: Goal
     required_tapes: RequiredTapes
     required_faz_tokens: RequiredFazTokens

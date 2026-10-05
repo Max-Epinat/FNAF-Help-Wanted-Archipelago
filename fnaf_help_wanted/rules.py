@@ -1,4 +1,4 @@
-from worlds.generic.Rules import add_rule, set_rule
+from worlds.generic.Rules import add_item_rule, add_rule, set_rule
 
 from .data import (
     FULL_CLEAR_CHECKS,
@@ -10,6 +10,7 @@ from .data import (
     GOAL_TOKEN_TAPE_QUOTA,
     MINIGAME_AND_NIGHT_CHECKS,
 )
+from .levels import MANAGED_ITEM_NAMES, may_hold_unlock_item
 
 
 GOAL_LOCATION_BY_ID = {
@@ -90,14 +91,10 @@ def set_rules(world) -> None:
         and state.has("Faz Token", player, required_faz_tokens),
     )
 
-    if world.options.nightmare_logic.value:
-        add_rule(
-            goal_die,
-            lambda state, p=player: state.has("Nightmare Mode License", p),
-        )
-        add_rule(
-            goal_survive,
-            lambda state, p=player: state.has("Nightmare Mode License", p),
-        )
+    # Unlock items only on level-completion locations: where tapes, tokens and prizes physically are is not modelled, so an unlock item there
+    # could be unreachable in the real game (see levels.may_hold_unlock_item).
+    for location in multiworld.get_locations(player):
+        if not may_hold_unlock_item(location.name):
+            add_item_rule(location, lambda item, p=player: item.player != p or item.name not in MANAGED_ITEM_NAMES)
 
     multiworld.completion_condition[player] = lambda state, p=player: state.has("Victory", p)
