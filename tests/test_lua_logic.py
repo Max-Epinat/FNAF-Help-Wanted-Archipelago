@@ -1190,5 +1190,210 @@ class TestDerivedCounters(LuaCase):
         self.assertEqual(self.module.DEFINITIONS[1]["item_id"], 101000001)
 
 
+class TestDeathLinkGiftBoxPure(LuaCase):
+    """`death_link_gift_box`: the game over that follows the prize box jumpscare (map Level_Victory) can be kept out of DeathLink."""
+
+    def setUp(self):
+        super().setUp()
+        self.module = self.load("death_link.lua")
+
+    def decide(self, map_name, **state):
+        base = self.lua.table(enabled=True, suppress_until=0)
+        for key, value in state.items():
+            base[key] = value
+        send, reason = self.module.decide_send(base, 100, map_name)
+        return bool(send), str(reason)
+
+    def test_the_gift_box_map_is_the_victory_screen_and_never_a_level(self):
+        maps = self.module.GIFT_BOX_MAPS
+        self.assertEqual([str(key) for key in maps.keys()], ["Level_Victory"])
+        for level in self.module.LEVEL_MAPS.keys():
+            self.assertIsNone(maps[level], level)
+
+    def test_by_default_the_gift_box_defeat_is_sent_like_before(self):
+        self.assertTrue(self.decide("Level_Victory")[0])  # the state has no send_gift_box field at all
+        self.assertTrue(self.decide("Level_Victory", send_gift_box=True)[0])
+
+    def test_with_the_option_off_only_the_gift_box_defeat_is_held_back(self):
+        send, reason = self.decide("Level_Victory", send_gift_box=False)
+        self.assertFalse(send)
+        self.assertIn("gift box", reason)
+        for other in ("Repair_Bonnie_Game", "NightGuard_Office01", "Main_Menu_With_Showtime", "Level_GameOver", "", None):
+            self.assertTrue(self.decide(other, send_gift_box=False)[0], other)
+
+    def test_the_option_never_matters_while_deathlink_is_off(self):
+        for gift in (True, False):
+            self.assertEqual(self.decide("Level_Victory", enabled=False, send_gift_box=gift),
+                             (False, "DeathLink is off for this slot"))
+
+    def test_an_unknown_map_stays_a_normal_defeat(self):
+        self.assertTrue(self.decide(None, send_gift_box=False)[0])  # decide_send called as before, without a map
+        self.assertTrue(bool(self.module.decide_send(self.lua.table(enabled=True, suppress_until=0, send_gift_box=False), 100)[0]))
+
+
+class TestDeathLinkGiftBoxRuntime(LuaCase):
+    def setUp(self):
+        super().setUp()
+        self.module = self.load("death_link.lua")
+        self.sent = []
+        self.map = ["Repair_Bonnie_Game"]
+        self.clock = self.lua.table(t=1000)
+        self.lua.globals()["__clock"] = self.clock
+        self.lua.execute("__now = function() return __clock.t end")
+
+        def current_map():
+            if self.map[0] is None:
+                raise RuntimeError("no world")
+            return self.map[0]
+
+        self.instance = self.module.init(self.lua.table(
+            send=lambda cause: self.sent.append(cause), now=self.lua.globals()["__now"], current_map=current_map))
+        self.lua.globals()["__loops"][1]()
+        self.defeat = self.hooks()[LEVEL_DEFEAT]
+
+    def advance(self, seconds):
+        self.clock.t = self.clock.t + seconds
+
+    def lose_on(self, map_name):
+        self.map[0] = map_name
+        self.defeat(None)
+
+    def test_default_sends_the_gift_box_defeat_and_says_where_it_happened(self):
+        self.instance.set_mode("1")
+        self.lose_on("Level_Victory")
+        self.assertEqual(self.sent, ["lost a level"])
+        self.assertTrue(any("Level_Victory" in line for line in self.log()), self.log())
+
+    def test_a_fresh_mod_sends_the_gift_box_defeat(self):
+        self.assertTrue(self.instance.state().send_gift_box)  # before any line of the inbox was read
+        self.instance.state().enabled = True  # DeathLink on without a DEATH_LINK_MODE line having reset anything
+        self.lose_on("Level_Victory")
+        self.assertEqual(self.sent, ["lost a level"])
+    def test_option_off_holds_back_the_gift_box_defeat_and_logs_why(self):
+        self.instance.set_mode("1")
+        self.instance.set_gift_box_mode("0")
+        self.lose_on("Level_Victory")
+        self.assertEqual(self.sent, [])
+        self.assertTrue(any("not sent" in line and "gift box" in line and "Level_Victory" in line for line in self.log()), self.log())
+
+    def test_option_off_still_sends_a_defeat_inside_a_level(self):
+        self.instance.set_mode("1")
+        self.instance.set_gift_box_mode("0")
+        self.lose_on("Repair_Bonnie_Game")
+        self.assertEqual(self.sent, ["lost a level"])
+
+    def test_a_held_back_gift_box_defeat_does_not_start_the_debounce_window(self):
+        self.instance.set_mode("1")
+        self.instance.set_gift_box_mode("0")
+        self.lose_on("Level_Victory")
+        self.advance(1)
+        self.lose_on("Repair_Bonnie_Game")
+        self.assertEqual(self.sent, ["lost a level"])
+
+    def test_option_off_with_deathlink_off_sends_nothing_either_way(self):
+        self.instance.set_gift_box_mode("0")
+        self.lose_on("Level_Victory")
+        self.advance(5)
+        self.lose_on("Repair_Bonnie_Game")
+        self.assertEqual(self.sent, [])
+        self.assertTrue(any("DeathLink is off" in line for line in self.log()))
+
+    def test_a_new_connect_goes_back_to_the_default_before_its_own_line_is_read(self):
+        # DEATH_LINK_MODE is followed by DEATH_LINK_GIFT_BOX in every connect block; a client without the second line must not inherit "off"
+        self.instance.set_mode("1")
+        self.instance.set_gift_box_mode("0")
+        self.instance.set_mode("1")
+        self.lose_on("Level_Victory")
+        self.assertEqual(self.sent, ["lost a level"])
+        self.advance(5)
+        self.instance.set_gift_box_mode("0")  # and the line that follows it applies
+        self.lose_on("Level_Victory")
+        self.assertEqual(len(self.sent), 1)
+
+    def test_a_bad_value_changes_nothing_and_warns(self):
+        self.instance.set_mode("1")
+        self.instance.set_gift_box_mode("0")
+        self.instance.set_gift_box_mode("maybe")
+        self.lose_on("Level_Victory")
+        self.assertEqual(self.sent, [])
+        self.assertTrue(any("bad value" in line and "maybe" in line for line in self.log()), self.log())
+
+    def test_an_unreadable_map_is_a_normal_defeat(self):
+        self.instance.set_mode("1")
+        self.instance.set_gift_box_mode("0")
+        self.lose_on(None)  # current_map raises
+        self.assertEqual(self.sent, ["lost a level"])
+        self.advance(5)
+        self.lose_on("")
+        self.assertEqual(len(self.sent), 2)
+
+    def test_receiving_is_untouched_by_the_option(self):
+        self.instance.set_mode("1")
+        self.instance.set_gift_box_mode("0")
+        self.map[0] = "Level_Victory"
+        self.assertFalse(self.instance.on_incoming("Bob::fell", False))  # not in a level, as before
+        self.map[0] = "Repair_Bonnie_Game"
+        self.assertTrue(self.instance.on_incoming("Bob::fell", False))  # inside a level, as before
+
+
+class TestDeathLinkGiftBoxLine(LuaCase):
+    """DEATH_LINK_GIFT_BOX 1|0 in the inbox reaches the mod, wired like main.lua, and does not disturb the DEATH_LINK_MODE / DEATHLINK lines."""
+
+    def bridge(self, tmp, **handlers):
+        env = self.lua.table(
+            outbox_path=str(Path(tmp) / "ap_outbox.txt"), inbox_path=str(Path(tmp) / "ap_inbox.txt"), bridge_dir=tmp,
+            emitted_location_names=self.lua.table(), on_item=lambda *a: None)
+        for key, value in handlers.items():
+            env[key] = value
+        return self.load("bridge_io.lua")(env)
+
+    def test_the_line_is_routed_to_its_own_handler_only(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "ap_inbox.txt").write_text(
+                "DEATH_LINK_MODE 1\nDEATH_LINK_GIFT_BOX 0\nDEATHLINK Bob::fell\n", encoding="utf-8")
+            seen = []
+            bridge = self.bridge(
+                tmp,
+                on_death_link_mode=lambda spec: seen.append(("mode", str(spec))),
+                on_death_link_gift_box=lambda spec: seen.append(("gift", str(spec))),
+                on_deathlink=lambda spec, is_replay: seen.append(("death", str(spec))))
+            bridge.poll_inbox()
+        self.assertEqual(seen, [("mode", "1"), ("gift", "0"), ("death", "Bob::fell")])
+
+    def test_a_mod_without_a_handler_ignores_the_line(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "ap_inbox.txt").write_text("DEATH_LINK_GIFT_BOX 0\n", encoding="utf-8")
+            self.bridge(tmp).poll_inbox()  # must not raise
+
+    def test_wired_like_main_lua_the_replayed_connect_block_decides_what_is_sent(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "ap_inbox.txt").write_text(
+                "CONNECTED\nSESSION_SYNC old\nDEATH_LINK_MODE 1\nDEATH_LINK_GIFT_BOX 1\n"
+                "CONNECTED\nSESSION_SYNC new\nDEATH_LINK_MODE 1\nDEATH_LINK_GIFT_BOX 0\nAPPLIED_ITEMS 0\n", encoding="utf-8")
+            sent = []
+            map_name = ["Level_Victory"]
+            death_link = self.load("death_link.lua").init(self.lua.table(
+                send=lambda cause: sent.append(cause), current_map=lambda: map_name[0]))
+            self.lua.globals()["__loops"][1]()
+            bridge = self.bridge(
+                tmp,
+                on_death_link_mode=lambda spec: death_link.set_mode(spec),
+                on_death_link_gift_box=lambda spec: death_link.set_gift_box_mode(spec))
+            bridge.poll_inbox()  # the launch replay: only the last block counts
+            self.hooks()[LEVEL_DEFEAT](None)
+            self.assertEqual(sent, [])
+            map_name[0] = "Repair_Bonnie_Game"
+            self.hooks()[LEVEL_DEFEAT](None)
+            self.assertEqual(sent, ["lost a level"])
+
+    def test_main_lua_wires_the_line_to_the_mod(self):
+        main = (LIB.parent / "main.lua").read_text(encoding="utf-8")
+        self.assertIn("on_death_link_gift_box", main)
+        self.assertIn("death_link.set_gift_box_mode(spec)", main)
+
+
 if __name__ == "__main__":
     unittest.main()

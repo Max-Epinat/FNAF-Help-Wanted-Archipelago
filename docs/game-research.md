@@ -159,3 +159,18 @@ facts below for a dump. The offsets are for the game exe of 2026-03-21 and UE4SS
   `TriggerKillState` raised an error whose value is a function (with no argument, after `BonnieWithEyeControl`, and the probe never got to test arguments).
   `ap_class` shows 0 parameters for both. **UNVERIFIED** why. Parked; the experiment commands were removed.
 
+### The gift box jumpscare (2026-10-06)
+
+In the vanilla game the prize gift box you open after a minigame can hide a jumpscare instead of a reward. That is a game over.
+
+- **PARTIAL** (one real event, `UE4SS.log` 2026-10-06 18:28 UTC, and the user's own account: two Bonnie defeats and one gift box defeat that session) It goes through the **same** hook as a normal defeat: `BP_FNAF_GameInstance_C:LevelDefeat` fired once and DeathLink sent (`[DEATHLINK] Level lost: death sent to the multiworld`), then the map went to `Level_GameOver` 2 s later, exactly as after a defeat inside a level.
+  The difference is the map: the `[DIAG]` poll showed `Level_Victory` from 18:28:10 to 18:28:20 with no change in between, and `LevelDefeat` came at 18:28:18 (+8 s), with **no** `Prize award trigger fired!` (`AwardRandomPrize`) for that victory.
+- **VERIFIED** (8 other victories in the same log) The prize is awarded on the map `Level_Victory`: `AwardRandomPrize` fires 4-6 s after it loads, the hub follows about 10-15 s later. A real defeat in a level shows `Repair_Bonnie_Game` -> `Level_GameOver`.
+- **VERIFIED** (code) `Level_Victory` is not in `DeathLink.LEVEL_MAPS`, so an incoming DeathLink during the victory screen / prize box is already ignored.
+- **HYPOTHESIS** A defeat on `Level_Victory` is always the gift box jumpscare, and every level type (nights, Pizza Party, hard variants) shows its prize box on that same map: only Parts and Service Bonnie has been seen, in two gift box events (2026-10-06 18:28 and 23:26 UTC).
+- **VERIFIED** (in game, 2026-10-06 23:26 UTC) The mod's own map read inside the `LevelDefeat` hook gives `Level_Victory` for the gift box game over (log line `[DEATHLINK] Level lost on map 'Level_Victory', ...`) and `Repair_Bonnie_Game` for a defeat in the level.
+  Background: the `SaveLevelVictory` log lines show `Map=''` because that hook uses its `self` argument, a `RemoteUnrealParam` (UE4SS documents that the first callback argument needs `:get()`); `death_link.lua` reads the map from the cached game instance instead and treats an empty or unreadable map as a normal defeat.
+- **UNVERIFIED** Which game function runs only for the box scare (none found; `JumpScare_C` is placed in each level and nothing is known about `Level_Victory`). Not needed by the design.
+- **Option** `death_link_gift_box` (default on = send, as before; off = the mod does not send a defeat on `Level_Victory`). Only sending changes; only with `death_link` on. The line `DEATH_LINK_GIFT_BOX 1|0` carries it (see [bridge-protocol.md](bridge-protocol.md)).
+  **PARTIAL** Seen working once with the option off (2026-10-06 23:26 UTC, game and bridge folder): `[SESSION] DeathLink gift box jumpscare is NOT sent for this slot` at connect, the gift box game over logged `not sent: the prize box jumpscare (gift box) ...`, `ap_outbox.txt` got no `DEATHLINK` line for it, and a real defeat 26 s later was sent (`death sent`).
+  **UNVERIFIED** the other player's side (that nothing arrived), the default `true` path with a gift box scare in the new code (the 18:28 scare was sent by the version before the option; tests cover `true`), and the other level types.

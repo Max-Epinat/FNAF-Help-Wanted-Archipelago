@@ -7,6 +7,9 @@
 -- SENDING (VERIFIED in game 2026-10-04): the game calls BP_FNAF_GameInstance_C:LevelDefeat (no arguments) exactly once when the
 -- player loses a level. We report it to the client as "DEATHLINK <cause>" in the outbox. A death that the mod itself caused
 -- (an incoming DeathLink) must never be sent back, and one defeat must not be sent twice.
+-- The game over that follows the prize box jumpscare (the box you open after winning a minigame) goes through the same hook, but on the
+-- map Level_Victory (HYPOTHESIS: one real event in the log of 2026-10-06, see docs/game-research.md). The slot option death_link_gift_box
+-- ("DEATH_LINK_GIFT_BOX 1|0", on by default) decides whether that one is sent. It only matters while DeathLink is on, and never touches receiving.
 --
 -- RECEIVING (v1): an incoming death makes the player lose the level they are in, by calling BP_FNAF_GameInstance_C:LevelDefeat
 -- (VERIFIED in game 2026-10-04: with our hook removed the call works and the game reacts like after a real defeat). Calling a hooked
@@ -40,6 +43,9 @@ DeathLink.LEVEL_MAPS = {
     Vent_Game_Ennard_2 = true, Vent_Game_Mangle_1 = true,
 }
 
+-- The map the prize box scare happens on: the screen shown after a win, where the prize is collected (the prize award fires there 4-6 s
+-- after it loads). A defeat on it is the gift box jumpscare, never a lost level.
+DeathLink.GIFT_BOX_MAPS = { Level_Victory = true }
 -- Pure: "1" / "0" -> true / false (anything else: nil)
 function DeathLink.parse_mode(spec)
     local value = tostring(spec or ""):match("^%s*([01])%s*$")
@@ -59,13 +65,17 @@ function DeathLink.parse_death(spec)
     return source, cause
 end
 
--- Pure: should a defeat that was just observed be reported as a death? Returns (send, reason).
-function DeathLink.decide_send(state, now)
+-- Pure: should a defeat that was just observed be reported as a death? Returns (send, reason). `map_name` is the map the player was in
+-- ("" or nil when unknown: then it is a normal defeat). A state without send_gift_box means "send".
+function DeathLink.decide_send(state, now, map_name)
     if not state.enabled then
         return false, "DeathLink is off for this slot"
     end
     if now < (state.suppress_until or 0) then
         return false, "this defeat was caused by an incoming death"
+    end
+    if state.send_gift_box == false and DeathLink.GIFT_BOX_MAPS[tostring(map_name or "")] then
+        return false, "the prize box jumpscare (gift box) is not sent for this slot"
     end
     if state.last_sent ~= nil and (now - state.last_sent) < DeathLink.DEBOUNCE_SECONDS then
         return false, "same defeat (debounced)"
@@ -111,7 +121,7 @@ function DeathLink.init(params)
     local on_game_thread = params.on_game_thread or (ExecuteInGameThread and function(fn) ExecuteInGameThread(fn) end) or function(fn) fn() end
     local later = params.later or (ExecuteWithDelay and function(ms, fn) ExecuteWithDelay(ms, fn) end) or function(_, fn) fn() end
     local state = {
-        enabled = false, suppress_until = 0, last_sent = nil, hook_ids = nil, user_unhooked = false,
+        enabled = false, send_gift_box = true, suppress_until = 0, last_sent = nil, hook_ids = nil, user_unhooked = false,
         defeats_seen = 0, sent = 0, received = 0, applied = 0, apply_cooldown_until = 0,
     }
 
@@ -124,7 +134,19 @@ function DeathLink.init(params)
             return
         end
         state.enabled = enabled
+        state.send_gift_box = true  -- every connect block repeats DEATH_LINK_GIFT_BOX right after this line; an older client never sends it
         print("[SESSION] DeathLink " .. (enabled and "ENABLED" or "disabled") .. " for this slot")
+    end
+
+    -- "DEATH_LINK_GIFT_BOX 1|0": whether the game over after the prize box jumpscare is sent as a death (1 = yes, the default).
+    function DeathLink.set_gift_box_mode(spec)
+        local send_it = DeathLink.parse_mode(spec)
+        if send_it == nil then
+            print("[WARN] [SESSION] DeathLink gift box mode ignored: bad value '" .. tostring(spec) .. "'")
+            return
+        end
+        state.send_gift_box = send_it
+        print("[SESSION] DeathLink gift box jumpscare " .. (send_it and "is sent" or "is NOT sent") .. " for this slot")
     end
 
     function DeathLink.is_enabled() return state.enabled end
@@ -133,15 +155,22 @@ function DeathLink.init(params)
     function DeathLink.on_defeat()
         state.defeats_seen = state.defeats_seen + 1
         local current = now()
-        local ok, reason = DeathLink.decide_send(state, current)
+        -- the map is only read while DeathLink is on (nothing new happens for a slot without it); unreadable = a normal defeat
+        local map_name = ""
+        if state.enabled then
+            local okm, value = pcall(current_map)
+            if okm and value ~= nil then map_name = tostring(value) end
+        end
+        local where = map_name ~= "" and (" on map '" .. map_name .. "'") or ""
+        local ok, reason = DeathLink.decide_send(state, current, map_name)
         if not ok then
-            print(string.format("[DEATHLINK] Level lost, not sent: %s", reason))
+            print(string.format("[DEATHLINK] Level lost%s, not sent: %s", where, reason))
             return false
         end
         state.last_sent = current
         state.sent = state.sent + 1
         if send then send(DeathLink.DEFAULT_CAUSE) end
-        print("[DEATHLINK] Level lost: death sent to the multiworld")
+        print(string.format("[DEATHLINK] Level lost%s: death sent to the multiworld", where))
         return true
     end
 

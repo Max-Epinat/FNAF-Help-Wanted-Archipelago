@@ -46,6 +46,7 @@ Full instructions and troubleshooting: [docs/installation.md](docs/installation.
 | `hard_variants` | `grouped` / `separate` | `per_section` only: hard levels share the section item or need their own. |
 | `starting_section` | 7 sections | Which section you start in (its item, or only its first level in `per_level`). |
 | `death_link` | on / off | Losing a level sends a death; a death from another player makes you lose the level you are in (not in the hub yet, see below). |
+| `death_link_gift_box` | on / off (default on) | Only matters with `death_link` on, and only for sending: whether the game over from the prize gift box jumpscare (the box you open after a minigame sometimes hides one) also sends a death. Off: that one is not sent. Receiving is unchanged. Seen working once with the option off (see below). |
 
 ## Status
 
@@ -58,6 +59,8 @@ Not finished or not verified yet:
 - **DeathLink**: **sending works** (verified in game with Hollow Knight: losing a level kills the other player). **Receiving** is implemented (a death
   makes you lose the level you are in, by calling the game's own `LevelDefeat`; verified in game with Hollow Knight, both directions). In the hub nothing
   happens, and the game's jumpscare is not played (you get the game-over flow directly).
+  The gift box jumpscare (game over from the prize box after a win) sends a death like any lost level unless `death_link_gift_box` is off. How the mod tells it apart
+  (a defeat on the map `Level_Victory`) was seen in two real events, both in Parts and Service Bonnie, and the hold-back worked once in game with the option off (**PARTIAL**: the other level types and the other player's side are not checked).
 - **Pizza Party**: the mod never locks it, and the unlock rule of the game is not known, so the logic expects every level to be cleared first.
 - **Items without an in-game effect**: Glitch Tape, Prize Counter Key, Nightmare Mode License (effect unverified) and the traps only matter for logic today.
 - `hard_variants: separate` has been generated and tested but not played in a room. VR launch has not been tested (flat mode has).

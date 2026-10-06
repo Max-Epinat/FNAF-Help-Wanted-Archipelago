@@ -36,6 +36,8 @@ It will:
 
 1. Copy `templates/Five Nights at Freddy's Help Wanted.yaml` into your Archipelago `Players` folder and edit it (the comments explain each option).
    The launcher's *Generate Template Options* button also produces an up-to-date template.
+   DeathLink: `death_link` turns it on. With it on, `death_link_gift_box` (default `true`) decides whether the game over from the prize gift box jumpscare is also sent as a death;
+   set it to `false` to keep that one out. It changes nothing when `death_link` is off, and it never changes what happens when another player dies.
 2. Generate a multiworld with your yaml, or give it to whoever hosts. See the Archipelago
    [setup guide](https://archipelago.gg/tutorial/Archipelago/setup/en) for hosting.
 

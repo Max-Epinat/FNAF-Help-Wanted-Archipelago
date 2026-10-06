@@ -11,6 +11,7 @@ return function(env)
     local on_received_snapshot = env.on_received_snapshot
     local on_applied_items = env.on_applied_items
     local on_death_link_mode = env.on_death_link_mode
+    local on_death_link_gift_box = env.on_death_link_gift_box
     local on_deathlink = env.on_deathlink
 
     local function ensure_file(path)
@@ -179,10 +180,17 @@ return function(env)
             return
         end
 
-        -- must stay before the DEATHLINK handler: both start with DEATH
+        -- must stay before the DEATHLINK handler: all three start with DEATH
         if line:sub(1, 15) == "DEATH_LINK_MODE" then
             if on_death_link_mode then
                 on_death_link_mode(line:sub(17))
+            end
+            return
+        end
+
+        if line:sub(1, 19) == "DEATH_LINK_GIFT_BOX" then
+            if on_death_link_gift_box then
+                on_death_link_gift_box(line:sub(21))
             end
             return
         end

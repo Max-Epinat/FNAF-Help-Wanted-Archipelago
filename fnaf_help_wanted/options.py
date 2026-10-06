@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import Choice, DeathLink, PerGameCommonOptions, Range
+from Options import Choice, DeathLink, DefaultOnToggle, PerGameCommonOptions, Range
 
 
 class Goal(Choice):
@@ -83,12 +83,23 @@ class StartingSection(Choice):
     default = 0
 
 
+class DeathLinkGiftBox(DefaultOnToggle):
+    """Whether the game over from the gift box jumpscare also sends a DeathLink.
+
+    After a minigame the prize gift box can hide a jumpscare instead of a reward, which is a game over.
+    On: it sends a death to the others like any lost level (the default). Off: that one game over is not sent
+    (the game over itself still happens). Only matters when death_link is on, and only for sending:
+    deaths from other players are handled as before.
+    """
+
+    display_name = "DeathLink on Gift Box Jumpscare"
 @dataclass
 class FNAFHWOptions(PerGameCommonOptions):
     goal: Goal
     required_tapes: RequiredTapes
     required_faz_tokens: RequiredFazTokens
     death_link: DeathLink
+    death_link_gift_box: DeathLinkGiftBox
     unlock_mode: UnlockMode
     hard_variants: HardVariants
     starting_section: StartingSection

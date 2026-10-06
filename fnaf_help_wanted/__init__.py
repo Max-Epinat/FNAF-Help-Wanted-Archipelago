@@ -97,6 +97,7 @@ class FNAFHWWorld(World):
             "required_tapes": self.options.required_tapes.value,
             "required_faz_tokens": self.options.required_faz_tokens.value,
             "death_link": bool(self.options.death_link.value),
+            "death_link_gift_box": bool(self.options.death_link_gift_box.value),
             "unlock_mode": self.options.unlock_mode.value,
             "hard_variants": self.options.hard_variants.value,
             "starting_section": self.options.starting_section.value,

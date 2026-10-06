@@ -89,7 +89,7 @@ answer; see git history, commits 4ae0d57 and before.)
 Pizza Party being last in logic matters: before this rule the generator could place `Unlock FNAF 1 - Night 5 (Hard)` on
 `Complete Pizza Party`, which the game may only offer after that very level. Goal/prize/token/tape locations keep their rules.
 
-**Where unlock items may be placed** (2026-10-05): only on the 40 level-completion locations (`levels.may_hold_unlock_item`, applied in `rules.py` with `add_item_rule`).
+**Where unlock items may be placed: a STOPGAP** (2026-10-05; the intended end state is "anywhere that is really reachable", which needs the real access of tapes, tokens and prizes, see docs/TODO.md): only on the 40 level-completion locations (`levels.may_hold_unlock_item`, applied in `rules.py` with `add_item_rule`).
 Tapes, Faz Tokens, prizes, the trophies, the blackjack win, Pizza Party and the goals are not modelled as gated, so an unlock item there could sit behind the very level it opens.
 A level location needs only its own item (VERIFIED), so every unlock item can always be obtained by playing levels the player already has. The real generator check is in docs/testing.md.
 

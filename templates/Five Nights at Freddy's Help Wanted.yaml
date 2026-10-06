@@ -104,6 +104,14 @@ requires:
     'false': 50
     'true': 0
 
+  death_link_gift_box:
+    # After a minigame the prize gift box can hide a jumpscare instead of a reward, which is a game over.
+    # true: that game over sends a death to the others, like any lost level (the default, same as before this option existed).
+    # false: that one game over is not sent (it still happens in your game).
+    # Only matters when death_link is true, and only for sending: deaths from other players are handled as before.
+    'true': 50
+    'false': 0
+
   unlock_mode:
     # How levels are unlocked by Archipelago items.
     #

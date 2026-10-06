@@ -154,6 +154,31 @@ class TestOptionsSource(unittest.TestCase):
             self.assertIn(field, text)
 
 
+class TestDeathLinkGiftBoxOption(unittest.TestCase):
+    """`death_link_gift_box`: a DefaultOnToggle (on = the gift box game over sends a DeathLink, as before), carried in slot_data."""
+
+    def setUp(self):
+        self.options = (WORLD_DIR / "options.py").read_text(encoding="utf-8")
+        self.world = (WORLD_DIR / "__init__.py").read_text(encoding="utf-8")
+
+    def test_it_is_a_toggle_that_is_on_by_default(self):
+        tree = ast.parse(self.options)
+        classes = {node.name: node for node in tree.body if isinstance(node, ast.ClassDef)}
+        self.assertIn("DeathLinkGiftBox", classes)
+        self.assertEqual([base.id for base in classes["DeathLinkGiftBox"].bases], ["DefaultOnToggle"])
+        self.assertIn("DefaultOnToggle", re.search(r"from Options import (.*)", self.options).group(1))
+
+    def test_it_is_a_field_of_the_options_dataclass(self):
+        self.assertIn("death_link_gift_box: DeathLinkGiftBox", self.options)
+
+    def test_its_text_says_it_only_matters_with_deathlink_and_only_for_sending(self):
+        doc = ast.get_docstring(next(n for n in ast.parse(self.options).body if isinstance(n, ast.ClassDef) and n.name == "DeathLinkGiftBox")).lower()
+        self.assertIn("gift box", doc)
+        self.assertIn("death_link", doc)
+        self.assertIn("sends", doc)
+
+    def test_slot_data_carries_it_as_a_bool(self):
+        self.assertIn('"death_link_gift_box": bool(self.options.death_link_gift_box.value)', self.world)
 class TestPlanInvariants(unittest.TestCase):
     """Properties that must hold for every option combination."""
 

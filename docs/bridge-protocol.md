@@ -40,12 +40,13 @@ AP server <-websocket-> client --<bridge>/ap_inbox.txt--> Lua mod (game)
 | `APPLIED_ITEMS <n> [reset]` | How many items of the server's list (server order) already had their one-shot effect applied. `reset` means the server's list was shorter and `n` was clamped (the mod must lower its count). |
 | `RECEIVED_SNAPSHOT <id>,<id>,...` | **All** items of the current connection, in server index order (possibly empty). Replaces the previous snapshot wholesale. |
 | `DEATH_LINK_MODE 1\|0` | Whether this slot enabled DeathLink (`slot_data["death_link"]`). Sent at every connect, before the gate table. Must stay ahead of the `DEATHLINK` handler (both start with `DEATH`). |
+| `DEATH_LINK_GIFT_BOX 1\|0` | Whether the game over after the prize gift box jumpscare is sent as a death (`slot_data["death_link_gift_box"]`, default `1` when the key is missing, i.e. rooms made before the option). Sent at every connect, **right after** `DEATH_LINK_MODE` (the mod resets it to `1` when it reads that line). Only matters while DeathLink is on. An older mod ignores the line. |
 | `DEATHLINK <source>::<cause>` | A death from another player. Only forwarded when DeathLink is enabled, never our own echo, never the same death twice. |
 
 ### Order at every connect
 
 ```text
-SESSION_SYNC, SESSION_BASELINE*, CONFIRMED_CHECK*, DEATH_LINK_MODE, [GATE_TABLE], [GATE_ITEMS], APPLIED_ITEMS n, RECEIVED_SNAPSHOT (empty)
+SESSION_SYNC, SESSION_BASELINE*, CONFIRMED_CHECK*, DEATH_LINK_MODE, DEATH_LINK_GIFT_BOX, [GATE_TABLE], [GATE_ITEMS], APPLIED_ITEMS n, RECEIVED_SNAPSHOT (empty)
 ```
 
 When DeathLink is enabled the client also sends `ConnectUpdate` with tags `AP, DeathLink` right after `Connected`, which is what makes the server

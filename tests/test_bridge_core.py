@@ -295,6 +295,40 @@ class TestDeathLink(CoreTestCase):
         self.assertEqual([l for l in self.inbox() if l.startswith("DEATH_LINK_MODE")][-1], "DEATH_LINK_MODE 0")
 
 
+class TestDeathLinkGiftBox(CoreTestCase):
+    """`death_link_gift_box` (slot_data) is forwarded to the mod as DEATH_LINK_GIFT_BOX 1|0, right after DEATH_LINK_MODE, at every connect."""
+
+    def gift_line(self):
+        return [line for line in self.inbox() if line.startswith("DEATH_LINK_GIFT_BOX")]
+
+    def test_the_value_of_the_slot_is_forwarded(self):
+        self.connect(slot_data={"death_link": True, "death_link_gift_box": False})
+        self.assertEqual(self.gift_line(), ["DEATH_LINK_GIFT_BOX 0"])
+        self.connect(slot_data={"death_link": True, "death_link_gift_box": True})
+        self.assertEqual(self.gift_line()[-1], "DEATH_LINK_GIFT_BOX 1")
+
+    def test_a_room_made_before_the_option_existed_keeps_sending(self):
+        self.connect(slot_data={"death_link": True})
+        self.assertEqual(self.gift_line(), ["DEATH_LINK_GIFT_BOX 1"])
+        self.connect()
+        self.assertEqual(self.gift_line()[-1], "DEATH_LINK_GIFT_BOX 1")
+
+    def test_it_follows_deathlink_mode_in_the_connect_block(self):
+        self.connect(slot_data={"death_link": True, "death_link_gift_box": False})
+        lines = self.inbox()
+        mode = lines.index("DEATH_LINK_MODE 1")
+        self.assertEqual(lines[mode + 1], "DEATH_LINK_GIFT_BOX 0")
+
+    def test_it_does_not_turn_deathlink_on_or_change_what_is_subscribed(self):
+        outgoing = self.connect(slot_data={"death_link": False, "death_link_gift_box": False})
+        self.assertEqual(outgoing, [])
+        self.assertFalse(self.core.death_link_enabled)
+        self.assertIn("DEATH_LINK_MODE 0", self.inbox())
+        self.assertEqual(self.core.game_command_packets("DEATHLINK", "boom"), [])
+
+    def test_sending_a_death_from_the_game_is_unchanged(self):
+        self.connect(slot_data={"death_link": True, "death_link_gift_box": False})
+        self.assertEqual(self.core.game_command_packets("DEATHLINK", "boom")[0]["cmd"], "Bounce")  # the mod decides what it reports
 class TestStandaloneEntryPoint(unittest.TestCase):
     def test_without_a_bridge_folder_it_exits_with_instructions_and_creates_nothing(self):
         import ap_client.main as standalone

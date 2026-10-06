@@ -109,7 +109,7 @@ class TestYamlTemplate(unittest.TestCase):
             info = self.classes.get(class_name, {"choices": {}, "ranges": {}, "bases": []})  # imported ones (DeathLink) are not defined here
             if info["choices"]:
                 self.assertEqual(set(self.template[option]), set(info["choices"]), option)
-            elif "Toggle" in info["bases"] or "DeathLink" in info["bases"] or class_name == "DeathLink":
+            elif {"Toggle", "DefaultOnToggle", "DeathLink"} & set(info["bases"]) or class_name == "DeathLink":
                 self.assertEqual(set(self.template[option]), {"false", "true"}, option)
 
     def test_death_link_is_offered_and_off_by_default(self):
@@ -119,6 +119,15 @@ class TestYamlTemplate(unittest.TestCase):
         self.assertIn("'false': 50", block)
         self.assertIn("'true': 0", block)
 
+    def test_death_link_gift_box_is_offered_and_on_by_default(self):
+        self.assertIn("death_link_gift_box", self.template)
+        text = TEMPLATE.read_text(encoding="utf-8")
+        block = text[text.index("  death_link_gift_box:"):text.index("  unlock_mode:")]
+        self.assertIn("'true': 50", block)
+        self.assertIn("'false': 0", block)
+        self.assertIn("gift box", block.lower())
+        # the plain death_link block must stay where the other test looks for it (before unlock_mode) and unchanged in its defaults
+        self.assertLess(text.index("  death_link:"), text.index("  death_link_gift_box:"))
     def test_range_defaults_are_the_world_defaults(self):
         text = TEMPLATE.read_text(encoding="utf-8")
         for option, class_name in self.fields.items():

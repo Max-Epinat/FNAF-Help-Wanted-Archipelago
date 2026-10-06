@@ -138,6 +138,9 @@ local bridge_io = bridge_io_builder({
     on_death_link_mode = function(spec)
         if death_link then death_link.set_mode(spec) end
     end,
+    on_death_link_gift_box = function(spec)
+        if death_link then death_link.set_gift_box_mode(spec) end
+    end,
     on_deathlink = function(spec, is_replay)
         if death_link then death_link.on_incoming(spec, is_replay) end
     end,

@@ -667,6 +667,10 @@ class BridgeCore:
         self.death_link_enabled = bool((packet.get("slot_data") or {}).get("death_link", False))
         self._deathlink_times.clear()
         self.bridge.write_inbox_line(f"DEATH_LINK_MODE {1 if self.death_link_enabled else 0}")
+        # whether the game over after the prize box jumpscare is sent (slot_data of a room made before the option: yes, as always); the mod
+        # resets it to "yes" when it reads DEATH_LINK_MODE, so this line must follow it
+        gift_box = bool((packet.get("slot_data") or {}).get("death_link_gift_box", True))
+        self.bridge.write_inbox_line(f"DEATH_LINK_GIFT_BOX {1 if gift_box else 0}")
         if self.death_link_enabled:
             outgoing.append({"cmd": "ConnectUpdate", "tags": ["AP", "DeathLink"]})
             print("[SESSION] DeathLink is enabled for this slot")
