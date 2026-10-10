@@ -11,6 +11,11 @@ function ExactHooks.init(params)
     local baseline_location_names = params.baseline_location_names or {}
     local mod_dir = params.mod_dir or ""
 
+    -- The save slot the game must use (= the file name without .sav). The client names one per multiworld (SAVE_SLOT line, Playerarchi_<seed>_<slot>);
+    -- Playerarchi is the shared file of the sessions made before that and of an old client that sends no name.
+    local DEFAULT_SAVE_SLOT = "Playerarchi"
+    local save_slot = DEFAULT_SAVE_SLOT
+
     local row_to_loc = locations_data.row_id_to_location or {}
     local name_to_id = locations_data.location_name_to_id or {}
 
@@ -271,26 +276,49 @@ function ExactHooks.init(params)
         return false
     end
 
+    -- The client's choice of save for this multiworld (nil = back to the shared default). The next try_register_all (every second) enforces it:
+    -- it names the slot on the game instance and loads that file into memory once. Returns false for a name that is not a safe file name.
+    function ExactHooks.set_save_slot(name)
+        if name == nil then
+            if save_slot ~= DEFAULT_SAVE_SLOT then
+                print(string.format("[SESSION] Save slot back to the shared '%s'", DEFAULT_SAVE_SLOT))
+            end
+            save_slot = DEFAULT_SAVE_SLOT
+            return true
+        end
+        name = tostring(name)
+        if #name < 1 or #name > 150 or name:find("[^A-Za-z0-9_%-]") then
+            print(string.format("[WARN] [SESSION] '%s' is not a safe save slot name, ignored (keeping '%s')", name:sub(1, 60), save_slot))
+            return false
+        end
+        if name ~= save_slot then
+            print(string.format("[SESSION] Archipelago save slot for this session: '%s'", name))
+        end
+        save_slot = name
+        return true
+    end
+
     function ExactHooks.try_register_all()
-        -- Ensure SaveSlotName is redirected to Playerarchi on GameInstance
+        -- Ensure SaveSlotName is redirected to this session's Archipelago save on GameInstance
         local gi_inst = get_game_instance()
         if gi_inst and gi_inst:IsValid() then
             pcall(function()
                 local cur_slot = get_name_string(gi_inst.SaveSlotName)
-                if cur_slot ~= "Playerarchi" then
-                    gi_inst.SaveSlotName = "Playerarchi"
-                    print(string.format("[ARCHI] Enforced SaveSlotName='Playerarchi' on active GameInstance (was: '%s')", tostring(cur_slot)))
-                    -- If Playerarchi exists on disk, load it cleanly into SaveGameRef in memory
+                local wanted = save_slot
+                if cur_slot ~= wanted then
+                    gi_inst.SaveSlotName = wanted
+                    print(string.format("[ARCHI] Enforced SaveSlotName='%s' on active GameInstance (was: '%s')", wanted, tostring(cur_slot)))
+                    -- If that save exists on disk, load it cleanly into SaveGameRef in memory
                     pcall(function()
                         local GameplayStatics = StaticFindObject("/Script/Engine.Default__GameplayStatics")
                         if GameplayStatics and GameplayStatics.DoesSaveGameExist then
                             local exists = false
-                            pcall(function() exists = GameplayStatics:DoesSaveGameExist("Playerarchi", 0) end)
+                            pcall(function() exists = GameplayStatics:DoesSaveGameExist(wanted, 0) end)
                             if exists and GameplayStatics.LoadGameFromSlot then
-                                local loaded = GameplayStatics:LoadGameFromSlot("Playerarchi", 0)
+                                local loaded = GameplayStatics:LoadGameFromSlot(wanted, 0)
                                 if loaded and loaded:IsValid() then
                                     gi_inst.SaveGameRef = loaded
-                                    print("[ARCHI] Successfully synchronized 'Playerarchi' save into in-memory SaveGameRef!")
+                                    print(string.format("[ARCHI] Successfully synchronized '%s' save into in-memory SaveGameRef!", wanted))
                                 end
                             end
                         end
@@ -299,12 +327,12 @@ function ExactHooks.init(params)
             end)
         end
 
-        -- Hook InitSaveGame and SaveGame to keep Playerarchi active
+        -- Hook InitSaveGame and SaveGame to keep this session's save active
         try_hook("/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:InitSaveGame", function(self)
             pcall(function()
                 if self and self:IsValid() then
-                    self.SaveSlotName = "Playerarchi"
-                    print("[ARCHI] InitSaveGame hook: SaveSlotName set to 'Playerarchi'")
+                    self.SaveSlotName = save_slot
+                    print(string.format("[ARCHI] InitSaveGame hook: SaveSlotName set to '%s'", save_slot))
                 end
             end)
         end)
@@ -312,7 +340,7 @@ function ExactHooks.init(params)
         try_hook("/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:SaveGame", function(self)
             pcall(function()
                 if self and self:IsValid() then
-                    self.SaveSlotName = "Playerarchi"
+                    self.SaveSlotName = save_slot
                 end
             end)
         end)

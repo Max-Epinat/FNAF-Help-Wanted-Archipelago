@@ -115,6 +115,8 @@ local bridge_io = bridge_io_builder({
     emitted_location_names = emitted_location_names,
     on_item = on_item,
     on_session_sync = function(session_id)
+        -- every connect block names its save slot right after SESSION_SYNC; an old client does not, which means the shared Playerarchi
+        if exact_hooks then exact_hooks.set_save_slot(nil) end
         if level_gate then level_gate.on_session_sync(session_id) end
         if item_sync then item_sync.on_session_sync(session_id) end
         if faz_tokens then faz_tokens.on_session_sync(session_id) end
@@ -140,6 +142,14 @@ local bridge_io = bridge_io_builder({
     end,
     on_death_link_gift_box = function(spec)
         if death_link then death_link.set_gift_box_mode(spec) end
+    end,
+    on_save_slot = function(name)
+        if exact_hooks then exact_hooks.set_save_slot(name) end
+    end,
+    on_randomized_groups = function(groups)
+        -- a group the slot does not randomize is vanilla: the tape room / the TV show what the save really holds (prizes only matter to the client)
+        if faz_tokens then faz_tokens.set_randomized(groups.faz_tokens) end
+        if derived_counters then derived_counters.set_randomized("tapes", groups.tapes) end
     end,
     on_deathlink = function(spec, is_replay)
         if death_link then death_link.on_incoming(spec, is_replay) end

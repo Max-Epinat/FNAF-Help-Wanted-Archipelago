@@ -51,6 +51,16 @@ class TestGeneratorCheckHelpers(unittest.TestCase):
         bad = check.misplaced_unlock_items(placements, levels.MANAGED_ITEM_NAMES, levels.may_hold_unlock_item)
         self.assertEqual(bad, ["Collect Glitch Tape 02"])  # the access pass on a level location (Night 1) is fine; the one on a tape is not
 
+    def test_the_group_check_flags_the_wrong_filler_and_a_wrong_location_list(self):
+        data = check.load_data()
+        every = {name: "Faz Token" for names in data.region_locations(True, False, True).values() for name in names}
+        self.assertEqual(check.group_problems(every, (True, False, True), data).__len__(), 1)  # Faz Token items although the tokens are not randomized
+        fixed = {name: "Faz Coupon" for name in every}
+        self.assertEqual(check.group_problems(fixed, (True, False, True), data), [])
+        self.assertTrue(check.group_problems({**fixed, "Collect Faz Token 01": "Faz Coupon"}, (True, False, True), data))  # a token location that must not exist
+        on = {name: "Faz Coupon" for names in data.region_locations(True, True, True).values() for name in names}
+        self.assertTrue(check.group_problems(on, (True, True, True), data))  # a coupon with the tokens randomized
+
     def test_the_script_checks_the_same_rule_the_world_applies(self):
         levels = check.load_levels()
         self.assertTrue(levels.may_hold_unlock_item("Beat FNAF 1 - Night 1"))

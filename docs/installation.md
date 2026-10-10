@@ -38,6 +38,11 @@ It will:
    The launcher's *Generate Template Options* button also produces an up-to-date template.
    DeathLink: `death_link` turns it on. With it on, `death_link_gift_box` (default `true`) decides whether the game over from the prize gift box jumpscare is also sent as a death;
    set it to `false` to keep that one out. It changes nothing when `death_link` is off, and it never changes what happens when another player dies.
+   Less grinding: `randomize_prizes`, `randomize_faz_tokens` and `randomize_glitch_tapes` (all `true` by default) each take one kind of collectible out of the randomizer.
+   A group that is `false` has no locations, no matching items (Glitch Tape, the 30 base Faz Tokens) and is **vanilla in game**: you still pick the things up and the game
+   shows them as usual (the tape room shows the tapes you picked up, the TV the tokens you picked up), it just never sends a check. A goal that asks for tapes or tokens
+   no longer asks for the ones that are not randomized (you still need them in the real game; the multiworld simply cannot check them).
+   Update the apworld **and** the mod together (`install-mod.ps1` does both): an old mod would keep showing item counts for a group that is `false`.
 2. Generate a multiworld with your yaml, or give it to whoever hosts. See the Archipelago
    [setup guide](https://archipelago.gg/tutorial/Archipelago/setup/en) for hosting.
 
@@ -57,15 +62,19 @@ Notes:
 
 ## Your saves
 
-- Archipelago plays on its own file, `%LOCALAPPDATA%\freddys\Saved\SaveGames\Playerarchi.sav`. Your normal `Player00.sav` is never modified.
-- The first time you connect to a **new** seed, a fresh `Playerarchi.sav` is created and the previous one is kept next to it as
-  `Playerarchi_<number>.sav.bak`. Reconnecting to the same seed resumes where you were.
+- Archipelago plays on its own files in `%LOCALAPPDATA%\freddys\Saved\SaveGames\`, **one per multiworld and slot**: `Playerarchi_<seed>_<slot>.sav`. Your normal `Player00.sav` is never modified.
+- The first time you connect to a **new** multiworld, a fresh file is created for it. The saves of your other multiworlds are left exactly as they are, so you can
+  go back to an older room and find your progress again. Reconnecting to the same room resumes where you were. Delete the files of rooms you no longer play by hand.
+- Multiworlds you started with an older version keep using `Playerarchi.sav` (their file, not renamed, not archived).
+- The client tells the mod which file to use at every connect. Start the client and connect **before** you start the game, and restart the game when you switch to another multiworld.
+- If the client cannot start its bridge (for example a second client window is open: `/disconnect` does not release it, close its window), it says so in its window and
+  **refuses to connect**. Before, it joined the room silently and the game kept using the previous session's save.
 - Each seed starts from a clean state: tapes, coins, prizes and hub progress are reset in the new file. Starting a new seed while your
   normal save is a *completed* one is verified by tests but not yet by a full in-game run; if tapes or hub items are missing, please report it.
 
 ## Playing the normal game (turning the mod off)
 
-While the mod is installed it always uses the Archipelago save (`Playerarchi.sav`), even when no client is running, and it keeps the last session's items. To play the
+While the mod is installed it always uses the Archipelago save (the file of the last session, `Playerarchi_<seed>_<slot>.sav`), even when no client is running, and it keeps the last session's items. To play the
 unmodified game on your normal save (`Player00.sav`), turn the mod off. Both ways are read when the game starts, so **restart the game** after changing them.
 
 - **Option 1, a line in the mod's config (recommended).** Open `...\Win64\Mods\FNAFHWArchipelago\config.lua` and add one line inside the braces:

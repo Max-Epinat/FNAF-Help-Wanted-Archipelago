@@ -499,14 +499,17 @@ class TestUndetectablePrizes(unittest.TestCase):
 
     def test_the_world_creates_regions_from_the_active_table(self):
         regions = (WORLD_DIR / "regions.py").read_text(encoding="utf-8")
-        self.assertIn("ACTIVE_REGION_LOCATIONS", regions)
-        self.assertNotIn("REGION_LOCATIONS.get", regions.replace("ACTIVE_REGION_LOCATIONS.get", ""))
+        # regions.py asks data.region_locations(...), which starts from ACTIVE_REGION_LOCATIONS (all on == that table, see test_location_groups.py)
+        self.assertIn("region_locations(", regions)
+        self.assertNotIn("REGION_LOCATIONS.get", regions)
+        self.assertEqual(data.region_locations(True, True, True), data.ACTIVE_REGION_LOCATIONS)
 
     def test_the_location_counters_in_the_two_interfaces_match(self):
+        """Both interfaces show the real total of the seed (location groups can be off); 153 is only their default when none is known."""
         for path in ("ap_client/main.py", "ue4ss_mod/FNAFHWArchipelago/Scripts/lib/connection_ui.lua"):
             text = (project_root / path).read_text(encoding="utf-8")
-            self.assertIn(f"/ {data.ACTIVE_LOCATION_COUNT}", text, path)
-            self.assertNotIn("/ 177", text, path)
+            self.assertIn(str(data.ACTIVE_LOCATION_COUNT), text, path)
+            self.assertNotIn("177", text, path)
 
 
 if __name__ == "__main__":

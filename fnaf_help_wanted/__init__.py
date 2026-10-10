@@ -3,7 +3,7 @@ from typing import Any
 from BaseClasses import ItemClassification
 from worlds.AutoWorld import WebWorld, World
 
-from .data import GAME_NAME, ITEM_TABLE, ItemData
+from .data import GAME_NAME, ITEM_TABLE, ItemData, filler_item_name, unrandomized_items
 from .items import ALL_ITEM_TABLE, FNAFHWItem, item_name_to_id
 from .levels import MANAGED_ITEM_NAMES, SECTIONS, GatingPlan, build_plan, slot_gate_data
 from .locations import location_name_to_id
@@ -62,10 +62,13 @@ class FNAFHWWorld(World):
         goal_location = self.multiworld.get_location(goal_location_name, self.player)
         goal_location.place_locked_item(self.create_item("Victory"))
 
-        # Section / hard / per-level items are decided by the unlock plan, everything else is fixed.
+        # Section / hard / per-level items are decided by the unlock plan, everything else is fixed, except the items of a group that is not
+        # randomized (Glitch Tape with the tape locations, the base Faz Tokens with the token locations): items follow their locations.
+        not_randomized = unrandomized_items(
+            bool(self.options.randomize_faz_tokens.value), bool(self.options.randomize_glitch_tapes.value))
         pool = []
         for item_name, item_data in ITEM_TABLE.items():
-            if item_name in MANAGED_ITEM_NAMES:
+            if item_name in MANAGED_ITEM_NAMES or item_name in not_randomized:
                 continue
             for _ in range(item_data.quantity):
                 pool.append(self.create_item(item_name))
@@ -81,7 +84,7 @@ class FNAFHWWorld(World):
             )
         filler_needed = unfilled_location_count - len(pool)
         for _ in range(filler_needed):
-            pool.append(self.create_item("Faz Token"))
+            pool.append(self.create_item(self.get_filler_item_name()))
 
         self.multiworld.itempool += pool
 
@@ -89,7 +92,8 @@ class FNAFHWWorld(World):
         set_rules(self)
 
     def get_filler_item_name(self) -> str:
-        return "Faz Token"
+        # Faz Token items only while the Faz Tokens are randomized; vanilla tokens get the inert Faz Coupon (see data.filler_item_name)
+        return filler_item_name(bool(self.options.randomize_faz_tokens.value))
 
     def fill_slot_data(self) -> dict[str, Any]:
         return {
@@ -101,6 +105,9 @@ class FNAFHWWorld(World):
             "unlock_mode": self.options.unlock_mode.value,
             "hard_variants": self.options.hard_variants.value,
             "starting_section": self.options.starting_section.value,
+            "randomize_prizes": bool(self.options.randomize_prizes.value),
+            "randomize_faz_tokens": bool(self.options.randomize_faz_tokens.value),
+            "randomize_glitch_tapes": bool(self.options.randomize_glitch_tapes.value),
             **slot_gate_data(self.gating_plan, item_name_to_id),
             "item_name_to_id": item_name_to_id,
             "location_name_to_id": location_name_to_id,

@@ -53,6 +53,13 @@ function ConnectionUI.init(params)
     ConnectionUI.status_msg = "Press F1 to open connection menu"
     ConnectionUI.checked_count = 0
     ConnectionUI.received_count = 0
+    ConnectionUI.total_count = 153 -- every group randomized; the client writes the real total of the seed into connection_state.json
+
+    -- "Locations Checked: 4 / 50   |   Items Received: 7"
+    function ConnectionUI.counter_text()
+        return string.format("Locations Checked: %d / %d   |   Items Received: %d",
+            ConnectionUI.checked_count, ConnectionUI.total_count, ConnectionUI.received_count)
+    end
 
     -- Simple JSON string decoder for key-value pairs
     local function parse_profile(content)
@@ -157,11 +164,13 @@ function ConnectionUI.init(params)
                 local msg = raw:match('"last_message"%s*:%s*"([^"]+)"')
                 local chk = raw:match('"checked_count"%s*:%s*(%d+)')
                 local rcv = raw:match('"received_count"%s*:%s*(%d+)')
+                local total = raw:match('"total_count"%s*:%s*(%d+)')
 
                 if st then ConnectionUI.status = st end
                 if msg then ConnectionUI.status_msg = msg end
                 if chk then ConnectionUI.checked_count = tonumber(chk) or 0 end
                 if rcv then ConnectionUI.received_count = tonumber(rcv) or 0 end
+                if total then ConnectionUI.total_count = tonumber(total) or ConnectionUI.total_count end
             end
         end
     end
@@ -327,8 +336,7 @@ function ConnectionUI.init(params)
             end
 
             y = y + 8
-            draw_text(string.format("Locations Checked: %d / 153   |   Items Received: %d",
-                ConnectionUI.checked_count, ConnectionUI.received_count), x, y, title_color, 1.1)
+            draw_text(ConnectionUI.counter_text(), x, y, title_color, 1.1)
             y = y + line_height
 
             draw_text("[RETURN/C] Connect   [D] Disconnect   [TAB/Arrows] Navigate   [F1] Close Menu",

@@ -15,6 +15,22 @@ from typing import Any
 CLIENT_VERSION = {"class": "Version", "major": 0, "minor": 6, "build": 6}
 CLIENT_STATUS_GOAL = 30
 
+# Save file of the Archipelago game. Every multiworld (session = seed + slot) has its own, `Playerarchi_<session id>.sav`; the game and the mod are told its
+# slot name with `SAVE_SLOT`. `Playerarchi` is the single shared file of every version before that: the sessions made then keep using it.
+LEGACY_SAVE_SLOT = "Playerarchi"
+
+
+def save_slot_for_session(session_id: str) -> str:
+    """The save slot (file name without .sav) of a session. Only [A-Za-z0-9_-] reaches the file name; never the legacy name."""
+    safe = re.sub(r"[^A-Za-z0-9_-]", "_", str(session_id))[:100]
+    return f"{LEGACY_SAVE_SLOT}_{safe}"
+
+
+def _readable_save_slot(value: str) -> str:
+    """The save slot a stored session names, or the legacy one when it is empty (a session saved before one save per multiworld) or not a safe file name."""
+    return value if value and re.fullmatch(r"[A-Za-z0-9_-]{1,150}", value) else LEGACY_SAVE_SLOT
+
+
 # Connection Statuses: DISCONNECTED, CONNECTING, AUTHENTICATING, CONNECTED, ERROR
 STATUS_DISCONNECTED = "DISCONNECTED"
 STATUS_CONNECTING = "CONNECTING"
@@ -36,6 +52,8 @@ class BridgeState:
     # how many items of the server's list (by index order) have had their one-shot effect applied in
     # the game; sessions saved before this field existed start from their old next_item_index
     applied_item_count: int = 0
+    # the save slot of this session's Archipelago save ("" = a session saved before one save per multiworld: it uses LEGACY_SAVE_SLOT)
+    save_slot: str = ""
 
 
 GATE_ID_PATTERN = re.compile(r"^[A-Z0-9_]+$")
@@ -147,6 +165,7 @@ class BridgeIO:
                 next_item_index=next_item,
                 outbox_position=outbox_pos,
                 savegame_baseline=baseline,
+                save_slot=str(raw.get("save_slot", "") or ""),
             )
         except Exception:
             return None
@@ -168,6 +187,7 @@ class BridgeIO:
             "applied_item_count": state.applied_item_count,
             "outbox_position": state.outbox_position,
             "savegame_baseline": sorted(state.savegame_baseline),
+            "save_slot": state.save_slot,
         }
         if state.session_id:
             try:
@@ -202,6 +222,7 @@ class BridgeIO:
                 next_item_index=next_item,
                 outbox_position=outbox_pos,
                 savegame_baseline=baseline,
+                save_slot=str(raw.get("save_slot", "") or ""),
             )
         except Exception:
             return BridgeState()
@@ -209,7 +230,8 @@ class BridgeIO:
     def save_state(self, state: BridgeState, loc_id_to_name: dict[int, str] | None = None) -> None:
         self.save_session(state, loc_id_to_name)
 
-    def save_connection_status(self, status: str, server: str, slot: str, checked_count: int, received_count: int, last_error: str = "", last_message: str = "") -> None:
+    def save_connection_status(self, status: str, server: str, slot: str, checked_count: int, received_count: int, last_error: str = "", last_message: str = "",
+                               total_count: int | None = None) -> None:
         data = {
             "status": status,
             "server": server,
@@ -220,6 +242,8 @@ class BridgeIO:
             "last_message": last_message,
             "timestamp": time.time(),
         }
+        if total_count is not None:  # how many locations this seed has (the in-game panel shows "checked / total"); left out when unknown
+            data["total_count"] = total_count
         try:
             self.status_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         except Exception:
@@ -396,7 +420,10 @@ class InstanceLock:
 
 class SaveAPI:
     """How the core reads and creates game saves. The default uses save_reader.py next to this module; a transport may inject its
-    own (the standalone client injects one that resolves through ap_client.main so tests can patch it)."""
+    own (the standalone client injects one that resolves through ap_client.main so tests can patch it).
+    `slot_name` is the save slot of the session being played (the core sets it at every connect); None = the shared Playerarchi."""
+
+    slot_name: str | None = None
 
     @staticmethod
     def _reader():
@@ -413,10 +440,10 @@ class SaveAPI:
         return self._reader().extract_earned_locations(parsed)
 
     def archipelago_save_path(self) -> Path | None:
-        return self._reader().get_archipelago_savegame_path()
+        return self._reader().get_archipelago_savegame_path(self.slot_name)
 
     def ensure_clean_save(self):
-        return self._reader().ensure_clean_archipelago_save()
+        return self._reader().ensure_clean_archipelago_save(slot_name=self.slot_name)
 
 
 class BridgeCore:
@@ -453,6 +480,10 @@ class BridgeCore:
         # DeathLink: only active when the slot enabled it (slot_data["death_link"]); reset on every connect
         self.death_link_enabled = False
         self._deathlink_times: list[float] = []  # `time` of recent deaths we sent or handled: echoes and repeats are ignored
+        # Location groups the slot did not randomize (prizes / Faz Tokens / tapes off) have no locations in this multiworld. The ids that do exist are
+        # the server's checked + missing lists; None = unknown (no list in the Connected packet): nothing is filtered, as before the toggles.
+        self.seed_location_ids: set[int] | None = None
+        self._not_in_seed_logged: set[int] = set()
 
     # ---- hooks a transport overrides -------------------------------------------------------------------------
 
@@ -491,12 +522,26 @@ class BridgeCore:
             received_count=self.received_items_count,
             last_error=self.last_error,
             last_message=self.last_message,
+            total_count=len(self.seed_location_ids) if self.seed_location_ids is not None else None,
         )
         self.bridge.write_inbox_line(f"STATUS {self.status} {self.last_message}")
         self.notify_status()
 
     def _save_state(self) -> None:
         self.bridge.save_state(self.state, self.location_id_to_name)
+
+    def in_seed(self, loc_id: int) -> bool:
+        """False for a location this multiworld does not have (its group is not randomized): such a check is never sent, queued or stored."""
+        return self.seed_location_ids is None or loc_id in self.seed_location_ids
+
+    def _note_not_in_seed(self, loc_id: int) -> None:
+        """Say once per location (not at every poll of the save) that a check was dropped on purpose."""
+        if loc_id in self._not_in_seed_logged:
+            return
+        self._not_in_seed_logged.add(loc_id)
+        name = self.location_id_to_name.get(loc_id, str(loc_id))
+        print(f"[ARCHI] Ignoring '{name}' ({loc_id}): not part of this multiworld (its group is not randomized in this slot)")
+        self.bridge.write_inbox_line(f"PRINT Location not part of this multiworld, ignored: {name}")
 
     # ---- packets from the server -----------------------------------------------------------------------------
 
@@ -584,8 +629,15 @@ class BridgeCore:
                 stale_names = sorted(self.location_id_to_name.get(lid, str(lid)) for lid in stale_local)
                 print(f"[AP Client] Discarding {len(stale_local)} stale local checks not on current server: {stale_names}")
 
-            # Re-snapshot the baseline from the current Playerarchi.sav on disk.
-            # This prevents pre-existing game state in Playerarchi.sav from being
+            # The save of this session: its own file, or the shared Playerarchi.sav for a session made before one save per multiworld.
+            save_slot = _readable_save_slot(existing_session.save_slot)
+            self.save_api.slot_name = save_slot
+            if save_slot != LEGACY_SAVE_SLOT and not self.save_api.archipelago_save_path():
+                print(f"[AP Client] The save of this session ({save_slot}.sav) is gone: creating a clean one")
+                self.save_api.ensure_clean_save()
+
+            # Re-snapshot the baseline from the current save on disk.
+            # This prevents pre-existing game state in the save from being
             # interpreted as "new" progression that should be sent as checks.
             try:
                 baseline = self._snapshot_baseline("Re-snapshotted Archipelago save baseline")
@@ -603,25 +655,27 @@ class BridgeCore:
                 applied_item_count=existing_session.applied_item_count,
                 outbox_position=existing_session.outbox_position,
                 savegame_baseline=baseline,
+                save_slot=save_slot,
             )
         else:
             print(f"[AP Client] Initializing NEW Archipelago session: {session_id}")
-            # If an old Playerarchi.sav exists from a previous seed, archive it so this new seed starts clean
+            # Every multiworld has its own save file; the saves of other sessions (and the shared Playerarchi.sav of the sessions made before this)
+            # are never touched. Only a file that already has THIS session's name (its session record was deleted) is archived: a new session starts clean.
+            save_slot = save_slot_for_session(session_id)
+            self.save_api.slot_name = save_slot
             try:
-                appdata = os.environ.get("LOCALAPPDATA", "")
-                if appdata:
-                    p_archi = Path(appdata) / "freddys" / "Saved" / "SaveGames" / "Playerarchi.sav"
-                    if p_archi.exists():
-                        ts = int(time.time() * 1000)
-                        bak = p_archi.with_name(f"Playerarchi_{ts}.sav.bak")
-                        if bak.exists():
-                            bak.unlink(missing_ok=True)
-                        p_archi.rename(bak)
-                        print(f"[AP Client] Archived previous Playerarchi.sav to {bak.name} for clean new seed!")
+                stale = self.save_api.archipelago_save_path()
+                if stale is not None and stale.exists():
+                    ts = int(time.time() * 1000)
+                    bak = stale.with_name(f"{stale.stem}_{ts}.sav.bak")
+                    if bak.exists():
+                        bak.unlink(missing_ok=True)
+                    stale.rename(bak)
+                    print(f"[AP Client] Archived the leftover save {stale.name} to {bak.name} for a clean new seed!")
             except Exception as e:
-                print(f"[AP Client] Note on Playerarchi archive: {e}")
+                print(f"[AP Client] Note on save archive: {e}")
 
-            # Generate fresh, unplayed Playerarchi.sav for the new session
+            # Generate a fresh, unplayed save for the new session
             self.save_api.ensure_clean_save()
 
             try:
@@ -639,10 +693,21 @@ class BridgeCore:
                 next_item_index=0,
                 outbox_position=outbox_size,
                 savegame_baseline=baseline,
+                save_slot=save_slot,
             )
 
         self._last_sav_mtime = 0.0
         self.received_items_count = self.state.next_item_index
+
+        # Which locations this multiworld has: the server's own lists. A Connected packet without `missing_locations` (an old setup) filters nothing.
+        missing = packet.get("missing_locations")
+        self.seed_location_ids = (server_checked | {int(x) for x in missing}) if missing is not None else None
+        self._not_in_seed_logged.clear()
+        not_in_seed = sorted(lid for lid in self.state.pending_locations if not self.in_seed(lid))
+        if not_in_seed:
+            print(f"[AP Client] Dropping {len(not_in_seed)} pending check(s) that are not part of this multiworld: "
+                  f"{[self.location_id_to_name.get(lid, str(lid)) for lid in not_in_seed]}")
+            self.state.pending_locations.difference_update(not_in_seed)
 
         if "slot_data" in packet:
             slot_data = packet["slot_data"]
@@ -671,6 +736,17 @@ class BridgeCore:
         # resets it to "yes" when it reads DEATH_LINK_MODE, so this line must follow it
         gift_box = bool((packet.get("slot_data") or {}).get("death_link_gift_box", True))
         self.bridge.write_inbox_line(f"DEATH_LINK_GIFT_BOX {1 if gift_box else 0}")
+        # which groups are randomized (slot_data of a room made before the toggles: all of them, as always). A group that is not randomized is vanilla
+        # in game: the mod stops overriding the tape count / the TV token count for it. Written in every connect block, after SESSION_SYNC (which resets it).
+        slot_options = packet.get("slot_data") or {}
+        flags = {key: bool(slot_options.get(option, True)) for key, option in
+                 (("prizes", "randomize_prizes"), ("faz_tokens", "randomize_faz_tokens"), ("tapes", "randomize_glitch_tapes"))}
+        self.bridge.write_inbox_line("RANDOMIZED_GROUPS " + " ".join(f"{key}={1 if on else 0}" for key, on in flags.items()))
+        if not all(flags.values()):
+            print("[SESSION] Not randomized in this slot (vanilla): " + ", ".join(key for key, on in flags.items() if not on))
+        # the save slot of this session: the mod makes the game use it (an old mod ignores the line and keeps using the shared Playerarchi)
+        self.bridge.write_inbox_line(f"SAVE_SLOT {self.state.save_slot}")
+        print(f"[SESSION] Archipelago save of this session: {self.state.save_slot}.sav")
         if self.death_link_enabled:
             outgoing.append({"cmd": "ConnectUpdate", "tags": ["AP", "DeathLink"]})
             print("[SESSION] DeathLink is enabled for this slot")
@@ -797,6 +873,10 @@ class BridgeCore:
             self.bridge.write_inbox_line(f"PRINT Invalid location ID: {arg}")
             return []
 
+        if not self.in_seed(loc_id):
+            self._note_not_in_seed(loc_id)
+            return []
+
         loc_name = self.location_id_to_name.get(loc_id, str(loc_id))
         is_checked = loc_id in self.state.checked_locations
         action = "IGNORE" if is_checked else "SEND"
@@ -887,6 +967,9 @@ class BridgeCore:
             new_found = False
             for loc_name in new_earned:
                 loc_id = self.location_name_to_id.get(loc_name)
+                if loc_id and not self.in_seed(loc_id):
+                    self._note_not_in_seed(loc_id)  # a group that is not randomized: the save still holds it, the multiworld does not
+                    continue
                 server_checked = (loc_id in self.state.checked_locations) if loc_id else False
                 action = "SEND" if (loc_id and not server_checked) else "IGNORE"
                 if loc_id and not server_checked:

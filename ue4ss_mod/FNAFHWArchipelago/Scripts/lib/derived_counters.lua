@@ -63,13 +63,15 @@ function DerivedCounters.init(params)
     -- per counter: forced (debug override), items (count of its item in the server's list, nil until a snapshot), hooked paths, calls
     local state = { session_id = nil, counters = {}, order = {}, logged = {} }
     for _, def in ipairs(definitions) do
-        state.counters[def.name] = { def = def, forced = nil, items = nil, hooked = {}, calls = 0 }
+        -- randomized: false when the slot did not randomize this group (RANDOMIZED_GROUPS): the game then keeps its own, vanilla, number
+        state.counters[def.name] = { def = def, forced = nil, items = nil, randomized = true, hooked = {}, calls = 0 }
         state.order[#state.order + 1] = def.name
     end
 
     -- The value the game must show, or nil = leave the vanilla value alone.
     local function effective(counter)
         if counter.forced ~= nil then return counter.forced end
+        if not counter.randomized then return nil end
         if state.session_id ~= nil then return counter.items end
         return nil
     end
@@ -140,8 +142,25 @@ function DerivedCounters.init(params)
         if state.session_id ~= session_id then
             for _, name in ipairs(state.order) do state.counters[name].items = nil end
         end
+        -- every connect block starts with SESSION_SYNC and then says which groups are randomized, so this is the default until that line
+        for _, name in ipairs(state.order) do state.counters[name].randomized = true end
         state.session_id = session_id
         state.logged = {}
+    end
+
+    -- A group the slot does not randomize (e.g. no tape locations and no Glitch Tape items) is vanilla: stop overriding what the game shows.
+    -- Returns false for a counter that does not exist.
+    function self.set_randomized(name, value)
+        local counter = state.counters[name]
+        if not counter then return false end
+        local randomized = value ~= false
+        if counter.randomized ~= randomized then
+            print(string.format("[ARCHI] Derived counter '%s': %s", name,
+                randomized and "randomized (the game shows the item count)" or "NOT randomized (vanilla: the game shows its own count)"))
+        end
+        counter.randomized = randomized
+        state.logged = {}
+        return true
     end
 
     -- spec: comma-separated item ids of the whole received list (possibly empty); replaces every counter's count.
@@ -180,8 +199,8 @@ function DerivedCounters.init(params)
             local counter = state.counters[name]
             local hooked = 0
             for _ in pairs(counter.hooked) do hooked = hooked + 1 end
-            parts[#parts + 1] = string.format("%s: forced=%s items=%s effective=%s hooked=%d/%d calls=%d", name,
-                tostring(counter.forced), tostring(counter.items), tostring(effective(counter)), hooked, #counter.def.targets, counter.calls)
+            parts[#parts + 1] = string.format("%s: forced=%s items=%s randomized=%s effective=%s hooked=%d/%d calls=%d", name,
+                tostring(counter.forced), tostring(counter.items), tostring(counter.randomized), tostring(effective(counter)), hooked, #counter.def.targets, counter.calls)
         end
         return table.concat(parts, "; ")
     end

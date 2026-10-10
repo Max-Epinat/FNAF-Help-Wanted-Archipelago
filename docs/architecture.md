@@ -20,17 +20,19 @@
 | :--- | :--- |
 | **apworld** (`fnaf_help_wanted/`) | Items, locations, options, rules (`levels.py` builds the unlock plan), `slot_data`. Also contains the launcher client. |
 | **BridgeCore** (`ap_client/bridge_core.py`) | Everything that does not depend on a socket: session handling, item sync, location checks, save polling, DeathLink forwarding, the single-instance lock, bridge-folder discovery. Methods *return* the packets to send. |
-| **save_reader** (`ap_client/save_reader.py`) | Reads `Playerarchi.sav` (GVAS), maps it to locations, and creates a clean AP save from `Player00.sav`. Read-only on the normal save. |
+| **save_reader** (`ap_client/save_reader.py`) | Reads the Archipelago save (`Playerarchi_<seed>_<slot>.sav`, GVAS), maps it to locations, and creates a clean AP save from `Player00.sav`. Read-only on the normal save. |
 | **Clients** | Thin transports around `BridgeCore`. The launcher client is vendored with `bridge_core.py` and `save_reader.py` into the apworld at build time (an apworld is a zip). |
 | **Mod** | Hooks game functions (checks), enforces level unlocks, applies item effects, shows an optional connection panel. Everything runs through `Scripts/main.lua`. |
 
 ## Sessions and saves
 
 - A **session** is `seed + slot` (the seed name comes from the server's `RoomInfo`; a client never guesses it).
-- Archipelago plays on its own save, `Playerarchi.sav`; the mod forces the game's save slot to `Playerarchi`. `Player00.sav` is only ever read, as a template.
-- A **new** session archives the previous `Playerarchi.sav` (`.sav.bak`) and creates a clean one: levels, prizes, tapes (collected and listened),
-  coins, hub audio and eaten objects reset. A **resumed** session keeps the file and re-snapshots a *baseline* of what it already contains, so nothing
-  already earned is sent as new.
+- Archipelago plays on its own save, **one file per session**: `Playerarchi_<seed>_<slot>.sav` (`bridge_core.save_slot_for_session`; only `[A-Za-z0-9_-]`). The client names it to the mod with the
+  `SAVE_SLOT` line at every connect, and the mod forces the game's save slot to that name (`exact_hooks.set_save_slot`, default `Playerarchi`). `Player00.sav` is only ever read, as a template.
+- A **new** session creates a clean file for itself: levels, prizes, tapes (collected and listened), coins, hub audio and eaten objects reset. Other sessions' files are never touched
+  (a leftover file that already has this session's own name is archived as `.sav.bak`). A **resumed** session keeps its file (recreated clean if it was deleted) and re-snapshots a *baseline* of what it
+  already contains, so nothing already earned is sent as new. The slot is stored in the session file (`save_slot`).
+- Sessions made before this keep the shared `Playerarchi.sav` (empty `save_slot` = legacy): nothing is renamed or moved.
 - The **server is authoritative** for checked locations; local pending checks survive until the server confirms them.
 
 ## How checks reach the server
@@ -42,7 +44,11 @@
 | 16 Glitch Tapes | `AwardGlitch` hook (a real pickup) and the client's poll of `CollectedGlitches`. Playing a tape in the tape room (`SetGlitchListenedTo`) is only logged: the room shows tapes the player never picked up, and a check per played tape was a free check |
 | 57 prizes | The client's save poll, which reads the prize ids from the .sav file. The mod only counts the prizes in the save: it never decodes their ids (that crashed the game). 24 more prizes of the game's list have no save id and are not locations |
 
-The client also polls `Playerarchi.sav` (at most once a second, when it changed), so a check missed by a hook is still found. A live check and a
+**Location groups.** The prizes, Faz Tokens and tapes can be switched off in the yaml (`randomize_prizes`, `randomize_faz_tokens`, `randomize_glitch_tapes`). The game and the mod still
+see the pickups and still send the checks; the **client** drops every check whose location is not in this multiworld (a location is in it when the server's `Connected` packet lists it in
+`checked_locations` or `missing_locations`; a packet without `missing_locations` filters nothing), whether it comes from the mod or from the save poll. Nothing is sent, queued or stored for it.
+
+The client also polls the session's Archipelago save (at most once a second, when it changed), so a check missed by a hook is still found. A live check and a
 poll in the same pass are merged into one `LocationChecks` packet.
 
 ## How items reach the game
@@ -53,9 +59,9 @@ connect, and the mod derives state from it:
 | Item | Effect |
 | :--- | :--- |
 | Section items, hard-section items, per-level items | Authorize a level gate (`level_gate.lua`). Tested in game. |
-| Faz Token | The displayed coin count equals the number of Faz Token items (`faz_tokens.lua`). Tested in game. |
+| Faz Token | The displayed coin count equals the number of Faz Token items (`faz_tokens.lua`). Tested in game. With `randomize_faz_tokens` off (line `RANDOMIZED_GROUPS faz_tokens=0`) the mod leaves the count alone: vanilla, the tokens really picked up (HYPOTHESIS in game). |
 | Nightmare Mode License | Sets nightmare mode (`exact_hooks.lua`); effect not verified in game. |
-| Glitch Tape | The number of tapes in the tape area equals the number of Glitch Tape items (`derived_counters.lua`: the hook on `FNAFSaveGame_C:GetGlitchCount` returns that number). Verified in game with a forced value and with one real Glitch Tape item from a room; reconnect and several items not checked yet. |
+| Glitch Tape | The number of tapes in the tape area equals the number of Glitch Tape items (`derived_counters.lua`: the hook on `FNAFSaveGame_C:GetGlitchCount` returns that number). Verified in game with a forced value and with one real Glitch Tape item from a room; reconnect and several items not checked yet. With `randomize_glitch_tapes` off (`RANDOMIZED_GROUPS tapes=0`) the hook returns nothing and the game's own count stands: the tapes really picked up (HYPOTHESIS in game). |
 | Prize Counter Key, traps | No in-game effect yet; used by the logic only. |
 
 One-shot effects are applied exactly once per session: the client persists `applied_item_count`, the mod applies items beyond it in order and

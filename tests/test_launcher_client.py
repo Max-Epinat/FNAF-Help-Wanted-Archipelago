@@ -46,6 +46,7 @@ class StubCommonContext:
         self.exit_event = asyncio.Event()
         self.sent = []
         self.connect_sent = False
+        self.disconnected = False
 
     async def send_msgs(self, msgs):
         self.sent.append(list(msgs))
@@ -61,6 +62,9 @@ class StubCommonContext:
 
     async def connection_closed(self):
         pass
+
+    async def disconnect(self, allow_autoreconnect=False):
+        self.disconnected = True
 
     async def shutdown(self):
         pass
@@ -290,7 +294,7 @@ class TestSessionSafety(LauncherTestCase):
         ctx = self.make_ctx()
         self.connect(ctx, seed="SeedKeep")
         sav_dir = Path(os.environ["LOCALAPPDATA"]) / "freddys" / "Saved" / "SaveGames"
-        playerarchi = sav_dir / "Playerarchi.sav"
+        playerarchi = sav_dir / "Playerarchi_SeedKeep_HWtest.sav"  # one save per multiworld: seed + slot
         playerarchi.write_bytes(playerarchi.read_bytes() + b"\x00")  # the player progressed in game
         digest = playerarchi.read_bytes()
         self.connect(ctx, seed="SeedKeep")  # same seed + slot: resume
@@ -506,6 +510,69 @@ class TestMergeLocationChecks(unittest.TestCase):
         self.assertEqual(self.merge([]), [])
 
 
+class TestNoBridge(LauncherTestCase):
+    """A client whose bridge could not start (another client holds the lock, or the folder is missing) must say so loudly and refuse to connect.
+    It used to join the room silently and write nothing, so the game kept replaying the previous session and its save (found 2026-10-10)."""
+
+    def second_client(self):
+        self.make_ctx()  # the first client holds the lock
+        second = self.make_ctx()
+        self.assertIsNone(second.core)
+        return second
+
+    async def test_authenticating_without_a_bridge_logs_an_error_does_not_connect_and_disconnects(self):
+        second = self.second_client()
+        with self.assertLogs("fnafhw-launcher-test", level="ERROR") as logs:
+            await second.server_auth()
+        text = "\n".join(logs.output)
+        self.assertIn("NOT connecting", text)
+        self.assertIn("already running", text)
+        self.assertIn("/disconnect does not release it", text)
+        self.assertIn("close its window", text)
+        self.assertFalse(second.connect_sent)
+        self.assertTrue(second.disconnected)
+
+    async def test_the_error_comes_back_at_every_attempt(self):
+        second = self.second_client()
+        for _ in range(2):
+            with self.assertLogs("fnafhw-launcher-test", level="ERROR") as logs:
+                await second.server_auth()
+            self.assertIn("NOT connecting", "\n".join(logs.output))
+
+    async def test_a_missing_bridge_folder_is_refused_the_same_way(self):
+        os.environ["FNAFHW_BRIDGE_DIR"] = str(self.temp / "does_not_exist")
+        old_roots = self.bridge_core.candidate_game_roots
+        self.bridge_core.candidate_game_roots = lambda env=None: []
+        try:
+            ctx = self.make_ctx()
+        finally:
+            self.bridge_core.candidate_game_roots = old_roots
+        with self.assertLogs("fnafhw-launcher-test", level="ERROR") as logs:
+            await ctx.server_auth()
+        self.assertIn("could not find the bridge folder", "\n".join(logs.output))
+        self.assertFalse(ctx.connect_sent)
+        self.assertTrue(ctx.disconnected)
+
+    async def test_a_connected_packet_that_still_arrives_without_a_bridge_is_reported_not_swallowed(self):
+        second = self.second_client()
+        with self.assertLogs("fnafhw-launcher-test", level="ERROR") as logs:
+            second.on_package("Connected", {"cmd": "Connected", "checked_locations": [], "slot_data": {}})
+        self.assertIn("NOT connecting", "\n".join(logs.output))
+
+    async def test_a_working_bridge_connects_without_any_error(self):
+        ctx = self.make_ctx()
+        with self.assertNoLogs("fnafhw-launcher-test", level="ERROR"):
+            await ctx.server_auth()
+        self.assertTrue(ctx.connect_sent)
+        self.assertFalse(ctx.disconnected)
+
+    async def test_closing_the_first_client_lets_a_new_one_start(self):
+        first = self.make_ctx()
+        await first.shutdown()
+        second = self.make_ctx()
+        self.assertIsNotNone(second.core, second.bridge_error)
+
+
 class TestCommandProcessor(LauncherTestCase):
     async def test_bridge_command_reports_state_or_the_setup_error(self):
         ctx = self.make_ctx()
@@ -514,6 +581,7 @@ class TestCommandProcessor(LauncherTestCase):
         proc._cmd_bridge()
         self.assertTrue(any("Bridge folder:" in line for line in proc.lines))
         self.assertTrue(any("SeedL_HWtest" in line for line in proc.lines))
+        self.assertTrue(any("Save file: Playerarchi_SeedL_HWtest.sav" in line for line in proc.lines), proc.lines)
 
         broken = self.client.FNAFHWContext.__new__(self.client.FNAFHWContext)
         broken.core, broken.bridge_error = None, "no bridge"

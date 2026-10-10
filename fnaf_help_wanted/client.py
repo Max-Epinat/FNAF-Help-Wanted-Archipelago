@@ -60,6 +60,7 @@ class FNAFHWCommandProcessor(ClientCommandProcessor):
         state = ctx.core.state
         self.output(f"Bridge folder: {ctx.bridge_dir}")
         self.output(f"Session: {state.session_id or '(none yet)'}  status: {ctx.core.status}")
+        self.output(f"Save file: {(state.save_slot or 'Playerarchi')}.sav")
         self.output(f"Checked: {len(state.checked_locations)}  pending: {len(state.pending_locations)}  "
                     f"items received: {ctx.core.received_items_count}  applied in game: {state.applied_item_count}")
 
@@ -91,7 +92,8 @@ class FNAFHWContext(CommonContext):
         try:
             lock.acquire()
         except RuntimeError as exc:
-            self.bridge_error = f"{exc} Close the other client first (two clients corrupt each other's state)."
+            self.bridge_error = (f"{exc} Close the other client first: /disconnect does not release it, close its window "
+                                 "(two clients corrupt each other's state).")
             logger.error("FNAF Help Wanted: " + self.bridge_error)
             return
         self.instance_lock = lock
@@ -114,7 +116,21 @@ class FNAFHWContext(CommonContext):
 
     # -- Archipelago callbacks --
 
+    def _no_bridge(self) -> bool:
+        """True, after saying why, when there is no bridge. Without one this client would join the room and write nothing for the game, which then
+        keeps replaying the previous session and its save (found 2026-10-10): refuse loudly instead."""
+        if self.core is not None:
+            return False
+        logger.error("FNAF Help Wanted: NOT connecting. " + (self.bridge_error or "the bridge is not available.") + " Fix that, then /connect again.")
+        return True
+
     async def server_auth(self, password_requested: bool = False):
+        if self._no_bridge():
+            try:
+                await self.disconnect()
+            except Exception as exc:  # the refusal above is what matters; a failing disconnect must not hide it
+                logger.info(f"FNAF Help Wanted: could not close the connection ({exc!r})")
+            return
         if password_requested and not self.password:
             await super().server_auth(password_requested)
         await self.get_username()
@@ -127,6 +143,8 @@ class FNAFHWContext(CommonContext):
     def on_package(self, cmd: str, args: dict):
         core = self.core
         if core is None:
+            if cmd == "Connected":
+                self._no_bridge()
             return
         if cmd == "RoomInfo":
             self._room_seed = str(args.get("seed_name", "") or "")

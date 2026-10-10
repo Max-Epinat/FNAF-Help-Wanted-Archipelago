@@ -31,7 +31,7 @@ AP server <-websocket-> client --<bridge>/ap_inbox.txt--> Lua mod (game)
 | `STATUS <state> <message>` | Connection status (`CONNECTING`, `CONNECTED`, ...). |
 | `CONNECTED` | The AP handshake finished. |
 | `SESSION_SYNC <seed>_<slot>` | A (re)connect to this session. Session id = seed + slot. |
-| `SESSION_BASELINE <location name>` | A location already earned in `Playerarchi.sav` when the session started (not to be sent as new). |
+| `SESSION_BASELINE <location name>` | A location already earned in the session's save when the session started (not to be sent as new). |
 | `CONFIRMED_CHECK <id> <name>` | The server confirmed this location. |
 | `PRINT <text>` | Text from the server, shown in the mod log. |
 | `ITEM <id> <player> <loc> <flags> <index>` | Informational only. Item effects are **not** driven by this line any more. |
@@ -41,12 +41,14 @@ AP server <-websocket-> client --<bridge>/ap_inbox.txt--> Lua mod (game)
 | `RECEIVED_SNAPSHOT <id>,<id>,...` | **All** items of the current connection, in server index order (possibly empty). Replaces the previous snapshot wholesale. |
 | `DEATH_LINK_MODE 1\|0` | Whether this slot enabled DeathLink (`slot_data["death_link"]`). Sent at every connect, before the gate table. Must stay ahead of the `DEATHLINK` handler (both start with `DEATH`). |
 | `DEATH_LINK_GIFT_BOX 1\|0` | Whether the game over after the prize gift box jumpscare is sent as a death (`slot_data["death_link_gift_box"]`, default `1` when the key is missing, i.e. rooms made before the option). Sent at every connect, **right after** `DEATH_LINK_MODE` (the mod resets it to `1` when it reads that line). Only matters while DeathLink is on. An older mod ignores the line. |
+| `RANDOMIZED_GROUPS prizes=1\|0 faz_tokens=1\|0 tapes=1\|0` | Which location groups the slot randomizes (`slot_data["randomize_prizes"]`, `["randomize_faz_tokens"]`, `["randomize_glitch_tapes"]`, each default `1` when the key is missing, i.e. rooms made before the toggles). Sent at every connect, after `DEATH_LINK_GIFT_BOX` (so after `SESSION_SYNC`, which resets the mod to "all randomized"). A group at `0` is vanilla in game: the mod stops overriding the tape count (`tapes`) and the TV token count (`faz_tokens`). `prizes` is informational (prizes are only checks). A key that is missing or not `0` / `1` means randomized. An older mod ignores the line. |
+| `SAVE_SLOT <name>` | The save slot (file name without `.sav`) of this session: `Playerarchi_<seed>_<slot>`, only `[A-Za-z0-9_-]`, or `Playerarchi` for a session made before one save per multiworld. Sent at every connect, after `RANDOMIZED_GROUPS` (so after `SESSION_SYNC`, which resets the mod to the shared `Playerarchi`). The mod makes the game use that slot and loads the file into memory once. A name that is not a safe file name is ignored. An older mod ignores the line. |
 | `DEATHLINK <source>::<cause>` | A death from another player. Only forwarded when DeathLink is enabled, never our own echo, never the same death twice. |
 
 ### Order at every connect
 
 ```text
-SESSION_SYNC, SESSION_BASELINE*, CONFIRMED_CHECK*, DEATH_LINK_MODE, DEATH_LINK_GIFT_BOX, [GATE_TABLE], [GATE_ITEMS], APPLIED_ITEMS n, RECEIVED_SNAPSHOT (empty)
+SESSION_SYNC, SESSION_BASELINE*, CONFIRMED_CHECK*, DEATH_LINK_MODE, DEATH_LINK_GIFT_BOX, RANDOMIZED_GROUPS, SAVE_SLOT, [GATE_TABLE], [GATE_ITEMS], APPLIED_ITEMS n, RECEIVED_SNAPSHOT (empty)
 ```
 
 When DeathLink is enabled the client also sends `ConnectUpdate` with tags `AP, DeathLink` right after `Connected`, which is what makes the server

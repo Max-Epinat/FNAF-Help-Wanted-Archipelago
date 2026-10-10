@@ -1,7 +1,22 @@
+import re
 import struct
 import os
 from pathlib import Path
 from typing import Any
+
+# The save slot (= file name without .sav) of the Archipelago save. One file per multiworld is named by the client (`Playerarchi_<seed>_<slot>`);
+# `Playerarchi` is the shared file of every version before that, still used by the sessions made then.
+DEFAULT_SAVE_SLOT = "Playerarchi"
+SAVE_SLOT_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,150}$")
+
+
+def _slot_name(slot_name: str | None) -> str:
+    """The slot name to use, checked: it becomes a file name, so nothing that could leave the save folder is accepted."""
+    if slot_name is None:
+        return DEFAULT_SAVE_SLOT
+    if not SAVE_SLOT_PATTERN.match(slot_name):
+        raise ValueError(f"unsafe save slot name {slot_name!r}")
+    return slot_name
 
 # Canonical mapping for LevelInfo row IDs to minigame location names
 # Extracted from FNAF Help Wanted LevelInfoTable.uexp
@@ -372,11 +387,12 @@ def extract_earned_locations(
     return list(dict.fromkeys(earned))
 
 
-def get_archipelago_savegame_path() -> Path | None:
-    """Find the dedicated Archipelago savegame (Playerarchi.sav). Never returns Player00.sav."""
+def get_archipelago_savegame_path(slot_name: str | None = None) -> Path | None:
+    """Find the dedicated Archipelago savegame (`<slot_name>.sav`, default Playerarchi.sav) if it exists. Never returns Player00.sav."""
+    slot_name = _slot_name(slot_name)
     appdata = os.environ.get("LOCALAPPDATA", "")
     if appdata:
-        p = Path(appdata) / "freddys" / "Saved" / "SaveGames" / "Playerarchi.sav"
+        p = Path(appdata) / "freddys" / "Saved" / "SaveGames" / f"{slot_name}.sav"
         if p.exists():
             return p
     return None
@@ -546,14 +562,16 @@ def create_clean_playerarchi_data(template_data: bytes) -> bytes:
 def ensure_clean_archipelago_save(
     target_path: Path | None = None,
     template_path: Path | None = None,
+    slot_name: str | None = None,
 ) -> Path:
-    """Ensure a clean Playerarchi.sav exists on disk, created from template if missing."""
+    """Write a clean Archipelago save (`<slot_name>.sav`, default Playerarchi.sav) from the normal save as template."""
     if target_path is None:
+        slot_name = _slot_name(slot_name)
         appdata = os.environ.get("LOCALAPPDATA", "")
         if appdata:
-            target_path = Path(appdata) / "freddys" / "Saved" / "SaveGames" / "Playerarchi.sav"
+            target_path = Path(appdata) / "freddys" / "Saved" / "SaveGames" / f"{slot_name}.sav"
         else:
-            target_path = Path("Playerarchi.sav")
+            target_path = Path(f"{slot_name}.sav")
 
     target_path.parent.mkdir(parents=True, exist_ok=True)
 

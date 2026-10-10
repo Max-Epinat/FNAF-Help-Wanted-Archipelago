@@ -1,7 +1,6 @@
 from worlds.generic.Rules import add_item_rule, add_rule, set_rule
 
 from .data import (
-    FULL_CLEAR_CHECKS,
     GOAL_COMPLETE_ALL_MINIGAMES,
     GOAL_COMPLETE_ALL_MINIGAMES_HARD,
     GOAL_GLITCHTRAP_DIE,
@@ -9,6 +8,8 @@ from .data import (
     GOAL_HUNDRED_PERCENT,
     GOAL_TOKEN_TAPE_QUOTA,
     MINIGAME_AND_NIGHT_CHECKS,
+    full_clear_checks,
+    tape_token_requirements,
 )
 from .levels import MANAGED_ITEM_NAMES, may_hold_unlock_item
 
@@ -33,6 +34,17 @@ def set_rules(world) -> None:
 
     required_tapes = world.options.required_tapes.value
     required_faz_tokens = world.options.required_faz_tokens.value
+    prizes_on = bool(world.options.randomize_prizes.value)
+    tokens_on = bool(world.options.randomize_faz_tokens.value)
+    tapes_on = bool(world.options.randomize_glitch_tapes.value)
+
+    def has_tapes_and_tokens(goal_name: str):
+        """Item part of a goal. A group that is not randomized has no items, so the logic does not ask for them (see data.tape_token_requirements)."""
+        tapes_needed, tokens_needed = tape_token_requirements(goal_name, required_tapes, required_faz_tokens, tapes_on, tokens_on)
+        return lambda state: (
+            (tapes_needed <= 0 or state.has("Glitch Tape", player, tapes_needed))
+            and (tokens_needed <= 0 or state.has("Faz Token", player, tokens_needed))
+        )
 
     goal_all = multiworld.get_location(GOAL_COMPLETE_ALL_MINIGAMES, player)
     goal_hard = multiworld.get_location(GOAL_COMPLETE_ALL_MINIGAMES_HARD, player)
@@ -65,31 +77,29 @@ def set_rules(world) -> None:
         and state.has("Nightmare Mode License", player),
     )
 
+    die_items = has_tapes_and_tokens(GOAL_GLITCHTRAP_DIE)
     add_rule(
         goal_die,
-        lambda state: state.can_reach("Complete Pizza Party", "Location", player)
-        and state.has("Glitch Tape", player, max(1, required_tapes)),
+        lambda state: state.can_reach("Complete Pizza Party", "Location", player) and die_items(state),
     )
 
+    survive_items = has_tapes_and_tokens(GOAL_GLITCHTRAP_SURVIVE)
     add_rule(
         goal_survive,
         lambda state: state.can_reach("Complete Pizza Party", "Location", player)
-        and state.has("Glitch Tape", player, max(1, required_tapes))
+        and survive_items(state)
         and state.has("Prize Counter Key", player),
     )
 
+    # the 100 % goal only names locations that exist: a group that is not randomized has none (its list shrinks with the toggles)
+    full_clear = full_clear_checks(prizes_on, tokens_on, tapes_on)
+    full_items = has_tapes_and_tokens(GOAL_HUNDRED_PERCENT)
     add_rule(
         goal_100,
-        lambda state: can_reach_all(state, FULL_CLEAR_CHECKS)
-        and state.has("Glitch Tape", player, 16)
-        and state.has("Faz Token", player, 30),
+        lambda state: can_reach_all(state, full_clear) and full_items(state),
     )
 
-    add_rule(
-        goal_quota,
-        lambda state: state.has("Glitch Tape", player, required_tapes)
-        and state.has("Faz Token", player, required_faz_tokens),
-    )
+    add_rule(goal_quota, has_tapes_and_tokens(GOAL_TOKEN_TAPE_QUOTA))
 
     # Unlock items only on level-completion locations: where tapes, tokens and prizes physically are is not modelled, so an unlock item there
     # could be unreachable in the real game (see levels.may_hold_unlock_item).

@@ -44,12 +44,14 @@ function FazTokens.init(params)
         return nil
     end
     -- forced: debug override. items_count: Faz Token items in the server's list (nil until a snapshot).
-    local state = { forced = nil, items_count = nil, session_id = nil, hooked = {}, logged = {}, calls = {} }
+    -- randomized: false when the slot did not randomize the Faz Tokens (RANDOMIZED_GROUPS): the TV then shows the tokens really picked up
+    local state = { forced = nil, items_count = nil, randomized = true, session_id = nil, hooked = {}, logged = {}, calls = {} }
 
     -- The count the game must show: debug override, else the received Faz Token items while an AP
     -- session is active. nil = leave the vanilla value alone (no session: vanilla behaviour).
     local function effective()
         if state.forced ~= nil then return state.forced end
+        if not state.randomized then return nil end
         if state.session_id ~= nil then return state.items_count end
         return nil
     end
@@ -142,7 +144,19 @@ function FazTokens.init(params)
 
     function FazTokens.on_session_sync(session_id)
         if state.session_id ~= session_id then state.items_count = nil end
+        state.randomized = true  -- the RANDOMIZED_GROUPS line of the same connect block comes after SESSION_SYNC and has the last word
         state.session_id = session_id
+        refresh()
+    end
+
+    -- Faz Tokens not randomized: vanilla count on the TV and in the cache (the cache the game had is put back).
+    function FazTokens.set_randomized(value)
+        local randomized = value ~= false
+        if state.randomized ~= randomized then
+            print("[ARCHI] Faz Tokens: " .. (randomized and "randomized (the TV shows the Faz Token item count)"
+                or "NOT randomized (vanilla: the TV shows the tokens really picked up)"))
+        end
+        state.randomized = randomized
         refresh()
     end
 
@@ -182,8 +196,8 @@ function FazTokens.init(params)
             local gi = game_instance()
             if gi then cached = tostring(gi.PlayerCoins) end
         end)
-        return string.format("forced=%s; items=%s; effective=%s; GameInstance.PlayerCoins=%s; %s",
-            tostring(state.forced), tostring(state.items_count), tostring(effective()), cached,
+        return string.format("forced=%s; items=%s; randomized=%s; effective=%s; GameInstance.PlayerCoins=%s; %s",
+            tostring(state.forced), tostring(state.items_count), tostring(state.randomized), tostring(effective()), cached,
             table.concat(parts, "; "))
     end
 

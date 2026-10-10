@@ -42,6 +42,10 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
 - Playing a tape in the tape room no longer sends a location check (it did, because the room shows tapes by item count: every Glitch Tape item was a free check). Only a real pickup counts. In-game confirmation pending.
 - New option `death_link_gift_box` (default on = unchanged): off keeps the game over from the prize gift box jumpscare (a defeat on the map `Level_Victory`) from being sent as a DeathLink. Sending only, and only with `death_link` on. Released in 0.3.1. Seen working once in game with the option off (2026-10-06); **PARTIAL**, see "The gift box jumpscare" in game-research.md.
 
+- **Location group toggles** (released in 0.4.0, 2026-10-10): `randomize_prizes`, `randomize_faz_tokens`, `randomize_glitch_tapes` (default on). A group that is off has no locations and no matching items and is vanilla in game; the client drops its checks; the mod stops overriding the tape count / TV count for it. Details: "Location group toggles" in [game-research.md](game-research.md). Needs the apworld **and** the mod reinstalled.
+
+- **One Archipelago save per multiworld** (released in 0.4.0, 2026-10-10): `Playerarchi_<seed>_<slot>.sav`, named to the mod by `SAVE_SLOT`; sessions made before keep `Playerarchi.sav`. Plus: a client whose bridge cannot start refuses to connect and says why. Details in "Mod/game plumbing" in [game-research.md](game-research.md).
+
 ## Logic to check
 
 - **Stopgap in place (2026-10-05): unlock items only on level-completion locations**, to be replaced by real access rules for tapes, tokens and prizes so unlock items can go anywhere that is really reachable (the user's goal; see HANDOVER "Logic redesign"), so a tape, token or prize that is physically inside a gated level can never hold that level's unlock item (before: every seed did that, about 14 per seed). 297 real-generator runs, 0 misplaced; see docs/testing.md.
@@ -53,6 +57,21 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
   access item on that tape and soft-lock the player. Needs the tape-id -> level map from the game (`AwardGlitch` logs `GlitchID` and the map name); pre-existing, not caused by the listen change.
 
 ## To verify in game
+
+- **One save per multiworld** (the game accepts and writes the new slot names: VERIFIED 2026-10-10, three rooms' files in the folder; still unchecked: switching rooms while the game is running, going back to an older room, a room from before the change). With the client started first: connect to room A, start the game, play a little (a level or a token), close the game; connect to a NEW room B (same client: `/disconnect`, `/connect`), start the game:
+  B must show a clean save (no progress of A), `UE4SS.log` shows `Archipelago save slot for this session: 'Playerarchi_<seedB>_<slot>'`, `Enforced SaveSlotName=...` and `Successfully synchronized ... save`, and `SaveGames\` holds both `Playerarchi_<seedA>_...sav` and `...<seedB>...sav` and no new `.bak`.
+  Then connect back to A: its progress is back. A room you started before this version must still use `Playerarchi.sav`. Also check the game really writes progress into the new file name (play a level, look at the file's timestamp).
+- **No bridge**: open a second client window while the first is still open and try to connect: expect `NOT connecting. Another AP bridge client is already running ...` in its window, no `helpDev has joined`-style join in the room's server log, nothing changed in the bridge folder.
+  (The refusal calls the framework's `disconnect()`: if it does not close the connection, the error is still shown and nothing is written, which is the part that matters.)
+
+- **Location group toggles** (**VERIFIED by the user in real rooms, case by case, 2026-10-10**; the list below is kept as the regression checklist, only the room built by a 0.3.1 version and the "everything off" case may not have been run). One room per case, DeathLink off to keep it simple:
+  1. All three on: behaviour exactly as before (checks sent, `[SESSION]` shows no "Not randomized" line, panel total 153, tape room and TV follow the items).
+  2. `randomize_glitch_tapes: false`: play to a tape (the intro tape is the easy one) and confirm no tape check is sent (`[ARCHI] Ignoring 'Collect ...' ... not part of this multiworld` once, nothing in the room's checks, no error in the client log),
+     `ap_counter_status` shows `randomized=false effective=nil`, and the tape room shows the tapes you picked up (not an empty room, not the item count). Also confirm there is no Glitch Tape item in the room.
+  3. `randomize_faz_tokens: false`: pick up a token, no check sent, the TV shows the real count (`ap_coin_status`: `randomized=false effective=nil`), no Faz Token item is received at all (level and prize checks give other items, the filler is `Faz Coupon`), the 5/10/... coin prizes behave as vanilla.
+  4. `randomize_prizes: false`: win a level, open the prize box, the prize is yours in the game but no prize check is sent; the level check is.
+  5. Everything off: levels still send checks, Pizza Party still ends the game, the panel total reads 50, and nothing about tapes / tokens / prizes appears in the client except the one "not part of this multiworld" line per pickup.
+  6. A room generated with 0.3.1 (or older) played with the new client and mod: unchanged behaviour (no filtering, `RANDOMIZED_GROUPS` all 1).
 
 - **The crash fix** (2026-10-05, HYPOTHESIS): play an hour or more, including level wins, map changes and a restart of the game with the client running. Expect `[DIAG] map:` lines, one
   `[DIAG] up=` line a minute, `gi_scans` staying at 1-2, no `[ERROR] [LOOP]`, `[SYNC] Inbox replay: skipped N line(s)` at launch and no more `PlayerCoins -> 30` flicker.

@@ -1,6 +1,6 @@
 from BaseClasses import Region
 
-from .data import ACTIVE_REGION_LOCATIONS, REGION_CONNECTIONS
+from .data import REGION_CONNECTIONS, region_locations
 from .locations import FNAFHWLocation, location_name_to_id
 
 
@@ -8,9 +8,15 @@ def create_regions(world) -> None:
     multiworld = world.multiworld
     player = world.player
 
+    # a group that is not randomized has no locations (see data.region_locations); the ids stay in the table
+    locations_by_region = region_locations(
+        bool(world.options.randomize_prizes.value),
+        bool(world.options.randomize_faz_tokens.value),
+        bool(world.options.randomize_glitch_tapes.value),
+    )
     for region_name in REGION_CONNECTIONS:
         region = Region(region_name, player, multiworld)
-        for location_name in ACTIVE_REGION_LOCATIONS.get(region_name, []):
+        for location_name in locations_by_region.get(region_name, []):
             location = FNAFHWLocation(
                 player,
                 location_name,

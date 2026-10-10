@@ -90,10 +90,10 @@ class _MainSaveAPI(SaveAPI):
         return extract_earned_locations(parsed)
 
     def archipelago_save_path(self):
-        return get_archipelago_savegame_path()
+        return get_archipelago_savegame_path(self.slot_name)
 
     def ensure_clean_save(self):
-        return ensure_clean_archipelago_save()
+        return ensure_clean_archipelago_save(slot_name=self.slot_name)
 
 
 class APBridgeClient(BridgeCore):
@@ -505,7 +505,9 @@ class DesktopGUI:
             try:
                 chk_count = len(self.client.state.checked_locations)
                 item_count = self.client.received_items_count
-                self.lbl_stats.config(text=f"Checks: {chk_count} / 153 | Items: {item_count}")
+                ids = self.client.seed_location_ids  # the real total of this seed (None: the server gave no list, so 153 as before the toggles)
+                total = len(ids) if ids is not None else 153
+                self.lbl_stats.config(text=f"Checks: {chk_count} / {total} | Items: {item_count}")
             except Exception:
                 pass
         self.root.after(0, _do_stats)

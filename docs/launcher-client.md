@@ -27,7 +27,11 @@ single source of truth for where it reads and writes. If nothing is found the cl
   `ap_connect`) are ignored: Archipelago owns the connection here.
 - A live check and a save poll in the same pass are merged into one `LocationChecks` packet.
 - The session id is **seed + slot** and the seed comes from the server's `RoomInfo`. If it is missing the client refuses to start a session
-  (a wrong id would archive `Playerarchi.sav` and start a fresh one; see the incident below).
+  (a wrong id would start a fresh save for a wrong session; see the incident below).
+- **No bridge, no connection.** If the bridge cannot start (the folder is not found, or another client holds the lock: `/disconnect` does not release it, close its window), the client logs
+  `NOT connecting. <reason>` when you connect, closes the connection and does not authenticate, again at every attempt. (2026-10-10: a second client window used to join the room with no bridge,
+  wrote nothing, and the game replayed the previous session and its save. Disconnecting through `ctx.disconnect()` is the framework's own call, not seen live: **UNVERIFIED**.)
+- `/bridge` also prints the save file of the session.
 
 ## Build
 

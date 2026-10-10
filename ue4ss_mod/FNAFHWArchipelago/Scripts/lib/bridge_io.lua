@@ -12,6 +12,8 @@ return function(env)
     local on_applied_items = env.on_applied_items
     local on_death_link_mode = env.on_death_link_mode
     local on_death_link_gift_box = env.on_death_link_gift_box
+    local on_randomized_groups = env.on_randomized_groups
+    local on_save_slot = env.on_save_slot
     local on_deathlink = env.on_deathlink
 
     local function ensure_file(path)
@@ -191,6 +193,34 @@ return function(env)
         if line:sub(1, 19) == "DEATH_LINK_GIFT_BOX" then
             if on_death_link_gift_box then
                 on_death_link_gift_box(line:sub(21))
+            end
+            return
+        end
+
+        -- RANDOMIZED_GROUPS prizes=1 faz_tokens=0 tapes=1: which groups the slot randomizes. A key that is missing or not 0 / 1 stays "randomized"
+        -- (what every version before the toggles did); a group that is not randomized is vanilla in game.
+        if line:sub(1, 17) == "RANDOMIZED_GROUPS" then
+            if on_randomized_groups then
+                local groups = { prizes = true, faz_tokens = true, tapes = true }
+                for key, value in line:sub(18):gmatch("(%a[%w_]*)=(%S*)") do
+                    if groups[key] ~= nil then
+                        if value == "0" then
+                            groups[key] = false
+                        elseif value == "1" then
+                            groups[key] = true
+                        end
+                    end
+                end
+                on_randomized_groups(groups)
+            end
+            return
+        end
+
+        -- SAVE_SLOT Playerarchi_<seed>_<slot>: the save file (slot name, no .sav) of this multiworld. Without the line (an old client) the mod keeps
+        -- using the shared Playerarchi. The name is checked where it is used (exact_hooks.lua).
+        if line:sub(1, 9) == "SAVE_SLOT" then
+            if on_save_slot then
+                on_save_slot(line:sub(11))
             end
             return
         end

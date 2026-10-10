@@ -384,7 +384,7 @@ class TestNewSeedStartsAtZero(TapeFlowCase):
         self.connect(core)
         self.settle(core, game)
 
-        archi = walk((save_dir / "Playerarchi.sav").read_bytes())
+        archi = walk((save_dir / "Playerarchi_SeedC_HWtest.sav").read_bytes())  # one save file per multiworld (seed + slot)
         self.assertEqual(archi["CollectedGlitches"][1], EMPTY_SET)
         self.assertEqual(archi["GlitchesListenedTo"][1], EMPTY_SET)
         self.assertEqual(game.room(), 0)

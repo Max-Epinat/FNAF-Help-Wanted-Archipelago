@@ -93,6 +93,39 @@ class DeathLinkGiftBox(DefaultOnToggle):
     """
 
     display_name = "DeathLink on Gift Box Jumpscare"
+
+
+class RandomizePrizes(DefaultOnToggle):
+    """Whether the prizes are part of the randomizer.
+
+    On (the default): winning a prize sends a check (57 prize locations).
+    Off: prizes are vanilla. They have no locations and no item is placed for them; you still win them in the game, it just has no effect on the multiworld.
+    """
+
+    display_name = "Randomize Prizes"
+
+
+class RandomizeFazTokens(DefaultOnToggle):
+    """Whether the Faz Tokens (coins) are part of the randomizer.
+
+    On (the default): picking up a Faz Token sends a check (30 locations), the Faz Token items you receive set the count the TV shows.
+    Off: Faz Tokens are vanilla. They have no locations, the base Faz Token items are not in the pool, and the TV shows the tokens you really picked up.
+    The spare slots are filled with "Faz Coupon" items instead of Faz Tokens; a Faz Coupon does nothing.
+    """
+
+    display_name = "Randomize Faz Tokens"
+
+
+class RandomizeGlitchTapes(DefaultOnToggle):
+    """Whether the Glitch Tapes are part of the randomizer.
+
+    On (the default): picking up a tape sends a check (16 locations), the Glitch Tape items you receive set how many tapes the tape room shows.
+    Off: tapes are vanilla. They have no locations, no Glitch Tape items are in the pool, and the tape room shows the tapes you really picked up.
+    """
+
+    display_name = "Randomize Glitch Tapes"
+
+
 @dataclass
 class FNAFHWOptions(PerGameCommonOptions):
     goal: Goal
@@ -103,3 +136,6 @@ class FNAFHWOptions(PerGameCommonOptions):
     unlock_mode: UnlockMode
     hard_variants: HardVariants
     starting_section: StartingSection
+    randomize_prizes: RandomizePrizes
+    randomize_faz_tokens: RandomizeFazTokens
+    randomize_glitch_tapes: RandomizeGlitchTapes

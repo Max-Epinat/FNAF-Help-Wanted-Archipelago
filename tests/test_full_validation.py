@@ -169,7 +169,7 @@ class TestFullValidation(unittest.IsolatedAsyncioTestCase):
         restarted.release_single_instance_lock()
 
     def test_07_normal_save_protection(self):
-        """Test 7: Starting an AP session creates Playerarchi.sav from Player00.sav and must never modify Player00.sav."""
+        """Test 7: Starting an AP session creates its own Playerarchi_<seed>_<slot>.sav from Player00.sav and must never modify Player00.sav."""
         import hashlib
 
         save_dir = Path(os.environ["LOCALAPPDATA"]) / SAVE_SUBDIR
@@ -185,7 +185,8 @@ class TestFullValidation(unittest.IsolatedAsyncioTestCase):
         self.client.slot = "Player1"
         self.client._on_connected({"cmd": "Connected", "checked_locations": [], "slot": 1, "slot_data": {}})
 
-        self.assertTrue((save_dir / "Playerarchi.sav").exists(), "a new session must create Playerarchi.sav")
+        self.assertTrue((save_dir / "Playerarchi_Seed_Protect_Player1.sav").exists(), "a new session must create its own Playerarchi_<seed>_<slot>.sav")
+        self.assertFalse((save_dir / "Playerarchi.sav").exists(), "the shared file is only for sessions made before one save per multiworld")
         self.assertEqual(hashlib.sha256(p00.read_bytes()).hexdigest(), digest, "Player00.sav must be left untouched")
 
     def test_08_archipelago_save_operation(self):

@@ -6,7 +6,7 @@ Rows are the game's ``LevelInfoTable`` rows (VERIFIED from the table dump, see d
 Pizza Party (row 29) is intentionally absent: it is never gated.
 
 Item codes are append-only: 1..13 live in ``data.ITEM_TABLE`` and never change; the codes below
-(14..59) were appended after them. Never renumber or reuse a code.
+(14..59) were appended after them, and ``data.EXTRA_ITEM_CODES`` continues at 60. Never renumber or reuse a code.
 
 Gate ids (``^[A-Z0-9_]+$``) are what the game mod sees; item names are what the Archipelago pool sees.
 """

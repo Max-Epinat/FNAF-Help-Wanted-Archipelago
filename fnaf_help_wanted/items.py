@@ -1,6 +1,6 @@
 from BaseClasses import Item
 
-from .data import GAME_NAME, ITEM_OFFSET, ITEM_TABLE, ItemData
+from .data import EXTRA_ITEM_CODES, GAME_NAME, ITEM_OFFSET, ITEM_TABLE, ItemData
 from .levels import APPENDED_ITEM_CODES
 
 
@@ -13,6 +13,7 @@ class FNAFHWItem(Item):
 ALL_ITEM_TABLE: dict[str, ItemData] = {
     **ITEM_TABLE,
     **{name: ItemData(code, progression=True) for name, code in APPENDED_ITEM_CODES.items()},
+    **{name: ItemData(code) for name, code in EXTRA_ITEM_CODES.items()},  # fillers: not progression, no quantity
 }
 
 item_name_to_id = {

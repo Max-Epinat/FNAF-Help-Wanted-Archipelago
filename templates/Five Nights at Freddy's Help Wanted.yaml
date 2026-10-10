@@ -146,6 +146,32 @@ requires:
     dark_rooms: 0
     night_terrors: 0
 
+  randomize_prizes:
+    # Whether the prizes are part of the randomizer.
+    #
+    # true (the default): winning a prize sends a check (57 prize locations).
+    # false: prizes are vanilla. They have no locations and no item is placed for them; you still win them in the game,
+    # it just has no effect on the multiworld.
+    'true': 50
+    'false': 0
+
+  randomize_faz_tokens:
+    # Whether the Faz Tokens (coins) are part of the randomizer.
+    #
+    # true (the default): picking up a Faz Token sends a check (30 locations), and the Faz Token items you receive set the count the TV shows.
+    # false: Faz Tokens are vanilla. They have no locations, the base Faz Token items are not in the pool, and the TV shows the tokens you
+    # really picked up. No Faz Token item is handed out: the spare slots hold "Faz Coupon" items, which do nothing.
+    'true': 50
+    'false': 0
+
+  randomize_glitch_tapes:
+    # Whether the Glitch Tapes are part of the randomizer.
+    #
+    # true (the default): picking up a tape sends a check (16 locations), and the Glitch Tape items you receive set how many tapes the tape room shows.
+    # false: tapes are vanilla. They have no locations, no Glitch Tape items are in the pool, and the tape room shows the tapes you really picked up.
+    'true': 50
+    'false': 0
+
   ###########################
   # Item & Location Options #
   ###########################

@@ -381,3 +381,67 @@ REGION_CONNECTIONS = {
     "Dark Rooms - Hard": [],
     "Night Terrors": [],
 }
+
+
+# ---- location groups: the yaml toggles randomize_prizes / randomize_faz_tokens / randomize_glitch_tapes ----------------------------
+# A group that is off is NOT randomized: its locations are not created (their ids stay in LOCATION_TABLE, never renumbered), the items that
+# belong to it (Glitch Tape, the 30 base Faz Tokens) are not in the pool, the logic no longer asks for them, and the game keeps its own
+# behaviour for them (vanilla). All of it is pure so tests/test_location_groups.py can run it without Archipelago.
+
+def _group_names(prizes: bool, faz_tokens: bool, tapes: bool) -> set[str]:
+    """Names of the locations of the groups that are OFF."""
+    off: set[str] = set()
+    if not prizes:
+        off.update(ACTIVE_PRIZE_CHECKS)
+    if not faz_tokens:
+        off.update(FAZ_TOKEN_CHECKS)
+    if not tapes:
+        off.update(GLITCH_TAPE_CHECKS)
+    return off
+
+
+def region_locations(prizes: bool = True, faz_tokens: bool = True, tapes: bool = True) -> dict[str, list[str]]:
+    """The locations each region gets for these toggles (True = randomized). All on is exactly ACTIVE_REGION_LOCATIONS."""
+    off = _group_names(prizes, faz_tokens, tapes)
+    return {region: [name for name in names if name not in off] for region, names in ACTIVE_REGION_LOCATIONS.items()}
+
+
+def full_clear_checks(prizes: bool = True, faz_tokens: bool = True, tapes: bool = True) -> list[str]:
+    """FULL_CLEAR_CHECKS (what the 100 % goal reaches) without the locations that do not exist for these toggles."""
+    off = _group_names(prizes, faz_tokens, tapes)
+    return [name for name in FULL_CLEAR_CHECKS if name not in off]
+
+
+# Items appended after the level items (codes 14..59 are in levels.py). Never renumber or reuse a code.
+# "Faz Coupon" is the filler while the Faz Tokens are not randomized: an item that does nothing in the game, so the room does not hand out Faz Token
+# items that vanilla tokens would ignore. (Traps / bonuses may come later; they would be new codes after this one.)
+EXTRA_ITEM_CODES = {"Faz Coupon": 60}
+
+
+def filler_item_name(faz_tokens: bool = True) -> str:
+    """The item that fills the spare slots. With the Faz Tokens randomized it is a Faz Token (as ever); without, a Faz Coupon."""
+    return "Faz Token" if faz_tokens else "Faz Coupon"
+
+
+def unrandomized_items(faz_tokens: bool = True, tapes: bool = True) -> frozenset[str]:
+    """Base items that stay out of the pool because their group is not randomized (items follow their locations)."""
+    items: set[str] = set()
+    if not faz_tokens:
+        items.add("Faz Token")
+    if not tapes:
+        items.add("Glitch Tape")
+    return frozenset(items)
+
+
+def tape_token_requirements(goal: str, required_tapes: int, required_faz_tokens: int, tapes: bool, faz_tokens: bool) -> tuple[int, int]:
+    """(Glitch Tape items, Faz Token items) the logic asks for to reach a goal location; 0 = nothing.
+    A group that is not randomized has no such items, so its requirement leaves the logic (the game itself still has those tapes / tokens)."""
+    if goal in (GOAL_GLITCHTRAP_DIE, GOAL_GLITCHTRAP_SURVIVE):
+        need_tapes, need_tokens = max(1, required_tapes), 0
+    elif goal == GOAL_HUNDRED_PERCENT:
+        need_tapes, need_tokens = len(GLITCH_TAPE_CHECKS), len(FAZ_TOKEN_CHECKS)
+    elif goal == GOAL_TOKEN_TAPE_QUOTA:
+        need_tapes, need_tokens = required_tapes, required_faz_tokens
+    else:
+        need_tapes, need_tokens = 0, 0
+    return (need_tapes if tapes else 0, need_tokens if faz_tokens else 0)
