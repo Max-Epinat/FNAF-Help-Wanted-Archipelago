@@ -191,7 +191,7 @@ class TestReleasePackage(unittest.TestCase):
 
     def test_contains_everything_a_player_needs(self):
         names = [n.split("/", 1)[1] for n in self.names() if "/" in n]
-        for expected in ("fnaf_help_wanted.apworld", "install-mod.ps1", "README.md", "LICENSE",
+        for expected in ("fnaf_help_wanted.apworld", "install-mod.ps1", "install-mod.bat", "README.md", "LICENSE",
                          "templates/Five Nights at Freddy's Help Wanted.yaml",
                          "mod/FNAFHWArchipelago/Scripts/main.lua", "mod/FNAFHWArchipelago/locations.json"):
             self.assertIn(expected, names)

@@ -18,16 +18,21 @@ The mod runs inside the game through **UE4SS**, which is a separate project and 
 
 ## 2. Install the mod and the world
 
-Unpack the release zip, then run `install-mod.ps1` (right-click → *Run with PowerShell*, or from a terminal:
-`powershell -ExecutionPolicy Bypass -File install-mod.ps1`).
+Unpack the release zip (all of it, do not run the installer from inside the zip), then **double-click `install-mod.bat`**. No terminal needed; the window stays open so you can read the result.
+If the game is not found by itself (for example it is on another drive), the window asks for its folder: type or paste the folder that contains `freddys`
+(for example `D:\SteamLibrary\steamapps\common\FNAFVRHelpWanted`) and press Enter.
+
+(`install-mod.bat` only runs `install-mod.ps1` for you. From a terminal you can still use
+`powershell -ExecutionPolicy Bypass -File install-mod.ps1`, with the options below.)
 
 It will:
 
-- find the game (or use `-GameRoot "<folder that contains freddys>"`),
+- find the game on any drive (where Windows says Steam is, every Steam library, then the usual folders; a leftover folder without the game in it is skipped),
+  or use `-GameRoot "<folder that contains freddys>"` (or the environment variable `FNAFHW_GAME_ROOT`, which the client reads too),
 - check that UE4SS is installed and stop with a link if it is not,
 - install the mod into `...\Win64\Mods\FNAFHWArchipelago`, with its **bridge folder** inside it,
 - enable the mod in `Mods\mods.txt`,
-- copy `fnaf_help_wanted.apworld` into `C:\ProgramData\Archipelago\custom_worlds` (use `-ArchipelagoDir` if yours is elsewhere, or
+- copy `fnaf_help_wanted.apworld` into `Archipelago\custom_worlds` inside your `%ProgramData%` folder (usually `C:\ProgramData`; use `-ArchipelagoDir` if yours is elsewhere, or
   `-SkipApworld`; without Archipelago, double-click the `.apworld` file or copy it into `custom_worlds` by hand).
 
 `-CheckOnly` reports what it finds and changes nothing. Running it again is safe (it is also how you update).
@@ -101,7 +106,7 @@ Notes:
 | Installer: *UE4SS … NOT found* | Do step 1, then run the installer again. |
 | Client: *could not find the bridge folder* | Run `install-mod.ps1` (it writes the folder into the mod's `config.lua`), or set the environment variable `FNAFHW_BRIDGE_DIR`. |
 | Client: *Another AP bridge client is already running* | Close the other client (launcher client or standalone), then start again. |
-| Connected, but nothing happens in game | Check that the mod loads: open `...\Win64\UE4SS.log` and look for `[FNAFHW AP]` lines. Check `Mods\mods.txt` contains `FNAFHWArchipelago : 1`. |
+| Connected, but nothing happens in game (or the game shows your normal save) | Check that the mod loads: open `...\Win64\UE4SS.log` (next to the game you start from Steam) and search for `FNAFHW`. A working start shows `Starting Lua mod 'FNAFHWArchipelago'` and `[FNAFHW AP]` lines. No hit at all means UE4SS did not find the mod, and it prints no error for that: check that `...\Win64\Mods\FNAFHWArchipelago\Scripts\main.lua` exists (not one folder deeper), that `Mods\mods.txt` of **that same game folder** has `FNAFHWArchipelago : 1` on its own line, and that you did not install into another copy of the game (for example an old one on another drive). *(The causes are HYPOTHESIS until reported cases confirm them.)* |
 | A level is locked although you have its item | The menu only re-asks when the hub is rebuilt: go back to the main menu and enter the hub again. |
 | *Connection refused* | Wrong slot name or password, or the room uses a different game/world version. |
 

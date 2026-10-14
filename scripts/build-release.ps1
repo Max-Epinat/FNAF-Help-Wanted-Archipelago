@@ -7,6 +7,7 @@
 
       fnaf_help_wanted.apworld      the Archipelago world + the launcher client
       mod\FNAFHWArchipelago\        the UE4SS mod
+      install-mod.bat               double-click installer (runs install-mod.ps1, asks for the game folder if it is not found)
       install-mod.ps1               installer (checks UE4SS, installs the mod, copies the apworld)
       templates\*.yaml              player options template (includes Death Link)
       README.md, INSTALL.md, LICENSE
@@ -44,6 +45,7 @@ New-Item -ItemType Directory -Path $package -Force | Out-Null
 try {
     Copy-Item $apworld (Join-Path $package "fnaf_help_wanted.apworld")
     Copy-Item (Join-Path $PSScriptRoot "install-mod.ps1") (Join-Path $package "install-mod.ps1")
+    Copy-Item (Join-Path $PSScriptRoot "install-mod.bat") (Join-Path $package "install-mod.bat")
     Copy-Item (Join-Path $repoRoot "README.md") (Join-Path $package "README.md")
     Copy-Item (Join-Path $repoRoot "LICENSE") (Join-Path $package "LICENSE")
 

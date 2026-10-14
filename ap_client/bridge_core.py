@@ -301,15 +301,12 @@ class BridgeIO:
 # Both clients (standalone and launcher) use this, so they always agree with the mod.
 
 MOD_CONFIG_SUBPATH = Path("freddys/Binaries/Win64/Mods/FNAFHWArchipelago/config.lua")
-DEFAULT_GAME_ROOTS = (
-    Path("C:/Program Files (x86)/Steam/steamapps/common/FNAFVRHelpWanted"),
-    Path("C:/Program Files/Steam/steamapps/common/FNAFVRHelpWanted"),
-)
-STEAM_LIBRARY_FILE = Path("C:/Program Files (x86)/Steam/steamapps/libraryfolders.vdf")
+GAME_EXE_SUBPATH = Path("freddys/Binaries/Win64/freddys-Win64-Shipping.exe")
+GAME_IN_LIBRARY = Path("steamapps/common/FNAFVRHelpWanted")
 
 
 def parse_bridge_dir_from_config(text: str) -> str | None:
-    """`bridge_dir = "C:/.../bridge",` from the mod's config.lua (comment lines are ignored)."""
+    """The `bridge_dir = "<folder>",` line from the mod's config.lua (comment lines are ignored)."""
     code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("--"))
     match = re.search(r'\bbridge_dir\s*=\s*"([^"]*)"', code)
     return match.group(1).strip() if match and match.group(1).strip() else None
@@ -317,24 +314,64 @@ def parse_bridge_dir_from_config(text: str) -> str | None:
 
 def steam_library_roots(vdf_text: str) -> list[Path]:
     """Game folders in every Steam library listed in libraryfolders.vdf."""
-    return [
-        Path(path.replace("\\\\", "\\")) / "steamapps" / "common" / "FNAFVRHelpWanted"
-        for path in re.findall(r'"path"\s+"([^"]+)"', vdf_text)
-    ]
+    return [Path(path.replace("\\\\", "\\")) / GAME_IN_LIBRARY for path in re.findall(r'"path"\s+"([^"]+)"', vdf_text)]
 
 
-def candidate_game_roots(env: Mapping[str, str] | None = None) -> list[Path]:
+def registry_steam_dirs() -> list[Path]:
+    """Where Windows says Steam is installed (any drive). Empty on other systems or when Steam is not registered."""
+    try:
+        import winreg
+    except ImportError:
+        return []
+    found: list[Path] = []
+    for hive, key, name in ((winreg.HKEY_CURRENT_USER, r"Software\Valve\Steam", "SteamPath"),
+                            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Valve\Steam", "InstallPath")):
+        try:
+            with winreg.OpenKey(hive, key) as handle:
+                value = str(winreg.QueryValueEx(handle, name)[0]).strip()
+        except OSError:
+            continue
+        if value:
+            found.append(Path(value))
+    return found
+
+
+def steam_install_dirs(env: Mapping[str, str] | None = None, registry: Iterable[Path] | None = None) -> list[Path]:
+    """Steam folders to look in, most reliable first: the registry, then the Steam folder inside Program Files, without duplicates."""
+    env = os.environ if env is None else env
+    dirs = list(registry_steam_dirs() if registry is None else registry)
+    for variable in ("ProgramFiles(x86)", "ProgramFiles"):
+        if env.get(variable):
+            dirs.append(Path(env[variable]) / "Steam")
+    return list(dict.fromkeys(dirs))
+
+
+def candidate_game_roots(env: Mapping[str, str] | None = None, steam_dirs: Iterable[Path] | None = None) -> list[Path]:
+    """Game folders (the one that contains `freddys`) in the order to try. FNAFHW_GAME_ROOT comes first and is not checked; the others
+    must really hold the game, so a leftover folder is skipped. Nothing here assumes a drive letter."""
     env = os.environ if env is None else env
     roots: list[Path] = []
     if env.get("FNAFHW_GAME_ROOT"):
         roots.append(Path(env["FNAFHW_GAME_ROOT"]))
-    roots.extend(DEFAULT_GAME_ROOTS)
-    try:
-        if STEAM_LIBRARY_FILE.is_file():
-            roots.extend(steam_library_roots(STEAM_LIBRARY_FILE.read_text(encoding="utf-8", errors="replace")))
-    except OSError:
-        pass
-    return roots
+    found: list[Path] = []
+    for steam in (steam_install_dirs(env) if steam_dirs is None else steam_dirs):
+        found.append(Path(steam) / GAME_IN_LIBRARY)
+        try:
+            library_file = Path(steam) / "steamapps" / "libraryfolders.vdf"
+            if library_file.is_file():
+                found.extend(steam_library_roots(library_file.read_text(encoding="utf-8", errors="replace")))
+        except OSError:
+            continue
+    roots.extend(root for root in dict.fromkeys(found) if (root / GAME_EXE_SUBPATH).is_file())
+    return list(dict.fromkeys(roots))
+
+
+def find_game_root(env: Mapping[str, str] | None = None, steam_dirs: Iterable[Path] | None = None) -> Path | None:
+    """The first installed game folder, or None."""
+    for root in candidate_game_roots(env, steam_dirs):
+        if (root / GAME_EXE_SUBPATH).is_file():
+            return root
+    return None
 
 
 def find_bridge_dir(env: Mapping[str, str] | None = None, game_roots: Iterable[Path] | None = None) -> Path | None:

@@ -47,7 +47,9 @@ try:
         BridgeState,
         InstanceLock,
         SaveAPI,
+        GAME_EXE_SUBPATH,
         find_bridge_dir,
+        find_game_root,
         format_applied_items_line,
         format_gate_items_line,
         format_gate_table_line,
@@ -68,7 +70,9 @@ except ImportError:
         BridgeState,
         InstanceLock,
         SaveAPI,
+        GAME_EXE_SUBPATH,
         find_bridge_dir,
+        find_game_root,
         format_applied_items_line,
         format_gate_items_line,
         format_gate_table_line,
@@ -553,11 +557,12 @@ class DesktopGUI:
         self.log("Manual Goal packet requested.")
 
     def on_launch_game(self, mode: str) -> None:
-        shipping_exe = Path(r"C:\Program Files (x86)\Steam\steamapps\common\FNAFVRHelpWanted\freddys\Binaries\Win64\freddys-Win64-Shipping.exe")
-        bin_dir = shipping_exe.parent
-        if not shipping_exe.exists():
-            self.log(f"Error: Game executable not found at {shipping_exe}")
+        game_root = find_game_root()
+        if game_root is None:
+            self.log("Error: the game was not found (set FNAFHW_GAME_ROOT to the folder that contains 'freddys').")
             return
+        shipping_exe = game_root / GAME_EXE_SUBPATH
+        bin_dir = shipping_exe.parent
 
         if mode == "normal":
             import subprocess

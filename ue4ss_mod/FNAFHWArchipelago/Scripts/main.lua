@@ -27,7 +27,9 @@ if not mod_dir then
     end
 end
 if not mod_dir then
-    mod_dir = "C:/Program Files (x86)/Steam/steamapps/common/FNAFVRHelpWanted/freddys/Binaries/Win64/Mods/FNAFHWArchipelago"
+    -- No guessed folder (a made-up path would silently load another install, or none): say so and stop.
+    print("[FNAFHW AP] [ERROR] The mod could not work out its own folder from '" .. tostring(source) .. "' (expected .../FNAFHWArchipelago/Scripts/main.lua). The mod is NOT running.")
+    return
 end
 
 -- Bridge directory configuration

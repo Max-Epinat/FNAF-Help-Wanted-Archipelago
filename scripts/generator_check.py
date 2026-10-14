@@ -10,7 +10,7 @@ scratch copy of your Archipelago install (the install itself is only read) over 
 A third check covers the location-group toggles (randomize_prizes / randomize_faz_tokens / randomize_glitch_tapes): the spoiler must list exactly the locations
 the toggles leave in the multiworld (none of a group that is off, all of a group that is on).
 
-Usage:  py scripts/generator_check.py [--archipelago C:\\ProgramData\\Archipelago] [--seeds 1,2,3] [--sections all|fnaf_1,fnaf_2,...] [--goals a,b]
+Usage:  py scripts/generator_check.py [--archipelago <Archipelago folder, default %ProgramData%\\Archipelago>] [--seeds 1,2,3] [--sections all|fnaf_1,fnaf_2,...] [--goals a,b]
                                       [--groups on,off,prizes,faz_tokens+tapes,...]
 --groups: `on` = every group randomized (the default), `off` = none, otherwise the groups joined by `+` are randomized and the others are not.
 Run the tests first: they rebuild dist/fnaf_help_wanted.apworld, which is what this checks. Exit code 1 when a required goal fails or an unlock item is misplaced.
@@ -19,6 +19,7 @@ Run the tests first: they rebuild dist/fnaf_help_wanted.apworld, which is what t
 import argparse
 import importlib.util
 import itertools
+import os
 import re
 import shutil
 import subprocess
@@ -144,7 +145,8 @@ def generate(scratch: Path, goal: str, mode: str, hard: str, section: str, seed:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--archipelago", default=r"C:\ProgramData\Archipelago")
+    parser.add_argument("--archipelago", default=os.path.join(os.environ.get("ProgramData", ""), "Archipelago"),
+                        help="the Archipelago installation (default: %%ProgramData%%\\Archipelago)")
     parser.add_argument("--seeds", default="1,2,3")
     parser.add_argument("--sections", default="all")
     parser.add_argument("--goals", default=",".join(ALL_GOALS))

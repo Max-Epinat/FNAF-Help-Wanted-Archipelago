@@ -1,4 +1,4 @@
-# Q. What is this file?
+﻿# Q. What is this file?
 # A. This file contains options which allow you to configure your multiworld experience while allowing
 #    others to play how they want as well.
 #
@@ -32,7 +32,9 @@ description: 'Default Five Nights at Freddy''s: Help Wanted Template'
 
 game: 'Five Nights at Freddy''s: Help Wanted'
 requires:
-  version: 0.6.7 # Version of Archipelago required for this yaml to work as expected.
+  version: 0.6.8 # Version of Archipelago required for this yaml to work as expected.
+  game:
+    'Five Nights at Freddy''s: Help Wanted': 0.3.1 # Version of the world required for this yaml to work as expected.
 
 'Five Nights at Freddy''s: Help Wanted':
   ################
@@ -98,23 +100,22 @@ requires:
 
   death_link:
     # When you die, everyone who enabled death link dies. Of course, the reverse is true too.
-    #
-    # Losing a level in FNAF Help Wanted sends a death to the others. A death from another player makes you lose the level you are in;
-    # while you are in the hub or a menu nothing happens (for now).
     'false': 50
     'true': 0
 
   death_link_gift_box:
+    # Whether the game over from the gift box jumpscare also sends a DeathLink.
+    # 
     # After a minigame the prize gift box can hide a jumpscare instead of a reward, which is a game over.
-    # true: that game over sends a death to the others, like any lost level (the default, same as before this option existed).
-    # false: that one game over is not sent (it still happens in your game).
-    # Only matters when death_link is true, and only for sending: deaths from other players are handled as before.
-    'true': 50
+    # On: it sends a death to the others like any lost level (the default). Off: that one game over is not sent
+    # (the game over itself still happens). Only matters when death_link is on, and only for sending:
+    # deaths from other players are handled as before.
     'false': 0
+    'true': 50
 
   unlock_mode:
     # How levels are unlocked by Archipelago items.
-    #
+    # 
     # per_section: one item unlocks a whole section (FNAF 1, FNAF 2, FNAF 3, Parts and Service, Vent Repair,
     # Dark Rooms, Night Terrors).
     # per_level: every level has its own item (every hard level too).
@@ -148,29 +149,28 @@ requires:
 
   randomize_prizes:
     # Whether the prizes are part of the randomizer.
-    #
-    # true (the default): winning a prize sends a check (57 prize locations).
-    # false: prizes are vanilla. They have no locations and no item is placed for them; you still win them in the game,
-    # it just has no effect on the multiworld.
-    'true': 50
+    # 
+    # On (the default): winning a prize sends a check (57 prize locations).
+    # Off: prizes are vanilla. They have no locations and no item is placed for them; you still win them in the game, it just has no effect on the multiworld.
     'false': 0
+    'true': 50
 
   randomize_faz_tokens:
     # Whether the Faz Tokens (coins) are part of the randomizer.
-    #
-    # true (the default): picking up a Faz Token sends a check (30 locations), and the Faz Token items you receive set the count the TV shows.
-    # false: Faz Tokens are vanilla. They have no locations, the base Faz Token items are not in the pool, and the TV shows the tokens you
-    # really picked up. No Faz Token item is handed out: the spare slots hold "Faz Coupon" items, which do nothing.
-    'true': 50
+    # 
+    # On (the default): picking up a Faz Token sends a check (30 locations), the Faz Token items you receive set the count the TV shows.
+    # Off: Faz Tokens are vanilla. They have no locations, the base Faz Token items are not in the pool, and the TV shows the tokens you really picked up.
+    # The spare slots are filled with "Faz Coupon" items instead of Faz Tokens; a Faz Coupon does nothing.
     'false': 0
+    'true': 50
 
   randomize_glitch_tapes:
     # Whether the Glitch Tapes are part of the randomizer.
-    #
-    # true (the default): picking up a tape sends a check (16 locations), and the Glitch Tape items you receive set how many tapes the tape room shows.
-    # false: tapes are vanilla. They have no locations, no Glitch Tape items are in the pool, and the tape room shows the tapes you really picked up.
-    'true': 50
+    # 
+    # On (the default): picking up a tape sends a check (16 locations), the Glitch Tape items you receive set how many tapes the tape room shows.
+    # Off: tapes are vanilla. They have no locations, no Glitch Tape items are in the pool, and the tape room shows the tapes you really picked up.
     'false': 0
+    'true': 50
 
   ###########################
   # Item & Location Options #
@@ -184,7 +184,7 @@ requires:
     []
 
   start_inventory:
-    # Start with the specified amount of these items. Example: "Bomb: 1"
+    # Start with the specified amount of these items. Example: {Bomb: 1, Arrow: 3}
     {}
 
   start_hints:

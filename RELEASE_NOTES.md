@@ -1,4 +1,17 @@
-Fifth test release of **FNAF Help Wanted x Archipelago**: you can switch the prizes, the Faz Tokens and the glitch tapes out of the randomizer, and every room now has its own save. Still a prerelease: it works in the real game and in real rooms, but it has had little outside testing.
+Sixth test release of **FNAF Help Wanted x Archipelago**: an install-focused update (a double-click installer and finding the game on any drive) on top of 0.4.0, which let you switch the prizes, the Faz Tokens and the glitch tapes out of the randomizer and gave every room its own save. Still a prerelease: it works in the real game and in real rooms, but it has had little outside testing.
+
+## What changed in 0.4.1 (since 0.4.0)
+
+Nothing changes in the randomizer or in how the game plays: rooms, yamls and saves from 0.4.0 work as before. This release is about installing, after a player whose game is on another drive (`D:\SteamLibrary`) ended up with the mod not running.
+
+- **New `install-mod.bat`: double-click it, no terminal.** It runs `install-mod.ps1` for you and keeps the window open. If the game is not found by itself it asks for its folder (type or paste the folder that contains `freddys`).
+- **No more `C:` assumed anywhere.** The installer and the client find the game through where Windows says Steam is, every Steam library Steam lists (any drive) and the usual folder names, and they skip a leftover game folder that does not hold the game. Before, they tried the `C:` Steam folders first.
+  You can also point both at the game with the `FNAFHW_GAME_ROOT` environment variable. The default Archipelago folder is now the `Archipelago` folder inside `%ProgramData%` (usually the same as before).
+- **If the mod cannot work out its own folder it now says so in `UE4SS.log`** (`[ERROR] ... The mod is NOT running.`) instead of using a made-up `C:` path.
+- **Troubleshooting:** `INSTALL.md` now explains how to tell whether the mod started: search `UE4SS.log` for `FNAFHW`. UE4SS prints no error when it does not find a mod, so no hit means it was never loaded.
+- **Not fixed, because the cause is not known yet:** one player's game (on `D:`) showed their normal save and `UE4SS.log` had no line at all for this mod, although the mod folder and `mods.txt` looked right in a screenshot. Whether the log was from before the install, or something else, is **not confirmed**; a clean reinstall with this version is what we are asking them to try. If you see the same, please open an issue with a fresh `UE4SS.log` taken right after one launch.
+- Update the apworld **and** the mod together (`install-mod.bat` does both).
+- For maintainers: 522 tests; the scripts folder lost the unused `launch-normal.bat`, `launch-vr.bat` and `reset-bridge.ps1`.
 
 ## What changed in 0.4.0 (since 0.3.1)
 
@@ -41,9 +54,9 @@ You need Windows, the Steam game, [Archipelago](https://github.com/ArchipelagoMW
 
 1. **Install UE4SS once.** Extract it into `...\steamapps\common\FNAFVRHelpWanted\freddys\Binaries\Win64\` (next to
    `freddys-Win64-Shipping.exe`), start the game once, then close it.
-2. **Install the mod and the world.** Download `FNAF-HW-Archipelago-v0.4.0.zip`, unpack it and run `install-mod.ps1`
-   (right-click, *Run with PowerShell*). It finds the game, checks UE4SS, installs the mod and copies the world into
-   Archipelago's `custom_worlds`. Updating from an older version: run it again (it also turns the mod back on and rewrites `config.lua`).
+2. **Install the mod and the world.** Download `FNAF-HW-Archipelago-v0.4.1.zip`, unpack all of it and **double-click `install-mod.bat`**. It finds the game (on any drive; it asks
+   for the folder if it cannot), checks UE4SS, installs the mod and copies the world into Archipelago's `custom_worlds`.
+   Updating from an older version: run it again (it also turns the mod back on and rewrites `config.lua`).
 3. **Set your options.** Copy `templates/Five Nights at Freddy's Help Wanted.yaml` into your Archipelago `Players` folder and edit it
    (unlock mode, starting section, which of prizes / Faz Tokens / tapes are randomized, DeathLink...). Generate a multiworld with it, or give it to whoever hosts.
 4. **Play.**

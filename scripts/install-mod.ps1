@@ -15,14 +15,14 @@
 
 .PARAMETER GameRoot       Game folder (the one that contains freddys\). Detected from Steam when omitted.
 .PARAMETER BridgeDir      Bridge folder. Default: <installed mod folder>\bridge. Developers can point it at the repo's bridge\ folder.
-.PARAMETER ArchipelagoDir Archipelago installation. Default: C:\ProgramData\Archipelago.
+.PARAMETER ArchipelagoDir Archipelago installation. Default: Archipelago inside %ProgramData% (where its installer puts it).
 .PARAMETER SkipApworld    Do not copy the apworld.
 .PARAMETER CheckOnly      Only report what is found and what is missing; change nothing.
 #>
 param(
     [string]$GameRoot = "",
     [string]$BridgeDir = "",
-    [string]$ArchipelagoDir = "C:\ProgramData\Archipelago",
+    [string]$ArchipelagoDir = "",
     [switch]$SkipApworld,
     [switch]$CheckOnly
 )
@@ -56,33 +56,46 @@ function Find-Apworld {
 
 function Find-GameRoot {
     param([string]$Requested)
+    if (-not $Requested -and $env:FNAFHW_GAME_ROOT) { $Requested = $env:FNAFHW_GAME_ROOT }  # the client reads the same variable
     if ($Requested) {
         if (Test-Path (Join-Path $Requested "freddys")) { return (Resolve-Path $Requested).Path }
         throw "-GameRoot '$Requested' does not contain a 'freddys' folder."
     }
 
-    $candidates = [System.Collections.Generic.List[string]]::new()
-    $candidates.Add("C:\Program Files (x86)\Steam\steamapps\common\FNAFVRHelpWanted")
-    $candidates.Add("C:\Program Files\Steam\steamapps\common\FNAFVRHelpWanted")
-    foreach ($drive in (Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Root)) {
-        $candidates.Add((Join-Path $drive "SteamLibrary\steamapps\common\FNAFVRHelpWanted"))
-        $candidates.Add((Join-Path $drive "Steam\steamapps\common\FNAFVRHelpWanted"))
+    # No drive letter is assumed. Most reliable first: where Windows says Steam is (and every library Steam lists, on any drive), then the Steam
+    # folder in Program Files, then the usual library folder names on every drive. A folder only counts when the game itself is in it, so a
+    # leftover folder of an old install is skipped.
+    $gameFolder = "steamapps\common\FNAFVRHelpWanted"
+    $steamDirs = [System.Collections.Generic.List[string]]::new()
+    foreach ($key in @(@("HKCU:\Software\Valve\Steam", "SteamPath"), @("HKLM:\SOFTWARE\WOW6432Node\Valve\Steam", "InstallPath"))) {
+        try {
+            $value = (Get-ItemProperty -Path $key[0] -Name $key[1] -ErrorAction SilentlyContinue).($key[1])
+            if ($value) { $steamDirs.Add($value) }
+        } catch {}
     }
-    try {
-        $steamPath = (Get-ItemProperty -Path "HKCU:\Software\Valve\Steam" -Name "SteamPath" -ErrorAction SilentlyContinue).SteamPath
-        if (-not $steamPath) {
-            $steamPath = (Get-ItemProperty -Path "HKLM:\SOFTWARE\WOW6432Node\Valve\Steam" -Name "InstallPath" -ErrorAction SilentlyContinue).InstallPath
-        }
-        $vdfPath = if ($steamPath) { Join-Path $steamPath "steamapps\libraryfolders.vdf" } else { $null }
-        if ($vdfPath -and (Test-Path $vdfPath)) {
-            foreach ($m in [regex]::Matches((Get-Content $vdfPath -Raw), '"path"\s+"([^"]+)"')) {
-                $candidates.Add((Join-Path $m.Groups[1].Value.Replace('\\', '\') "steamapps\common\FNAFVRHelpWanted"))
+    foreach ($programFiles in @(${env:ProgramFiles(x86)}, $env:ProgramFiles)) {
+        if ($programFiles) { $steamDirs.Add((Join-Path $programFiles "Steam")) }
+    }
+
+    $candidates = [System.Collections.Generic.List[string]]::new()
+    foreach ($steam in $steamDirs) {
+        $candidates.Add((Join-Path $steam $gameFolder))
+        try {
+            $vdfPath = Join-Path $steam "steamapps\libraryfolders.vdf"
+            if (Test-Path $vdfPath) {
+                foreach ($m in [regex]::Matches((Get-Content $vdfPath -Raw), '"path"\s+"([^"]+)"')) {
+                    $candidates.Add((Join-Path $m.Groups[1].Value.Replace('\\', '\') $gameFolder))
+                }
             }
-        }
-    } catch {}
+        } catch {}
+    }
+    foreach ($drive in (Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Root)) {
+        $candidates.Add((Join-Path $drive "SteamLibrary\$gameFolder"))
+        $candidates.Add((Join-Path $drive "Steam\$gameFolder"))
+    }
 
     foreach ($candidate in $candidates) {
-        if ($candidate -and (Test-Path (Join-Path $candidate "freddys\Binaries\Win64"))) { return (Resolve-Path $candidate).Path }
+        if ($candidate -and (Test-Path (Join-Path $candidate "freddys\Binaries\Win64\freddys-Win64-Shipping.exe"))) { return (Resolve-Path $candidate).Path }
     }
     return $null
 }
@@ -130,9 +143,10 @@ if (-not $SkipApworld) { Write-Status "apworld" ($null -ne $apworld) $(if ($apwo
 
 $targetMod = Join-Path $modsDir "FNAFHWArchipelago"
 $bridge = if ($BridgeDir) { $BridgeDir } else { Join-Path $targetMod "bridge" }
-$customWorlds = Join-Path $ArchipelagoDir "custom_worlds"
-$archipelagoFound = Test-Path $ArchipelagoDir
-Write-Status "Archipelago" $archipelagoFound $(if ($archipelagoFound) { $ArchipelagoDir } else { "not found at $ArchipelagoDir (copy the .apworld by hand, see below)" })
+if (-not $ArchipelagoDir -and $env:ProgramData) { $ArchipelagoDir = Join-Path $env:ProgramData "Archipelago" }
+$archipelagoFound = [bool]$ArchipelagoDir -and (Test-Path $ArchipelagoDir)
+$customWorlds = if ($ArchipelagoDir) { Join-Path $ArchipelagoDir "custom_worlds" } else { "" }
+Write-Status "Archipelago" $archipelagoFound $(if ($archipelagoFound) { $ArchipelagoDir } else { "not found$(if ($ArchipelagoDir) { " at $ArchipelagoDir" }) (copy the .apworld by hand, see below)" })
 
 if ($CheckOnly) {
     Write-Host "`nCheck only: nothing was changed." -ForegroundColor Cyan
