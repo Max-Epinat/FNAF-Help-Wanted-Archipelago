@@ -107,6 +107,8 @@ Notes:
 | Client: *could not find the bridge folder* | Run `install-mod.ps1` (it writes the folder into the mod's `config.lua`), or set the environment variable `FNAFHW_BRIDGE_DIR`. |
 | Client: *Another AP bridge client is already running* | Close the other client (launcher client or standalone), then start again. |
 | Connected, but nothing happens in game (or the game shows your normal save) | Check that the mod loads: open `...\Win64\UE4SS.log` (next to the game you start from Steam) and search for `FNAFHW`. A working start shows `Starting Lua mod 'FNAFHWArchipelago'` and `[FNAFHW AP]` lines. No hit at all means UE4SS did not find the mod, and it prints no error for that: check that `...\Win64\Mods\FNAFHWArchipelago\Scripts\main.lua` exists (not one folder deeper), that `Mods\mods.txt` of **that same game folder** has `FNAFHWArchipelago : 1` on its own line, and that you did not install into another copy of the game (for example an old one on another drive). *(The causes are HYPOTHESIS until reported cases confirm them.)* |
+| The game crashes (closes) a few seconds after start | The game has its own launch crash that comes and goes: start it again. |
+| The game crashes when you enter the hub (or later) | Close everything and copy, **before starting the game again**: `...\Win64\UE4SS.log` and the newest folder in `%LOCALAPPDATA%\freddys\Saved\Crashes`. Send both in an issue. To see whether the mod is involved, try once with `archipelago_enabled = false,` in `config.lua` (see above). |
 | A level is locked although you have its item | The menu only re-asks when the hub is rebuilt: go back to the main menu and enter the hub again. |
 | *Connection refused* | Wrong slot name or password, or the room uses a different game/world version. |
 

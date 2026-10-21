@@ -117,6 +117,19 @@ facts below for a dump. The offsets are for the game exe of 2026-03-21 and UE4SS
   Status: **HYPOTHESIS** until a play session of an hour or more has passed without crash A or B. Crash C is not touched by this.
 - **Diagnostics**: `[DIAG] map: 'A' -> 'B' (up Ns)` at every map change and a `[DIAG] up=... map=... lua=...KB gi_scans=... loops(runs/skipped)` line every 60 s; `ap_diag` prints it on demand;
   a loop error appears once as `[ERROR] [LOOP] <name>: ...`. A crash right after a `map:` line, or `skipped` counts that keep growing, are the clues.
+
+### A player's game died entering the hub (2026-10-15 log, reported 2026-10-21)
+
+- **VERIFIED** (the player's `UE4SS.log`, game on `D:\SteamLibrary`) UE4SS v3.0.1 `d935b5b` and the mod loaded normally, the session arrived through the bridge, `Enforced SaveSlotName='Playerarchi_<seed>_<slot>'` and
+  `Successfully synchronized ... save` (the file existed and loaded), the title screen ran for 26 s. The log ends in the same second as `map: 'TitleMain' -> 'Main_Menu_With_Showtime' (up 29s)`, right after
+  `IsLevelUnlocked(5)`; on this machine the same hub load goes on with `GetGlitchCount` and more `IsLevelUnlocked` rows for about 3 s. The player says that run crashed. No crash report from them yet.
+- **Not the known launch crash** by its timing (29 s, not 3-9 s): **PARTIAL** until a `PCallStackHash` is seen. None of the 31 crash reports on this machine is a hub-load crash.
+- **VERIFIED** (UE4SS 3.0.1's DLL and changelog: no `EngineTick` / `EGameThreadMethod`) `ExecuteInGameThread` runs jobs from the ProcessEvent hook, so a timer job can run in the middle of the game building a map.
+  **HYPOTHESIS** that is the crash: the save poll walking `SaveGameRef`'s lists, or the `PlayerCoins` write, while the hub is being built, and more likely on a slower PC (the player's mod started 20 s after launch, 10 s here).
+- **Mitigation** (`game_thread.lua`): while `UEngine::LoadMap` runs (`RegisterLoadMapPreHook` / `PostHook`, in UE4SS since 3.0.0) and for `QUIET_SECONDS` (5) after it, every timer job holds still (`[DIAG] map loading: timers paused`,
+  `[DIAG] map loaded: timers resume in 5s`, `held=` in the heartbeat). A map change seen by the diagnostics starts the same quiet time when the LoadMap hooks do not fire. The hooks themselves
+  (`IsLevelUnlocked`, coin counts, `GetGlitchCount`) still run: they are called by the game, not by a timer. **UNVERIFIED** whether the LoadMap hooks fire in this game; **HYPOTHESIS** that this fixes the player's crash.
+- Other candidate, not changed: the save object the game loaded first is dropped when the mod swaps in the Archipelago one (`exact_hooks.lua`, `LoadGameFromSlot`), and the first full garbage collection is that same map load. It only crashes if something still points at the old object; the swap has worked here every time.
 - The playtest's own `UE4SS.log` was lost: the log is overwritten at the next launch (the relaunch came a minute later). After a crash, copy `UE4SS.log` **before** starting the game again.
 
 ## Prizes (2026-10-05)

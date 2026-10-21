@@ -942,6 +942,132 @@ class TestGameThread(LuaCase):
         self.assertNotIn("FindFirstOf", code)
 
 
+class TestGameThreadMapLoads(LuaCase):
+    """The timers hold still while a map loads and for a few seconds after it.
+
+    Background (player report 2026-10-21, HYPOTHESIS): the game died within a second of entering the hub. UE4SS 3.0.1 runs
+    ExecuteInGameThread jobs from its ProcessEvent hook (it has no EngineTick method), so a job can run in the middle of the game
+    building the hub, while the save poll walks the save's lists and the coin cache is written.
+    """
+
+    def setUp(self):
+        LuaCase.setUp(self)
+        self.module = self.load("game_thread.lua")
+        self.clock = [100]
+        self.scans = 0
+        self.on_game_thread = True
+        self.queue = []
+        self.loops = []
+        self.make_instance = self.lua.eval(
+            "function(state) return {IsValid = function() return state.valid end} end")
+
+    build = TestGameThread.build
+    run_queue = TestGameThread.run_queue
+
+    def build_with_load_hooks(self):
+        self.load_hooks = {}
+        params_extra = {
+            "register_load_map_pre": lambda fn: self.load_hooks.__setitem__("pre", fn),
+            "register_load_map_post": lambda fn: self.load_hooks.__setitem__("post", fn),
+        }
+        state = self.lua.table(valid=True)
+        self.state = state
+        params = self.lua.table(
+            find_first=lambda name: self.make_instance(state), now=lambda: self.clock[0],
+            loop_async=lambda ms, fn: self.loops.append(fn), in_game_thread=lambda: True,
+            run_on_game_thread=lambda body: self.queue.append(body), **params_extra)
+        return self.module.init(params)
+
+    def tick(self, loop_index=0):
+        self.loops[loop_index]()
+        self.run_queue()
+
+    def test_jobs_hold_during_a_map_load_and_for_the_quiet_seconds_after(self):
+        instance = self.build_with_load_hooks()
+        ran = []
+        instance.every("job", 1000, lambda: ran.append(self.clock[0]))
+        self.tick()
+        self.assertEqual(ran, [100])
+        self.load_hooks["pre"]()  # UEngine::LoadMap starts
+        self.clock[0] = 101
+        self.tick()
+        self.clock[0] = 110  # a long load
+        self.tick()
+        self.assertEqual(ran, [100])
+        self.load_hooks["post"]()  # LoadMap returned at t=110
+        quiet = self.module.QUIET_SECONDS
+        self.clock[0] = 110 + quiet - 1
+        self.tick()
+        self.assertEqual(ran, [100])
+        self.clock[0] = 110 + quiet
+        self.tick()
+        self.assertEqual(ran, [100, 110 + quiet])
+        self.assertIn("held=", str(instance.stats("")))
+        self.assertTrue(any("timers paused" in line for line in self.log()))
+
+    def test_a_held_tick_does_not_block_the_next_one(self):
+        instance = self.build_with_load_hooks()
+        ran = []
+        instance.every("job", 1000, lambda: ran.append(1))
+        self.load_hooks["pre"]()
+        for _ in range(3):
+            self.tick()
+        self.load_hooks["post"]()
+        self.clock[0] += self.module.QUIET_SECONDS
+        self.tick()
+        self.assertEqual(ran, [1])
+        self.assertEqual(self.queue, [])
+
+    def test_a_load_without_its_end_stops_holding_after_the_limit(self):
+        instance = self.build_with_load_hooks()
+        ran = []
+        instance.every("job", 1000, lambda: ran.append(1))
+        self.load_hooks["pre"]()  # the post hook never comes
+        self.clock[0] += self.module.MAX_LOAD_SECONDS - 1
+        self.tick()
+        self.assertEqual(ran, [])
+        self.clock[0] += 1
+        self.tick()
+        self.assertEqual(ran, [1])
+
+    def test_without_load_map_hooks_a_map_change_seen_by_the_diagnostics_starts_the_quiet_time(self):
+        instance = self.build()  # no LoadMap hooks: the fallback
+        maps = ["TitleMain"]
+        instance.start_diagnostics(lambda: maps[0])
+        ran = []
+        instance.every("job", 1000, lambda: ran.append(1))
+        diag, job = 0, 1
+        self.tick(diag)  # '' -> 'TitleMain': the first map seen at startup, no quiet time
+        self.tick(job)
+        self.assertEqual(ran, [1])
+        maps[0] = "Main_Menu_With_Showtime"
+        self.tick(diag)
+        self.tick(job)
+        self.assertEqual(ran, [1])  # held right after the change
+        self.clock[0] += self.module.QUIET_SECONDS
+        self.tick(job)
+        self.assertEqual(ran, [1, 1])
+
+    def test_the_diagnostics_keep_running_in_the_quiet_time_but_not_inside_the_load(self):
+        instance = self.build_with_load_hooks()
+        maps = ["TitleMain"]
+        instance.start_diagnostics(lambda: maps[0])
+        self.tick()
+        self.load_hooks["pre"]()
+        maps[0] = "Main_Menu_With_Showtime"
+        self.tick()
+        self.assertFalse(any("Main_Menu_With_Showtime" in line for line in self.log() if line.startswith("[DIAG] map:")))
+        self.load_hooks["post"]()
+        self.tick()  # quiet time, the diagnostics still run
+        self.assertTrue(any("-> 'Main_Menu_With_Showtime'" in line for line in self.log() if line.startswith("[DIAG] map:")))
+
+    def test_main_lua_only_exempts_the_diagnostics(self):
+        source = (LIB / "game_thread.lua").read_text(encoding="utf-8")
+        main = (LIB.parent / "main.lua").read_text(encoding="utf-8")
+        self.assertNotIn("always", main)
+        self.assertEqual(source.count("{ always = true }"), 1)
+
+
 @unittest.skipIf(LuaRuntime is None, "lupa is not installed")
 class TestInboxReplayCollapse(LuaCase):
     """Only the last connect block of the inbox history is replayed at launch (every connect is self-contained)."""
