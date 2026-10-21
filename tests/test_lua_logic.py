@@ -943,11 +943,13 @@ class TestGameThread(LuaCase):
 
 
 class TestGameThreadMapLoads(LuaCase):
-    """The timers hold still while a map loads and for a few seconds after it.
+    """The timer jobs hold still for a few seconds after every map change.
 
     Background (player report 2026-10-21, HYPOTHESIS): the game died within a second of entering the hub. UE4SS 3.0.1 runs
     ExecuteInGameThread jobs from its ProcessEvent hook (it has no EngineTick method), so a job can run in the middle of the game
     building the hub, while the save poll walks the save's lists and the coin cache is written.
+    VERIFIED 2026-10-21 on the dev machine: UE4SS 3.0.1's RegisterLoadMapPreHook / RegisterLoadMapPostHook crash this game at its
+    first map load (2 of 2 launches, an unhandled C++ exception in KERNELBASE, call-stack hash 1EA7F574, 10-13 s after start).
     """
 
     def setUp(self):
@@ -964,104 +966,86 @@ class TestGameThreadMapLoads(LuaCase):
     build = TestGameThread.build
     run_queue = TestGameThread.run_queue
 
-    def build_with_load_hooks(self):
-        self.load_hooks = {}
-        params_extra = {
-            "register_load_map_pre": lambda fn: self.load_hooks.__setitem__("pre", fn),
-            "register_load_map_post": lambda fn: self.load_hooks.__setitem__("post", fn),
-        }
-        state = self.lua.table(valid=True)
-        self.state = state
-        params = self.lua.table(
-            find_first=lambda name: self.make_instance(state), now=lambda: self.clock[0],
-            loop_async=lambda ms, fn: self.loops.append(fn), in_game_thread=lambda: True,
-            run_on_game_thread=lambda body: self.queue.append(body), **params_extra)
-        return self.module.init(params)
-
-    def tick(self, loop_index=0):
+    def tick(self, loop_index):
         self.loops[loop_index]()
         self.run_queue()
 
-    def test_jobs_hold_during_a_map_load_and_for_the_quiet_seconds_after(self):
-        instance = self.build_with_load_hooks()
-        ran = []
-        instance.every("job", 1000, lambda: ran.append(self.clock[0]))
-        self.tick()
-        self.assertEqual(ran, [100])
-        self.load_hooks["pre"]()  # UEngine::LoadMap starts
-        self.clock[0] = 101
-        self.tick()
-        self.clock[0] = 110  # a long load
-        self.tick()
-        self.assertEqual(ran, [100])
-        self.load_hooks["post"]()  # LoadMap returned at t=110
+    def start(self, first_map="TitleMain"):
+        instance = self.build()
+        self.maps = [first_map]
+        instance.start_diagnostics(lambda: self.maps[0])
+        self.ran = []
+        instance.every("job", 1000, lambda: self.ran.append(self.clock[0]))
+        self.tick(0)  # the diagnostics see the first map
+        return instance
+
+    def test_the_first_map_seen_at_startup_starts_no_quiet_time(self):
+        self.start()
+        self.tick(1)
+        self.assertEqual(self.ran, [100])
+
+    def test_no_map_then_the_title_screen_at_startup_starts_no_quiet_time(self):
+        # the dev log at launch: map: '' -> '' (up 5s), then '' -> 'TitleMain'
+        self.start(first_map="")
+        self.maps[0] = "TitleMain"
+        self.tick(0)
+        self.tick(1)
+        self.assertEqual(self.ran, [100])
+
+    def test_jobs_hold_for_the_quiet_seconds_after_a_map_change(self):
+        instance = self.start()
+        self.maps[0] = "Main_Menu_With_Showtime"
+        self.tick(0)
         quiet = self.module.QUIET_SECONDS
-        self.clock[0] = 110 + quiet - 1
-        self.tick()
-        self.assertEqual(ran, [100])
-        self.clock[0] = 110 + quiet
-        self.tick()
-        self.assertEqual(ran, [100, 110 + quiet])
-        self.assertIn("held=", str(instance.stats("")))
-        self.assertTrue(any("timers paused" in line for line in self.log()))
+        for t in range(100, 100 + quiet):
+            self.clock[0] = t
+            self.tick(1)
+        self.assertEqual(self.ran, [])
+        self.clock[0] = 100 + quiet
+        self.tick(1)
+        self.assertEqual(self.ran, [100 + quiet])
+        self.assertIn("held=%d" % quiet, str(instance.stats("")))
+        self.assertTrue(any("timers paused for %ds" % quiet in line for line in self.log()))
 
     def test_a_held_tick_does_not_block_the_next_one(self):
-        instance = self.build_with_load_hooks()
-        ran = []
-        instance.every("job", 1000, lambda: ran.append(1))
-        self.load_hooks["pre"]()
+        self.start()
+        self.maps[0] = "Main_Menu_With_Showtime"
+        self.tick(0)
         for _ in range(3):
-            self.tick()
-        self.load_hooks["post"]()
+            self.tick(1)
         self.clock[0] += self.module.QUIET_SECONDS
-        self.tick()
-        self.assertEqual(ran, [1])
+        self.tick(1)
+        self.assertEqual(len(self.ran), 1)
         self.assertEqual(self.queue, [])
 
-    def test_a_load_without_its_end_stops_holding_after_the_limit(self):
-        instance = self.build_with_load_hooks()
-        ran = []
-        instance.every("job", 1000, lambda: ran.append(1))
-        self.load_hooks["pre"]()  # the post hook never comes
-        self.clock[0] += self.module.MAX_LOAD_SECONDS - 1
-        self.tick()
-        self.assertEqual(ran, [])
-        self.clock[0] += 1
-        self.tick()
-        self.assertEqual(ran, [1])
+    def test_a_map_that_reads_empty_during_the_load_also_counts_as_a_change(self):
+        self.start()
+        self.maps[0] = ""  # the world can read as no map while it is being replaced
+        self.tick(0)
+        self.tick(1)
+        self.assertEqual(self.ran, [])
 
-    def test_without_load_map_hooks_a_map_change_seen_by_the_diagnostics_starts_the_quiet_time(self):
-        instance = self.build()  # no LoadMap hooks: the fallback
-        maps = ["TitleMain"]
-        instance.start_diagnostics(lambda: maps[0])
-        ran = []
-        instance.every("job", 1000, lambda: ran.append(1))
-        diag, job = 0, 1
-        self.tick(diag)  # '' -> 'TitleMain': the first map seen at startup, no quiet time
-        self.tick(job)
-        self.assertEqual(ran, [1])
-        maps[0] = "Main_Menu_With_Showtime"
-        self.tick(diag)
-        self.tick(job)
-        self.assertEqual(ran, [1])  # held right after the change
-        self.clock[0] += self.module.QUIET_SECONDS
-        self.tick(job)
-        self.assertEqual(ran, [1, 1])
+    def test_the_diagnostics_keep_running_in_the_quiet_time(self):
+        self.start()
+        self.maps[0] = "Main_Menu_With_Showtime"
+        self.tick(0)
+        self.maps[0] = "Repair_Bonnie_Game"
+        self.tick(0)  # still quiet, the change is logged
+        changes = [line for line in self.log() if line.startswith("[DIAG] map:")]
+        self.assertIn("'Main_Menu_With_Showtime' -> 'Repair_Bonnie_Game'", changes[-1])
 
-    def test_the_diagnostics_keep_running_in_the_quiet_time_but_not_inside_the_load(self):
-        instance = self.build_with_load_hooks()
-        maps = ["TitleMain"]
-        instance.start_diagnostics(lambda: maps[0])
-        self.tick()
-        self.load_hooks["pre"]()
-        maps[0] = "Main_Menu_With_Showtime"
-        self.tick()
-        self.assertFalse(any("Main_Menu_With_Showtime" in line for line in self.log() if line.startswith("[DIAG] map:")))
-        self.load_hooks["post"]()
-        self.tick()  # quiet time, the diagnostics still run
-        self.assertTrue(any("-> 'Main_Menu_With_Showtime'" in line for line in self.log() if line.startswith("[DIAG] map:")))
+    def test_the_load_map_hooks_are_never_registered(self):
+        # They crash this game with UE4SS 3.0.1 (see the class docstring). Defined here so that a call would be seen.
+        self.lua.execute("__loadmap = 0; RegisterLoadMapPreHook = function() __loadmap = __loadmap + 1 end; "
+                         "RegisterLoadMapPostHook = RegisterLoadMapPreHook")
+        self.module.init(self.lua.table(loop_async=lambda ms, fn: None, now=lambda: 100))
+        self.assertEqual(self.lua.globals()["__loadmap"], 0)
+        scripts = LIB.parent
+        for path in [scripts / "main.lua"] + sorted(LIB.glob("*.lua")):
+            code = "\n".join(line for line in path.read_text(encoding="utf-8").splitlines() if not line.strip().startswith("--"))
+            self.assertNotIn("RegisterLoadMap", code, path.name)
 
-    def test_main_lua_only_exempts_the_diagnostics(self):
+    def test_only_the_diagnostics_are_exempt(self):
         source = (LIB / "game_thread.lua").read_text(encoding="utf-8")
         main = (LIB.parent / "main.lua").read_text(encoding="utf-8")
         self.assertNotIn("always", main)

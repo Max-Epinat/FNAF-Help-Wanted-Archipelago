@@ -58,9 +58,9 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
 
 ## To verify in game
 
-- **Timers hold still during map loads** (`game_thread.lua`, for a player whose game died entering the hub). Launch, go title -> hub -> a level -> hub. `UE4SS.log` must show `[DIAG] map loading: timers paused`
-  and `[DIAG] map loaded: timers resume in 5s` around each `[DIAG] map:` line (if they never appear the LoadMap hooks do not fire in this game and only the fallback quiet time after a `map:` line works),
-  items, tokens and the level menu must still update a few seconds later, and the heartbeat shows `held=`. Then the player's own run: does the hub load now?
+- **Timers hold still after a map change** (`game_thread.lua`, for a player whose game died entering the hub). Launch (it must get past the title screen: the first version, with LoadMap hooks, crashed at start),
+  go title -> hub -> a level -> hub. `UE4SS.log` must show `[DIAG] map changed: timers paused for 5s` after each `[DIAG] map:` line except the first ones at startup, items, tokens and the level menu must still
+  update a few seconds later, and the heartbeat shows `held=`. Then the player's own run: does the hub load now?
 - **One save per multiworld** (the game accepts and writes the new slot names: VERIFIED 2026-10-10, three rooms' files in the folder; still unchecked: switching rooms while the game is running, going back to an older room, a room from before the change). With the client started first: connect to room A, start the game, play a little (a level or a token), close the game; connect to a NEW room B (same client: `/disconnect`, `/connect`), start the game:
   B must show a clean save (no progress of A), `UE4SS.log` shows `Archipelago save slot for this session: 'Playerarchi_<seedB>_<slot>'`, `Enforced SaveSlotName=...` and `Successfully synchronized ... save`, and `SaveGames\` holds both `Playerarchi_<seedA>_...sav` and `...<seedB>...sav` and no new `.bak`.
   Then connect back to A: its progress is back. A room you started before this version must still use `Playerarchi.sav`. Also check the game really writes progress into the new file name (play a level, look at the file's timestamp).

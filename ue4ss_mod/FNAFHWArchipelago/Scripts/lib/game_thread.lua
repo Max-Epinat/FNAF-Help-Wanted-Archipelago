@@ -20,13 +20,13 @@ GameThread.GAME_INSTANCE_CLASS = "BP_FNAF_GameInstance_C"
 
 -- Map loads (player report 2026-10-21: the game died within a second of entering the hub; the cause is a HYPOTHESIS).
 -- UE4SS 3.0.1 runs ExecuteInGameThread jobs from its ProcessEvent hook (it has no EngineTick method), so a job can run in the middle
--- of the game building a map. While UEngine::LoadMap runs, and for QUIET_SECONDS after it returns (the hub keeps building), the
--- timer jobs hold still: they skip their body and run again on a later tick. Without the LoadMap hooks a map change seen by the
--- diagnostics starts the same quiet time. A load whose end never comes stops holding after MAX_LOAD_SECONDS.
+-- of the game building a map. For QUIET_SECONDS after the diagnostics see a map change (the hub keeps building for seconds), the
+-- timer jobs hold still: they skip their body and run again on a later tick.
+-- Never use RegisterLoadMapPreHook / RegisterLoadMapPostHook: in UE4SS 3.0.1 they crash this game at its first map load
+-- (VERIFIED 2026-10-21, 2 of 2 launches: unhandled C++ exception in KERNELBASE, call-stack hash 1EA7F574, 10-13 s after start).
 GameThread.QUIET_SECONDS = 5
-GameThread.MAX_LOAD_SECONDS = 60
 
--- params (all optional): find_first, in_game_thread, run_on_game_thread, loop_async, now, register_load_map_pre, register_load_map_post
+-- params (all optional): find_first, in_game_thread, run_on_game_thread, loop_async, now
 function GameThread.init(params)
     params = params or {}
     local find_first = params.find_first or FindFirstOf
@@ -34,40 +34,17 @@ function GameThread.init(params)
     local run_on_game_thread = params.run_on_game_thread or ExecuteInGameThread
     local loop_async = params.loop_async or LoopAsync
     local now = params.now or os.time
-    local register_load_map_pre = params.register_load_map_pre or RegisterLoadMapPreHook
-    local register_load_map_post = params.register_load_map_post or RegisterLoadMapPostHook
 
     local self = {}
     local state = {
         instance = nil, last_scan = -math.huge, scans = 0,
         started = now(), loops = {}, loop_order = {}, error_kinds = 0, errors_seen = {}, job_seen = false,
-        loading_since = nil, quiet_until = -math.huge, held = 0,
+        quiet_until = -math.huge, held = 0,
     }
-
-    local function loading()
-        if state.loading_since == nil then return false end
-        if now() - state.loading_since >= GameThread.MAX_LOAD_SECONDS then
-            state.loading_since = nil
-            return false
-        end
-        return true
-    end
 
     local function start_quiet()
         state.quiet_until = math.max(state.quiet_until, now() + GameThread.QUIET_SECONDS)
-    end
-
-    -- the callbacks only set a flag and log: nothing else may run inside LoadMap
-    if register_load_map_pre and register_load_map_post then
-        pcall(register_load_map_pre, function()
-            state.loading_since = now()
-            print("[DIAG] map loading: timers paused")
-        end)
-        pcall(register_load_map_post, function()
-            state.loading_since = nil
-            start_quiet()
-            print(string.format("[DIAG] map loaded: timers resume in %ds", GameThread.QUIET_SECONDS))
-        end)
+        print(string.format("[DIAG] map changed: timers paused for %ds", GameThread.QUIET_SECONDS))
     end
 
     -- May the object array be scanned from the calling thread? With IsInGameThread the answer is exact. Without it (not every
@@ -109,8 +86,8 @@ function GameThread.init(params)
 
     -- Run fn every `ms` milliseconds on the game thread. fn returning true stops the loop. A tick is skipped (not queued) while the
     -- previous one has not run yet, so a stalled game thread (loading screen) cannot build up a backlog. Errors are logged once each.
-    -- While a map loads (and in the quiet time after it) the body is held: skipped, counted, run on a later tick. options.always = true
-    -- (the diagnostics only) runs it in the quiet time too, never inside the load itself.
+    -- In the quiet time after a map change the body is held: skipped, counted, run on a later tick. options.always = true
+    -- (the diagnostics only) runs it in the quiet time too.
     function self.every(name, ms, fn, options)
         local always = options ~= nil and options.always == true
         local loop = { name = name, runs = 0, skipped = 0, pending = false, stopped = false }
@@ -119,7 +96,7 @@ function GameThread.init(params)
 
         local function body()
             if run_on_game_thread then state.job_seen = true end
-            if loading() or (not always and now() < state.quiet_until) then
+            if not always and now() < state.quiet_until then
                 loop.pending = false
                 state.held = state.held + 1
                 return
@@ -168,7 +145,7 @@ function GameThread.init(params)
     end
 
     -- Map changes (a crash 2 s after a map load is a clue) and a heartbeat line, both cheap. current_map() returns the map name or "".
-    -- A change after the first real map also starts the quiet time (the fallback when the LoadMap hooks do not fire).
+    -- A change after the first real map also starts the quiet time (not the first map at startup: nothing is being rebuilt then).
     function self.start_diagnostics(current_map)
         local last_map, ticks, seen_map = nil, 0, false
         self.every("diag", 1000, function()

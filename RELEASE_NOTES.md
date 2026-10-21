@@ -1,4 +1,15 @@
-Sixth test release of **FNAF Help Wanted x Archipelago**: an install-focused update (a double-click installer and finding the game on any drive) on top of 0.4.0, which let you switch the prizes, the Faz Tokens and the glitch tapes out of the randomizer and gave every room its own save. Still a prerelease: it works in the real game and in real rooms, but it has had little outside testing.
+Seventh test release of **FNAF Help Wanted x Archipelago**: a crash-hardening update for the hub load, on top of 0.4.1 (a double-click installer, finding the game on any drive) and 0.4.0, which let you switch the prizes, the Faz Tokens and the glitch tapes out of the randomizer and gave every room its own save. Still a prerelease: it works in the real game and in real rooms, but it has had little outside testing.
+
+## What changed in 0.4.2 (since 0.4.1)
+
+One change in the mod, for a player whose game closed the moment they entered the hub. Nothing changes in the randomizer: rooms, yamls and saves from 0.4.x work as before.
+
+- **The mod's background jobs now pause for 5 seconds after every map change.** UE4SS 3.0.1 can run them in the middle of the game building a map, and that is our best explanation for the crash at the hub.
+  It is **not confirmed yet**: the crash report from that player is still to come. If your game still closes when you enter the hub, please open an issue with `UE4SS.log` and the newest folder in `%LOCALAPPDATA%\freddys\Saved\Crashes`, copied before you start the game again.
+- Side effect: right after a map change, items, Faz Tokens and DeathLink can arrive a few seconds later than before.
+- `UE4SS.log` now says `[DIAG] map changed: timers paused for 5s` after each map change.
+- Update the mod (`install-mod.bat`); the world itself did not change.
+- For maintainers: 530 tests. UE4SS 3.0.1's `RegisterLoadMapPreHook` / `RegisterLoadMapPostHook` crash this game at its first map load (tried during this release, never shipped); a test keeps them out.
 
 ## What changed in 0.4.1 (since 0.4.0)
 
@@ -54,7 +65,7 @@ You need Windows, the Steam game, [Archipelago](https://github.com/ArchipelagoMW
 
 1. **Install UE4SS once.** Extract it into `...\steamapps\common\FNAFVRHelpWanted\freddys\Binaries\Win64\` (next to
    `freddys-Win64-Shipping.exe`), start the game once, then close it.
-2. **Install the mod and the world.** Download `FNAF-HW-Archipelago-v0.4.1.zip`, unpack all of it and **double-click `install-mod.bat`**. It finds the game (on any drive; it asks
+2. **Install the mod and the world.** Download `FNAF-HW-Archipelago-v0.4.2.zip`, unpack all of it and **double-click `install-mod.bat`**. It finds the game (on any drive; it asks
    for the folder if it cannot), checks UE4SS, installs the mod and copies the world into Archipelago's `custom_worlds`.
    Updating from an older version: run it again (it also turns the mod back on and rewrites `config.lua`).
 3. **Set your options.** Copy `templates/Five Nights at Freddy's Help Wanted.yaml` into your Archipelago `Players` folder and edit it

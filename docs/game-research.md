@@ -126,9 +126,12 @@ facts below for a dump. The offsets are for the game exe of 2026-03-21 and UE4SS
 - **Not the known launch crash** by its timing (29 s, not 3-9 s): **PARTIAL** until a `PCallStackHash` is seen. None of the 31 crash reports on this machine is a hub-load crash.
 - **VERIFIED** (UE4SS 3.0.1's DLL and changelog: no `EngineTick` / `EGameThreadMethod`) `ExecuteInGameThread` runs jobs from the ProcessEvent hook, so a timer job can run in the middle of the game building a map.
   **HYPOTHESIS** that is the crash: the save poll walking `SaveGameRef`'s lists, or the `PlayerCoins` write, while the hub is being built, and more likely on a slower PC (the player's mod started 20 s after launch, 10 s here).
-- **Mitigation** (`game_thread.lua`): while `UEngine::LoadMap` runs (`RegisterLoadMapPreHook` / `PostHook`, in UE4SS since 3.0.0) and for `QUIET_SECONDS` (5) after it, every timer job holds still (`[DIAG] map loading: timers paused`,
-  `[DIAG] map loaded: timers resume in 5s`, `held=` in the heartbeat). A map change seen by the diagnostics starts the same quiet time when the LoadMap hooks do not fire. The hooks themselves
-  (`IsLevelUnlocked`, coin counts, `GetGlitchCount`) still run: they are called by the game, not by a timer. **UNVERIFIED** whether the LoadMap hooks fire in this game; **HYPOTHESIS** that this fixes the player's crash.
+- **Mitigation** (`game_thread.lua`): for `QUIET_SECONDS` (5) after the diagnostics see a map change (not the first map at startup), every timer job holds still (`[DIAG] map changed: timers paused for 5s`,
+  `held=` in the heartbeat). The map check runs once a second, so up to 1 s of the load itself is not covered. The hooks (`IsLevelUnlocked`, coin counts, `GetGlitchCount`) still run: the game calls them, not a timer.
+  **HYPOTHESIS** that this fixes the player's crash.
+- **VERIFIED (dev machine, 2026-10-21): never use `RegisterLoadMapPreHook` / `RegisterLoadMapPostHook` with UE4SS 3.0.1 in this game.** A first version of the mitigation registered them (they exist since 3.0.0):
+  2 of 2 launches died 10-13 s after start, at the first map load, before the callback printed anything: unhandled C++ exception (`0xe06d7363` at `KERNELBASE.dll+0xc408a`), call-stack hash `1EA7F574`, a signature never seen before.
+  A test now fails if any live mod file calls them.
 - Other candidate, not changed: the save object the game loaded first is dropped when the mod swaps in the Archipelago one (`exact_hooks.lua`, `LoadGameFromSlot`), and the first full garbage collection is that same map load. It only crashes if something still points at the old object; the swap has worked here every time.
 - The playtest's own `UE4SS.log` was lost: the log is overwritten at the next launch (the relaunch came a minute later). After a crash, copy `UE4SS.log` **before** starting the game again.
 
