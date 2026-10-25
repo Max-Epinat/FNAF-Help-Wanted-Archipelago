@@ -42,13 +42,12 @@ class TestLocationsPerCombination(unittest.TestCase):
     def test_the_location_count_is_the_always_there_part_plus_each_group_that_is_on(self):
         for prizes, tokens, tapes in COMBINATIONS:
             with self.subTest(prizes=prizes, tokens=tokens, tapes=tapes):
-                expected = 50 + 57 * prizes + 30 * tokens + 16 * tapes  # 50 = levels, hub, goals, Blackjack
+                expected = 43 + 57 * prizes + 30 * tokens + 16 * tapes  # 43 = 40 levels, Pizza Party, the goal, Glitchtrap "You Do Not Die"
                 self.assertEqual(len(created(prizes, tokens, tapes)), expected)
 
-    def test_all_on_is_exactly_the_table_of_today(self):
-        self.assertEqual(data.region_locations(True, True, True), data.ACTIVE_REGION_LOCATIONS)
-        self.assertEqual(data.region_locations(), data.ACTIVE_REGION_LOCATIONS)  # the default is all on
-        self.assertEqual(len(created(True, True, True)), 153)
+    def test_all_on_is_the_table_without_the_never_sent_checks_and_the_unused_goals(self):
+        self.assertEqual(data.region_locations(), data.region_locations(True, True, True))  # the default is all on
+        self.assertEqual(len(created(True, True, True)), 146)  # 153 before 2026-10-25 (3 never-sent checks and 4 unused goals left out)
 
     def test_a_group_that_is_off_has_no_locations_and_one_that_is_on_has_all_of_them(self):
         groups = {"prizes": data.ACTIVE_PRIZE_CHECKS, "faz_tokens": data.FAZ_TOKEN_CHECKS, "tapes": data.GLITCH_TAPE_CHECKS}
@@ -60,14 +59,12 @@ class TestLocationsPerCombination(unittest.TestCase):
                     self.assertEqual(set(members) <= names, flag)
                     self.assertEqual(bool(set(members) & names), flag)
 
-    def test_levels_hub_goals_and_blackjack_are_always_there(self):
-        always = set(data.MINIGAME_AND_NIGHT_CHECKS) | {
-            "Collect All Hub Trophies", "Complete Pizza Party", "Complete Normal Ending", "Win Prize Counter Blackjack",
-            data.GOAL_COMPLETE_ALL_MINIGAMES, data.GOAL_COMPLETE_ALL_MINIGAMES_HARD, data.GOAL_GLITCHTRAP_DIE,
-            data.GOAL_GLITCHTRAP_SURVIVE, data.GOAL_HUNDRED_PERCENT, data.GOAL_TOKEN_TAPE_QUOTA}
+    def test_levels_pizza_party_and_the_goal_are_always_there(self):
+        always = set(data.MINIGAME_AND_NIGHT_CHECKS) | {"Complete Pizza Party", data.GOAL_COMPLETE_ALL_MINIGAMES, data.GOAL_GLITCHTRAP_SURVIVE}
         for combo in COMBINATIONS:
             with self.subTest(combo=combo):
                 self.assertLessEqual(always, set(created(*combo)))
+                self.assertFalse(set(created(*combo)) & data.NEVER_SENT_CHECKS)
 
     def test_regions_keep_their_names_and_the_order_of_their_locations(self):
         for combo in COMBINATIONS:
@@ -98,13 +95,13 @@ class TestFullClearList(unittest.TestCase):
                 self.assertLessEqual(set(data.full_clear_checks(*combo)), set(created(*combo)))
 
     def test_it_keeps_everything_else_and_loses_only_the_groups_that_are_off(self):
-        self.assertEqual(data.full_clear_checks(True, True, True), data.FULL_CLEAR_CHECKS)
+        self.assertEqual(data.full_clear_checks(True, True, True), [n for n in data.FULL_CLEAR_CHECKS if n not in data.NEVER_SENT_CHECKS])
         none = set(data.full_clear_checks(False, False, False))
         self.assertEqual(set(data.FULL_CLEAR_CHECKS) - none,
-                         set(data.ACTIVE_PRIZE_CHECKS) | set(data.FAZ_TOKEN_CHECKS) | set(data.GLITCH_TAPE_CHECKS))
+                         set(data.ACTIVE_PRIZE_CHECKS) | set(data.FAZ_TOKEN_CHECKS) | set(data.GLITCH_TAPE_CHECKS) | data.NEVER_SENT_CHECKS)
         self.assertIn("Complete Pizza Party", none)
-        self.assertIn("Win Prize Counter Blackjack", none)
-        self.assertIn("Collect All Hub Trophies", none)
+        self.assertNotIn("Win Prize Counter Blackjack", none)  # never sent by anything: not a location any more
+        self.assertNotIn("Collect All Hub Trophies", none)
 
 
 class TestPoolPerCombination(unittest.TestCase):
@@ -132,18 +129,40 @@ class TestPoolPerCombination(unittest.TestCase):
                 with self.subTest(combo=combo, unlock=unlock):
                     base, plan = self.pool(combo, unlock)
                     unfilled = len(created(*combo)) - 1  # the goal location holds the locked Victory
-                    pool = sum(quantity for name, quantity in base.items() if name != "Victory") + len(plan.pool_items)
-                    self.assertGreaterEqual(unfilled - pool, 0, "the pool must never be bigger than the locations")
+                    names = [n for n, q in base.items() if n != "Victory" for _ in range(q)] + list(plan.pool_items)
                     # tapes and tokens take their items along with their locations, so only the prizes change the amount of filler
-                    self.assertEqual(unfilled - pool, 45 + 57 * combo[0] - len(plan.pool_items))
+                    self.assertEqual(unfilled - len(names), 38 + 57 * combo[0] - len(plan.pool_items))
+                    fitted = data.trim_to_fit(names, unfilled)
+                    self.assertLessEqual(len(fitted), unfilled, "the pool must never be bigger than the locations")
+                    self.assertEqual(len(fitted), min(len(names), unfilled))
 
-    def test_every_group_off_still_has_room_for_the_heaviest_plan(self):
+    def test_every_group_off_the_heaviest_plan_loses_the_license_and_nothing_else(self):
         combo = (False, False, False)
+        self.assertEqual(len(created(*combo)) - 1, 42)
         for unlock in UNLOCK_OPTIONS:
             base, plan = self.pool(combo, unlock)
-            self.assertEqual(sum(base[n] for n in base if n != "Victory"), 4)  # Prize Counter Key, License, 2 traps
-            self.assertLessEqual(4 + len(plan.pool_items), len(created(*combo)) - 1)
-        self.assertEqual(len(created(*combo)) - 1, 49)
+            names = [n for n, q in base.items() if n != "Victory" for _ in range(q)] + list(plan.pool_items)
+            self.assertEqual(sorted(n for n in names if n not in plan.pool_items),
+                             ["Hallucination", "Hallucination", "Nightmare Mode License", "Prize Counter Key"])
+            fitted = data.trim_to_fit(names, 42)
+            dropped = list(names)
+            for name in fitted:
+                dropped.remove(name)
+            if unlock[0] == levels.UNLOCK_PER_LEVEL:  # 39 level items + 4 = 43 for 42 slots: the License goes (it cannot fill a filler-only check)
+                self.assertEqual(dropped, ["Nightmare Mode License"])
+            else:
+                self.assertEqual(dropped, [])
+
+    def test_trimming_only_ever_drops_optional_items_license_first(self):
+        self.assertEqual(data.OPTIONAL_ITEMS, ("Nightmare Mode License", "Hallucination"))
+        names = ["A", "Hallucination", "Nightmare Mode License", "Hallucination", "B"]
+        self.assertEqual(data.trim_to_fit(names, 5), names)
+        self.assertEqual(data.trim_to_fit(names, 4), ["A", "Hallucination", "Hallucination", "B"])
+        self.assertEqual(data.trim_to_fit(names, 3), ["A", "Hallucination", "B"])
+        self.assertEqual(data.trim_to_fit(names, 2), ["A", "B"])
+        self.assertEqual(data.trim_to_fit(names, 1), ["A", "B"])  # never a needed item: the world then reports the overflow
+        init = (WORLD_DIR / "__init__.py").read_text(encoding="utf-8")
+        self.assertIn("trim_to_fit(names, unfilled_location_count)", init)
 
     def test_the_quota_options_never_ask_for_more_than_the_pool_has(self):
         text = (WORLD_DIR / "options.py").read_text(encoding="utf-8")
@@ -210,13 +229,15 @@ class TestGoalRequirements(unittest.TestCase):
             self.assertEqual(self.need(goal, True, False)[1], 0, goal)
         self.assertEqual(self.need(data.GOAL_TOKEN_TAPE_QUOTA, True, False), (8, 0))
 
-    def test_no_combination_is_rejected(self):
+    def test_every_combination_has_an_answer_and_only_a_seed_too_big_to_fit_is_refused(self):
         for combo in COMBINATIONS:
             for goal in (data.GOAL_COMPLETE_ALL_MINIGAMES, data.GOAL_GLITCHTRAP_DIE, data.GOAL_HUNDRED_PERCENT, data.GOAL_TOKEN_TAPE_QUOTA):
-                self.assertEqual(len(self.need(goal, combo[2], combo[1])), 2)  # always an answer, never an error
+                self.assertEqual(len(self.need(goal, combo[2], combo[1])), 2)  # always an answer
+        # the toggles alone never refuse a seed; the one refusal is a seed whose important items cannot fit (tests/test_real_access.py)
         rules = (WORLD_DIR / "rules.py").read_text(encoding="utf-8")
+        self.assertNotIn("OptionError", rules)
         init = (WORLD_DIR / "__init__.py").read_text(encoding="utf-8")
-        self.assertNotIn("OptionError", rules + init)
+        self.assertEqual(init.count("raise OptionError("), 1)
 
 
 class TestWorldGlueSource(unittest.TestCase):

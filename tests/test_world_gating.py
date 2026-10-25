@@ -52,8 +52,10 @@ ALL_COMBINATIONS = list(itertools.product(
 
 
 def reachable(plan, items):
-    """Level locations whose required items are all held (exactly what rules.py enforces)."""
-    return {loc for loc, needed in plan.location_items.items() if needed <= set(items)}
+    """Level locations (and Pizza Party) whose required items are all held (exactly what rules.py enforces). The plan also lists the tape / token
+    pickups and the filler-only checks since 2026-10-25; those have their own tests (tests/test_real_access.py)."""
+    levels_and_party = set(levels.LEVEL_BY_LOCATION) | {levels.PIZZA_PARTY_LOCATION}
+    return {loc for loc, needed in plan.location_items.items() if loc in levels_and_party and needed <= set(items)}
 
 
 class TestItemCodes(unittest.TestCase):
@@ -184,7 +186,8 @@ class TestPlanInvariants(unittest.TestCase):
 
     def test_every_combination(self):
         base_quantity = sum(d.quantity for n, d in data.ITEM_TABLE.items() if n not in levels.MANAGED_ITEM_NAMES)
-        unfilled = data.ACTIVE_LOCATION_COUNT - 1  # goal location holds the locked Victory; undetectable prizes are not created
+        # goal location holds the locked Victory; undetectable prizes, never-sent checks and unused goals are not created
+        unfilled = sum(len(names) for names in data.region_locations().values()) - 1
         for mode, hard, start in ALL_COMBINATIONS:
             with self.subTest(mode=mode, hard=hard, start=start):
                 plan = levels.build_plan(mode, hard, start)
@@ -200,8 +203,9 @@ class TestPlanInvariants(unittest.TestCase):
                 gates = set(plan.level_gates.values())
                 self.assertEqual(gates, set(plan.gate_items.values()))
                 self.assertTrue(set(plan.gate_items) <= set(managed))
-                # completable: with the whole managed pool, every level is reachable
-                self.assertEqual(reachable(plan, managed), set(plan.location_items))
+                # completable: with the whole managed pool, every level, Pizza Party, pickup and filler-only check is reachable
+                self.assertEqual(reachable(plan, managed), set(levels.LEVEL_BY_LOCATION) | {levels.PIZZA_PARTY_LOCATION})
+                self.assertTrue(all(needed <= set(managed) for needed in plan.location_items.values()))
                 # a level needs exactly one managed item: its own gate item, never the items of other levels
                 for level in levels.LEVELS:
                     needed = plan.location_items[level.location]
@@ -377,61 +381,6 @@ class TestWorldGlueSource(unittest.TestCase):
 
 
 
-class TestUnlockItemsOnlyOnLevelLocations(unittest.TestCase):
-    """The fill must never put a level's unlock item where the player can only get it by being inside a gated level.
-
-    Only level locations are gated in the logic (each needs its own unlock item, VERIFIED in game). Where a tape, a Faz Token or a prize physically is
-    is not modelled, so an unlock item on one of those could sit behind the very level it unlocks and the seed could not be finished. Keeping the
-    unlock items on level-completion locations makes every unlock item obtainable by playing levels the player already has.
-    (Found with the real generator: before this rule every seed put unlock items on tapes, tokens, prizes, the trophies or the blackjack win.)
-    """
-
-    OPTIONS = [(mode, hard, section) for mode in (levels.UNLOCK_PER_SECTION, levels.UNLOCK_PER_LEVEL)
-               for hard in (levels.HARD_GROUPED, levels.HARD_SEPARATE) for section in levels.SECTION_BY_KEY]
-
-    def test_only_the_forty_level_locations_may_hold_unlock_items(self):
-        level_locations = {level.location for level in levels.LEVELS}
-        self.assertEqual(len(level_locations), 40)
-        for names in data.ACTIVE_REGION_LOCATIONS.values():
-            for name in names:
-                self.assertEqual(levels.may_hold_unlock_item(name), name in level_locations, name)
-        for name in (levels.PIZZA_PARTY_LOCATION, "Collect Glitch Tape 02", "Collect Faz Token 01", "Win Prize Counter Blackjack",
-                     "Collect All Hub Trophies", "Collect Prize Counter Intro Tape"):
-            self.assertFalse(levels.may_hold_unlock_item(name), name)
-
-    def test_every_item_a_plan_hands_out_is_restricted(self):
-        for options in self.OPTIONS:
-            plan = levels.build_plan(*options)
-            self.assertLessEqual(set(plan.pool_items) | set(plan.start_items), set(levels.MANAGED_ITEM_NAMES), options)
-
-    def test_there_is_always_room_for_every_unlock_item(self):
-        """Each unlock item needs its own level location, and never the one it opens (that location requires it). A perfect matching must exist."""
-        for options in self.OPTIONS:
-            plan = levels.build_plan(*options)
-            items = list(plan.pool_items)
-            spots = {item: [loc for loc, needed in plan.location_items.items()
-                            if loc != levels.PIZZA_PARTY_LOCATION and item not in needed] for item in items}
-            owner = {}
-
-            def place(item, seen):
-                for loc in spots[item]:
-                    if loc in seen:
-                        continue
-                    seen.add(loc)
-                    if loc not in owner or place(owner[loc], seen):
-                        owner[loc] = item
-                        return True
-                return False
-
-            unplaced = [item for item in items if not place(item, set())]
-            self.assertEqual(unplaced, [], options)
-
-    def test_rules_py_applies_the_restriction(self):
-        rules = (WORLD_DIR / "rules.py").read_text(encoding="utf-8")
-        for needle in ("add_item_rule", "may_hold_unlock_item", "MANAGED_ITEM_NAMES"):
-            self.assertIn(needle, rules)
-
-
 class TestNightmareLogicIsGone(unittest.TestCase):
     """`nightmare_logic` was an invented extra requirement (the Nightmare Mode License is not a progression item, so a goal that needed it could never be generated)."""
 
@@ -499,10 +448,13 @@ class TestUndetectablePrizes(unittest.TestCase):
 
     def test_the_world_creates_regions_from_the_active_table(self):
         regions = (WORLD_DIR / "regions.py").read_text(encoding="utf-8")
-        # regions.py asks data.region_locations(...), which starts from ACTIVE_REGION_LOCATIONS (all on == that table, see test_location_groups.py)
+        # regions.py asks data.region_locations(...), which starts from ACTIVE_REGION_LOCATIONS and leaves out the groups that are off, the checks
+        # nothing sends and the unused goal locations (tests/test_real_access.py)
         self.assertIn("region_locations(", regions)
         self.assertNotIn("REGION_LOCATIONS.get", regions)
-        self.assertEqual(data.region_locations(True, True, True), data.ACTIVE_REGION_LOCATIONS)
+        created = {name for names in data.region_locations(True, True, True).values() for name in names}
+        active = {name for names in data.ACTIVE_REGION_LOCATIONS.values() for name in names}
+        self.assertEqual(active - created, set(data.NEVER_SENT_CHECKS) | (set(data.GOAL_CHECKS) - {data.GOAL_COMPLETE_ALL_MINIGAMES, data.GOAL_GLITCHTRAP_SURVIVE}))
 
     def test_the_location_counters_in_the_two_interfaces_match(self):
         """Both interfaces show the real total of the seed (location groups can be off); 153 is only their default when none is known."""

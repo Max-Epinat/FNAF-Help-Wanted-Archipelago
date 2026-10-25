@@ -133,14 +133,74 @@ MANAGED_ITEM_NAMES = frozenset(SECTION_ITEM_NAMES) | frozenset(HARD_ITEM_CODES) 
 APPENDED_ITEM_CODES = {**HARD_ITEM_CODES, **LEVEL_ITEM_CODES}
 
 
-def may_hold_unlock_item(location_name: str) -> bool:
-    """Unlock items (section, hard and level items) may only sit on level-completion locations.
+# ---- Where the checks that are not levels really are: read from the game's files on 2026-10-25 (docs/game-research.md, "Where the tapes,
+# tokens and prizes are"). VERIFIED from game data and Blueprint code, not yet seen in game.
 
-    A level location needs exactly its own unlock item (VERIFIED in game), so the player can always get an unlock item from a level they already have.
-    Where a tape, a Faz Token or a prize physically is, is NOT modelled: an unlock item there could sit behind the very level it opens and the seed
-    could not be finished. Pizza Party, the hub locations and the goals are excluded too.
-    """
-    return location_name in LEVEL_BY_LOCATION
+# LevelInfoTable "LevelToLoad": the map each gated row is played on.
+LEVEL_MAPS: dict[int, str] = {
+    **{row: "Flashlight_Game_Ver_1_Bigger" for row in (0, 1, 30, 31)},
+    **{row: "Flashlight_Game_Ver_2" for row in (2, 36)},
+    **{row: "Funtime_Foxy" for row in (3, 37)},
+    **{row: "NightGuard_Office01" for row in (4, 5, 6, 7, 8)},
+    **{row: "NightGuard_Office02" for row in (9, 10, 11, 12, 13, 40)},
+    **{row: "NightGuard_Office03" for row in (14, 15, 16, 17, 18)},
+    **{row: "Repair_Bonnie_Game" for row in (19, 32)},
+    **{row: "Repair_Chica_Game" for row in (20, 33)},
+    **{row: "Repair_Freddy_Game" for row in (21, 34)},
+    **{row: "Repair_Foxy_Game" for row in (22, 35)},
+    **{row: "Vent_Game_Mangle_1" for row in (23, 38)},
+    **{row: "Vent_Game_Ennard_2" for row in (24, 39)},
+    25: "NightTerror_FunTime_Freddy",
+    26: "NightTerror_Nightmarionne",
+    27: "NightTerror_CircusBaby",
+    28: "NightTerror_Fredbear",
+}
+PIZZA_PARTY_MAP = "Finale_Ending"
+
+# The map each tape / Faz Token pickup is placed in: the GlitchID / CoinID of the placed HiddenGlitchTrigger_02 / HiddenCoin actor
+# ("Collect Glitch Tape NN" = GlitchID + 1, the intro tape is GlitchID 14; "Collect Faz Token NN" = CoinID). Only those two actors award tapes and coins.
+# Tape 02 (GlitchID 0, the class default) is the one trigger without an id, in FNAF 3; coin 20 is spawned by Parts and Service Foxy (GrabbableFoxyHead).
+# Some pickups show only on some nights or only in the nightmare version (the Ennard tape and coin 25 are destroyed outside it), so a pickup needs
+# EVERY level played on its map: each one appears in at least one of them.
+PICKUP_MAPS: dict[str, str] = {
+    "Collect Glitch Tape 02": "NightGuard_Office03",
+    "Collect Glitch Tape 03": "Flashlight_Game_Ver_2",
+    "Collect Glitch Tape 04": "Funtime_Foxy",
+    "Collect Glitch Tape 05": "Vent_Game_Ennard_2",
+    "Collect Glitch Tape 06": "NightTerror_Fredbear",
+    "Collect Glitch Tape 07": "NightGuard_Office01",
+    "Collect Glitch Tape 10": "Repair_Chica_Game",
+    "Collect Glitch Tape 11": "Repair_Foxy_Game",
+    "Collect Glitch Tape 12": "Repair_Freddy_Game",
+    "Collect Glitch Tape 13": "NightTerror_CircusBaby",
+    "Collect Glitch Tape 14": PIZZA_PARTY_MAP,
+    "Collect Glitch Tape 16": "Vent_Game_Mangle_1",
+    **{f"Collect Faz Token {i:02d}": "NightGuard_Office01" for i in (1, 2, 3)},
+    **{f"Collect Faz Token {i:02d}": "NightGuard_Office02" for i in (4, 5, 6)},
+    **{f"Collect Faz Token {i:02d}": "NightGuard_Office03" for i in (7, 8, 9)},
+    "Collect Faz Token 10": "Flashlight_Game_Ver_1_Bigger",
+    **{f"Collect Faz Token {i:02d}": "Repair_Bonnie_Game" for i in (11, 12, 13)},
+    **{f"Collect Faz Token {i:02d}": "Repair_Chica_Game" for i in (14, 15, 16)},
+    **{f"Collect Faz Token {i:02d}": "Repair_Freddy_Game" for i in (17, 18)},
+    **{f"Collect Faz Token {i:02d}": "Repair_Foxy_Game" for i in (19, 20)},
+    **{f"Collect Faz Token {i:02d}": "NightTerror_CircusBaby" for i in (21, 22, 23)},
+    "Collect Faz Token 24": "Vent_Game_Mangle_1",
+    **{f"Collect Faz Token {i:02d}": "Vent_Game_Ennard_2" for i in (25, 26)},
+    **{f"Collect Faz Token {i:02d}": PIZZA_PARTY_MAP for i in (27, 28)},
+}
+
+# Reachable with nothing (VERIFIED in game): the intro tape and the hub coin.
+FREE_CHECKS = frozenset({"Collect Prize Counter Intro Tape", "Collect Faz Token 29"})
+
+# Checks the game can send but whose condition is not known for sure: only filler may land there (the user's choice), and the logic only expects
+# them once every level is open. Hub / gallery tapes and the gallery coin; Helpy Plush (the 25-coin milestone prize, never a random award);
+# the Bobbleheads (prize category 6: only drawn in the DLC levels).
+FILLER_ONLY_CHECKS = frozenset({
+    "Collect Glitch Tape 08", "Collect Glitch Tape 09", "Collect Glitch Tape 15", "Collect Faz Token 30",
+    "Prize - Plushie: Helpy Plush", "Prize - Other: Freddy Bobblehead", "Prize - Other: Chica Bobblehead", "Prize - Other: Bonnie Bobblehead",
+})
+# Every other prize: a level win draws a random prize not owned yet among those with CanBeAwardedFromAnyLevel, so any level the player can play
+# hands them all out eventually (GetAvailablePrizesForLevel / GetRandomAvailablePrize).
 
 
 def first_level(section_key: str) -> Level:
@@ -156,9 +216,10 @@ class GatingPlan:
     starting_section: str
     level_gates: dict[int, str]  # row -> gate id
     gate_items: dict[str, str]  # item NAME -> gate id
-    location_items: dict[str, frozenset[str]]  # location -> item names required; has Pizza Party too
+    location_items: dict[str, frozenset[str]]  # location -> item names ALL required: levels, Pizza Party, pickups, filler-only checks
     pool_items: tuple[str, ...]  # managed items to put in the pool (start items excluded)
     start_items: tuple[str, ...]  # managed items the player starts with
+    any_level_items: frozenset[str] = frozenset()  # a prize needs ANY one of these (any level the player can win)
 
 
 def build_plan(unlock_mode: int, hard_variants: int, starting_section: str) -> GatingPlan:
@@ -206,10 +267,19 @@ def build_plan(unlock_mode: int, hard_variants: int, starting_section: str) -> G
         level.location: frozenset({direct[level.row]}) for level in LEVELS
     }
 
-    # Pizza Party is never gated by the mod and its vanilla unlock condition is UNVERIFIED (it may need other levels beaten).
-    # Requiring every level keeps the logic at least as strict as any level-based condition, so no item needed for a level
-    # can be placed on it.
-    location_items[PIZZA_PARTY_LOCATION] = frozenset().union(*location_items.values())
+    # Pizza Party is never gated by the mod. The game opens it once every base level but Withered is beaten (IsLevelUnlocked, read from its
+    # Blueprint code, not seen in game); requiring every level is at least as strict, so no item needed for a level can be placed on it.
+    every_level = frozenset().union(*location_items.values())
+    location_items[PIZZA_PARTY_LOCATION] = every_level
+
+    map_items: dict[str, frozenset[str]] = {}
+    for level in LEVELS:
+        map_items[LEVEL_MAPS[level.row]] = map_items.get(LEVEL_MAPS[level.row], frozenset()) | {direct[level.row]}
+    map_items[PIZZA_PARTY_MAP] = every_level
+    for check, map_name in PICKUP_MAPS.items():
+        location_items[check] = map_items[map_name]
+    for check in FILLER_ONLY_CHECKS:
+        location_items[check] = every_level
 
     pool_items = list(pool)
     for item in start:
@@ -224,6 +294,7 @@ def build_plan(unlock_mode: int, hard_variants: int, starting_section: str) -> G
         location_items=location_items,
         pool_items=tuple(pool_items),
         start_items=tuple(start),
+        any_level_items=every_level,
     )
 
 

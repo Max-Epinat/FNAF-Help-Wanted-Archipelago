@@ -69,9 +69,12 @@ class TestRealGenerator(unittest.TestCase):
             with self.subTest(prizes=combo[0], faz_tokens=combo[1], tapes=combo[2]):
                 self.assertIsNotNone(placements, f"not generated / not beatable: {reason}")
                 self.assertEqual(check.group_problems(placements, combo, self.data), [])
-                expected = 50 + 57 * combo[0] + 30 * combo[1] + 16 * combo[2]
+                world = dict(plan=check.plan_for(self.levels, "per_section", "grouped", "fnaf_1"), goal=self.data.GOAL_COMPLETE_ALL_MINIGAMES,
+                             groups=combo, required_tapes=8, required_faz_tokens=15)
+                expected = 43 + 57 * combo[0] + 30 * combo[1] + 16 * combo[2]  # levels, Pizza Party, the goal, Glitchtrap "You Do Not Die"
                 self.assertEqual(len(placements), expected)
-                self.assertEqual(check.misplaced_unlock_items(placements, self.levels.MANAGED_ITEM_NAMES, self.levels.may_hold_unlock_item), [])
+                self.assertEqual(check.logic_problems(check.read_spoiler(self.scratch, tag), {"P1": world}, check.read_multidata(self.scratch, tag),
+                                                      self.data, self.levels), [])
                 items = set(placements.values())
                 self.assertEqual("Glitch Tape" in items, combo[2])  # no Glitch Tape item without tape locations
                 if combo[1]:
@@ -88,7 +91,7 @@ class TestRealGenerator(unittest.TestCase):
         for tag, (placements, reason) in results.items():
             with self.subTest(tag):
                 self.assertIsNotNone(placements, reason)
-                self.assertEqual(len(placements), 50)
+                self.assertEqual(len(placements), 43)
 
     def test_goals_that_asked_for_tapes_still_generate_when_tapes_are_not_randomized(self):
         results = self.run_all({
@@ -96,7 +99,7 @@ class TestRealGenerator(unittest.TestCase):
         for goal, (placements, reason) in results.items():
             with self.subTest(goal):
                 self.assertIsNotNone(placements, reason)
-                self.assertEqual(check.group_problems(placements, (True, True, False), self.data), [])
+                self.assertEqual(check.group_problems(placements, (True, True, False), self.data, goal), [])
 
     def test_a_yaml_that_excludes_a_location_of_a_group_that_is_off_is_not_an_error(self):
         extra = '  exclude_locations:\n    - "Collect Faz Token 01"\n    - "Prize - Plushie: Freddy Plush"\n'

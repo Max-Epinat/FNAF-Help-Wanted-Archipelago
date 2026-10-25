@@ -7,8 +7,9 @@ Play the game's nights and minigames normally; what you *get* for them is decide
 
 ## What it does
 
-- **153 locations**: 40 levels (FNAF 1–3 nights, Parts & Service, Vent Repair, Dark Rooms, Night Terrors, including the hard versions),
-  30 Faz Tokens, 16 Glitch Tapes, 57 prizes, the Blackjack win, the hub trophies, Pizza Party, the normal ending, and 6 goals.
+- **146 locations** with everything on: 40 levels (FNAF 1–3 nights, Parts & Service, Vent Repair, Dark Rooms, Night Terrors, including the hard versions),
+  30 Faz Tokens, 16 Glitch Tapes, 57 prizes, Pizza Party, your goal, and the Glitchtrap "You Do Not Die" ending (145 when that is your goal).
+  Every tape, token and prize has the access rule the game's own files give it, so a seed never expects you to grab something inside a level you cannot open yet.
   That is with everything randomized. The prizes, the Faz Tokens and the tapes can each be switched off in the yaml (below): they then have
   no locations (96 / 123 / 137 locations with one group off, down to 50 with all three off) and the game keeps its own behaviour for them.
   (The game's list has 81 prizes, but 24 of them have no id in the save, so nothing could ever report them: they are not created.

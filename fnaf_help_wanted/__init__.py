@@ -1,11 +1,13 @@
 from typing import Any
 
 from BaseClasses import ItemClassification
+from Options import OptionError
 from worlds.AutoWorld import WebWorld, World
 
-from .data import GAME_NAME, ITEM_TABLE, ItemData, filler_item_name, unrandomized_items
+from .data import (GAME_NAME, GOAL_GLITCHTRAP_SURVIVE, ITEM_TABLE, ItemData, filler_item_name, tape_token_requirements, trim_to_fit,
+                   unrandomized_items)
 from .items import ALL_ITEM_TABLE, FNAFHWItem, item_name_to_id
-from .levels import MANAGED_ITEM_NAMES, SECTIONS, GatingPlan, build_plan, slot_gate_data
+from .levels import FILLER_ONLY_CHECKS, MANAGED_ITEM_NAMES, SECTIONS, GatingPlan, build_plan, slot_gate_data
 from .locations import location_name_to_id
 from .options import FNAFHWOptions
 from .regions import create_regions
@@ -66,18 +68,41 @@ class FNAFHWWorld(World):
         # randomized (Glitch Tape with the tape locations, the base Faz Tokens with the token locations): items follow their locations.
         not_randomized = unrandomized_items(
             bool(self.options.randomize_faz_tokens.value), bool(self.options.randomize_glitch_tapes.value))
-        pool = []
+        names = []
         for item_name, item_data in ITEM_TABLE.items():
             if item_name in MANAGED_ITEM_NAMES or item_name in not_randomized:
                 continue
-            for _ in range(item_data.quantity):
-                pool.append(self.create_item(item_name))
-        for item_name in self.gating_plan.pool_items:
-            pool.append(self.create_item(item_name))
+            names += [item_name] * item_data.quantity
+        names += self.gating_plan.pool_items
         for item_name in self.gating_plan.start_items:
             self.multiworld.push_precollected(self.create_item(item_name))
 
         unfilled_location_count = len(self.multiworld.get_unfilled_locations(self.player))
+        # Only as many Glitch Tapes / Faz Tokens are progression as the goal needs; the others are filler (same item and id: the game counts them all).
+        tapes_needed, tokens_needed = tape_token_requirements(
+            goal_location_name, self.options.required_tapes.value, self.options.required_faz_tokens.value,
+            bool(self.options.randomize_glitch_tapes.value), bool(self.options.randomize_faz_tokens.value))
+        still_progression = {"Glitch Tape": tapes_needed, "Faz Token": tokens_needed}
+        pool = []
+        # the tightest plan has one item too many: drop the License (then a trap), never an item a rule needs (data.trim_to_fit)
+        for item_name in trim_to_fit(names, unfilled_location_count):
+            if item_name in still_progression:
+                progression = still_progression[item_name] > 0
+                still_progression[item_name] -= 1
+                pool.append(self.create_item(item_name) if progression
+                            else FNAFHWItem(item_name, ItemClassification.filler, item_name_to_id[item_name], self.player))
+            else:
+                pool.append(self.create_item(item_name))
+
+        # A seed whose progression items cannot fit in the checks that may hold them cannot be generated: say which options to change.
+        holders = [loc for loc in self.multiworld.get_unfilled_locations(self.player)
+                   if loc.name not in FILLER_ONLY_CHECKS and loc.name != GOAL_GLITCHTRAP_SURVIVE]
+        progression_count = sum(1 for item in pool if item.advancement)
+        if progression_count > len(holders):
+            raise OptionError(
+                f"{self.player_name}: this FNAF Help Wanted seed has {progression_count} important items but only {len(holders)} checks that can "
+                f"hold them (goal {self.options.goal.current_key}). Turn randomize_prizes on, use unlock_mode per_section, or lower "
+                f"required_tapes / required_faz_tokens.")
         if len(pool) > unfilled_location_count:
             raise Exception(
                 f"{self.player_name}: {len(pool)} items for {unfilled_location_count} locations"

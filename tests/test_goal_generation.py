@@ -42,10 +42,10 @@ COMBINATIONS = list(itertools.product((True, False), repeat=3))  # (prizes, faz_
 
 
 def goal_rule_source(location_constant: str) -> str:
-    """The add_rule(...) call of one goal location in rules.py, as text."""
+    """The rule of one goal location in rules.py's goal_rules table, as text."""
     rules = (WORLD_DIR / "rules.py").read_text(encoding="utf-8")
-    variable = re.search(rf"(\w+) = multiworld\.get_location\({location_constant}, player\)", rules).group(1)
-    return rules.split(f"add_rule(\n        {variable},", 1)[1].split("\n    )", 1)[0]
+    table = rules.split("goal_rules = {", 1)[1].split("\n    }", 1)[0]
+    return re.split(r"\n        GOAL_\w+: ", table.split(f"\n        {location_constant}: ", 1)[1])[0]
 
 
 class TestHardGoalWithoutTheLicense(unittest.TestCase):
@@ -100,15 +100,23 @@ class TestEveryGoalGenerates(unittest.TestCase):
         def one(combo):
             tag = goal[:6] + "".join("1" if on else "0" for on in combo)
             placements, reason = check.generate(self.scratch, goal, "per_section", "grouped", "fnaf_1", 1, combo, tag=tag)
-            return combo, placements, reason, (check.read_location_items(self.scratch, tag) if placements is not None else [])
+            if placements is None:
+                return combo, placements, reason, [], ["not generated"]
+            world = dict(plan=check.plan_for(levels, "per_section", "grouped", "fnaf_1"), goal=check.goal_location(data, goal), groups=combo,
+                         required_tapes=8, required_faz_tokens=15)
+            logic = check.logic_problems(check.read_spoiler(self.scratch, tag), {"P1": world}, check.read_multidata(self.scratch, tag), data, levels)
+            warning = check.unreachable_warning(self.scratch, tag)
+            logic += [warning] if warning else []  # with the real rules no location may be out of the logic's reach
+            return combo, placements, reason, check.read_location_items(self.scratch, tag), logic
         with ThreadPoolExecutor(max_workers=4) as pool:
             results = list(pool.map(one, COMBINATIONS))
-        for combo, placements, reason, items in results:
+        for combo, placements, reason, items, logic in results:
             with self.subTest(goal=goal, prizes=combo[0], faz_tokens=combo[1], tapes=combo[2]):
                 self.assertIsNotNone(placements, f"not generated / not beatable: {reason}")
-                self.assertEqual(check.group_problems(placements, combo, data), [])
-                self.assertEqual(check.misplaced_unlock_items(placements, levels.MANAGED_ITEM_NAMES, levels.may_hold_unlock_item), [])
-                self.assertEqual(check.token_problems(items, combo), [])
+                self.assertEqual(check.group_problems(placements, combo, data, goal), [])
+                self.assertEqual(logic, [])  # the replay with the real rules reaches every location and the goal
+                tokens_needed = data.tape_token_requirements(check.goal_location(data, goal), 8, 15, combo[2], combo[1])[1]
+                self.assertEqual(check.token_problems(items, combo, tokens_needed), [])  # only as many as the goal needs
                 self.assertIn("Nightmare Mode License", placements.values())  # still in the pool whatever the goal
         return results
 

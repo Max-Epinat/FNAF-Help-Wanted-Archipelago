@@ -1,4 +1,4 @@
-"""The pure parts of scripts/generator_check.py (spoiler parsing and the misplaced-unlock-item check). Running the real generator is a manual step."""
+"""The pure parts of scripts/generator_check.py (spoiler parsing, the replay with the real rules, the group and token checks). Running the real generator is a manual step."""
 
 import importlib.util
 import sys
@@ -45,11 +45,45 @@ class TestGeneratorCheckHelpers(unittest.TestCase):
         self.assertEqual(placements["Prize - Plushie: Freddy Plush"], "Faz Token")
         self.assertEqual(placements["Beat FNAF 1 - Night 1"], "Unlock FNAF 1 - Night 2")
 
-    def test_an_unlock_item_on_a_non_level_location_is_reported_and_one_on_a_level_is_not(self):
-        levels = check.load_levels()
-        placements = check.parse_spoiler_locations(SPOILER.replace("Unlock FNAF 1 - Night 2", "FNAF 1 Access Pass"))
-        bad = check.misplaced_unlock_items(placements, levels.MANAGED_ITEM_NAMES, levels.may_hold_unlock_item)
-        self.assertEqual(bad, ["Collect Glitch Tape 02"])  # the access pass on a level location (Night 1) is fine; the one on a tape is not
+    def test_seeds_with_one_and_with_several_players_are_parsed(self):
+        names, placements, start = check.parse_seed(SPOILER.replace("Locations:", "Starting Items:\n\nFNAF 1 Access Pass\n\nLocations:"))
+        self.assertEqual(names, ["P1"])
+        self.assertEqual(placements[("Prize - Plushie: Freddy Plush", "P1")], ("Faz Token", "P1"))
+        self.assertEqual(start, [("FNAF 1 Access Pass", "P1")])
+        multi = ("Players: 2\n\nPlayer 1: Yochix\n\nPlayer 2: Zinoxe\n\nStarting Items:\n\nUnlock FNAF 1 - Night 1 (Yochix)\n\nLocations:\n\n"
+                 "Beat FNAF 1 - Night 5 (Hard) (Yochix): Unlock FNAF 1 - Night 5 (Hard) (Zinoxe)\n"
+                 "Prize - Plushie: Freddy Plush (Zinoxe): Faz Token (Yochix)\n\nPlaythrough:\n")
+        names, placements, start = check.parse_seed(multi)
+        self.assertEqual(names, ["Yochix", "Zinoxe"])
+        self.assertEqual(placements[("Beat FNAF 1 - Night 5 (Hard)", "Yochix")], ("Unlock FNAF 1 - Night 5 (Hard)", "Zinoxe"))
+        self.assertEqual(placements[("Prize - Plushie: Freddy Plush", "Zinoxe")], ("Faz Token", "Yochix"))
+        self.assertEqual(start, [("Unlock FNAF 1 - Night 1", "Yochix")])
+
+    def replay(self, lines, flags=None, start="FNAF 1 Access Pass"):
+        data, levels = check.load_data(), check.load_levels()
+        text = f"Players: 1\n\nStarting Items:\n\n{start}\n\nLocations:\n\n" + "\n".join(lines) + "\n\nPlaythrough:\n"
+        multidata = {1: {}}
+        for line in lines:
+            location = line.rsplit(": ", 1)[0]
+            code = data.LOCATION_OFFSET + data.LOCATION_TABLE[location].code
+            multidata[1][code] = (0, 1, (flags or {}).get(location, 0))
+        world = dict(plan=levels.build_plan(levels.UNLOCK_PER_SECTION, levels.HARD_GROUPED, "fnaf_1"), goal=data.GOAL_COMPLETE_ALL_MINIGAMES,
+                     groups=(True, True, True), required_tapes=8, required_faz_tokens=15)
+        return [p for p in check.logic_problems(text, {"P1": world}, multidata, data, levels) if "goal not reachable" not in p]
+
+    def test_the_real_rule_replay_follows_the_maps_and_catches_a_token_holding_its_own_key(self):
+        good = ["Beat FNAF 1 - Night 1: FNAF 3 Access Pass", "Collect Faz Token 07: Night Terrors Security Badge",
+                "Collect Glitch Tape 13: Glitch Tape", "Collect Faz Token 01: Faz Token", "Collect Prize Counter Intro Tape: Faz Token"]
+        self.assertEqual(self.replay(good), [])
+        locked = ["Beat FNAF 1 - Night 1: Faz Token", "Collect Faz Token 07: FNAF 3 Access Pass"]  # an FNAF 3 token holding the FNAF 3 pass
+        self.assertTrue(any("Collect Faz Token 07" in p for p in self.replay(locked)))
+        self.assertTrue(any("Collect Glitch Tape 13" in p for p in self.replay(["Collect Glitch Tape 13: Faz Token"])))  # Circus Baby is locked
+
+    def test_the_replay_flags_progression_on_a_filler_only_check(self):
+        lines = ["Beat FNAF 1 - Night 1: Faz Token", "Prize - Plushie: Helpy Plush: Faz Token"]  # Helpy needs every level: unreachable here
+        self.assertFalse(any("filler-only" in p for p in self.replay(lines, {"Prize - Plushie: Helpy Plush": 0})))
+        self.assertTrue(any("filler-only" in p for p in self.replay(lines, {"Prize - Plushie: Helpy Plush": 1})))
+        self.assertTrue(any("filler-only" in p for p in self.replay(lines, {"Prize - Plushie: Helpy Plush": 2})))  # useful counts too
 
     def test_the_group_check_flags_the_wrong_filler_and_a_wrong_location_list(self):
         data = check.load_data()
@@ -72,10 +106,10 @@ class TestGeneratorCheckHelpers(unittest.TestCase):
         self.assertEqual(check.token_problems([(coupon, 1, 0)] * 40, (True, False, True)), [])
         self.assertTrue(check.token_problems([(token, 1, 0)], (True, False, True)))  # tokens off: no Faz Token item at all
 
-    def test_the_script_checks_the_same_rule_the_world_applies(self):
-        levels = check.load_levels()
-        self.assertTrue(levels.may_hold_unlock_item("Beat FNAF 1 - Night 1"))
-        self.assertFalse(levels.may_hold_unlock_item("Collect Faz Token 01"))
+    def test_the_script_no_longer_checks_the_stopgap_and_is_documented(self):
+        source = (project_root / "scripts" / "generator_check.py").read_text(encoding="utf-8")
+        self.assertNotIn("may_hold_unlock_item", source)
+        self.assertIn("logic_problems(", source.split("def main", 1)[1])
         self.assertIn("generator_check.py", (project_root / "docs" / "testing.md").read_text(encoding="utf-8"))
 
 

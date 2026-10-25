@@ -213,3 +213,64 @@ Player feedback: the prizes take a lot of grinding. Three independent yaml toggl
 - **Prize milestones on the TV / Prize Counter** (5/10/... coins, open item 8): counted by what the save poll sees. A prize whose save id is in `DEFAULT_PRIZE_MAP` is a prize check (obeys `randomize_prizes`); it is never a Faz Token check (those are `CollectedCoins` ids 1-30). Their award path is still the vanilla pickup: **UNVERIFIED**.
 - Pre-existing and untouched (while the tokens ARE randomized): filler is `Faz Token`, so a default seed receives about 126 Faz Token items and the TV (which follows the item count) can read above 30; the three ungeneratable goals still fail for the reasons in [TODO.md](TODO.md) with tokens on
   (with tokens off the Faz Token requirement of `hundred_percent` / `token_tape_quota` disappears, see testing.md for what the generator did).
+
+## Where the tapes, tokens and prizes are: read from the game's files (2026-10-25)
+
+Why: a real 4-player room (two FNAF slots, 0.3.1 apworld) could not be finished. Rebuilt in the real Archipelago engine with the same items in every
+location, it was beatable under the world's old logic and stuck under the real game's rules: tapes and tokens inside locked levels held items the other
+games needed, and some items sat on checks nothing ever sends. Everything below comes from the game's own files, not from guesses.
+**VERIFIED from game data and Blueprint code; the rules built on it are not yet seen in a real room.**
+
+**How the files were read.** `freddys-WindowsNoEditor.pak` (pak v8, encrypted index) opens with the AES key found earlier in the old bridge backup
+(`pak_scan_result.txt` outside the repo; **never commit the key**). The readers were scratch-only Python (a pak reader, a DataTable parser and a small
+disassembler for cooked Blueprint bytecode); every Blueprint function involved disassembled with nothing unreadable. Cross-checks against what was seen in
+game: the intro tape is GlitchID 14 in `IntroArcadeSet`, Faz Token 29 is in the hub.
+
+**Tapes.** Only `HiddenGlitchTrigger_02` calls `AwardGlitch`, with its own `GlitchID` (class default 0). Location `Collect Glitch Tape NN` = GlitchID + 1; the intro tape is 14.
+At begin play the trigger destroys itself only in the demo edition (`EFNAFGameType` Demo / Normal / Arcade) or when `HasGlitch(GlitchID)` (the save already has it).
+The tape stage is only used for the "tape N" counter widget, never to hide a tape.
+
+| Tape check | GlitchID | Map (levels) |
+| :--- | :--- | :--- |
+| Intro Tape | 14 | `IntroArcadeSet` (free, VERIFIED in game) |
+| 02 | 0 (default; the only trigger without an id) | FNAF 3 (moved for VR / flat, not removed) |
+| 03 | 1 | Dark Rooms Plushbaby (normal, hard) |
+| 04 | 2 | Dark Rooms Funtime Foxy (normal, hard) |
+| 05 | 4 | Vent Repair Ennard: **destroyed outside the nightmare version, so only in Vent Repair (Hard) - Ennard** |
+| 06 | 5 | Night Terrors Nightmare Fredbear |
+| 07 | 6 | FNAF 1 |
+| 08 | 7 | `Gallery` (hub; condition not read: filler only) |
+| 09, 15 | 8, 15 | hub (`Main_Menu_With_Showtime`; condition not read: filler only) |
+| 10, 11, 12 | 9, 10, 11 | Parts and Service Chica, Foxy, Freddy (normal, hard) |
+| 13 | 12 | Night Terrors Circus Baby |
+| 14 | 13 | `Finale_Ending` (Pizza Party) |
+| 16 | 16 | Vent Repair Mangle (normal, hard) |
+
+**Faz Tokens.** Only `HiddenCoin` calls `UnlockCoin`, with its own `CoinID` (= `Collect Faz Token NN`, class default 0). A coin already owned stays, greyed out.
+FNAF 1: 1-3; FNAF 2: 4-6; FNAF 3: 7-9; Dark Rooms Plushtrap / Nightmare BB map: 10; Parts and Service Bonnie 11-13, Chica 14-16, Freddy 17-18, Foxy 19-20
+(20 is spawned by `GrabbableFoxyHead`); Night Terrors Circus Baby 21-23; Vent Repair Mangle 24, Ennard 25-26 (**25 destroyed outside the nightmare version**);
+Pizza Party 27-28; hub 29 (free, VERIFIED in game); gallery 30 (filler only).
+Several coins are revealed only on some nights, variants or outside nightmare mode (FNAF 3 monitor board by night, the FNAF 2 Freddy mask, the FNAF 1 Chica
+cupcake, the Dark Rooms coin with `Variant == 0`), or after an action in the level (8 pizza slices, every guitar string, the FNAF 3 panel puzzle).
+That is why the world asks for **every** level played on a pickup's map: each pickup appears in at least one of them.
+
+**Which levels share a map** (`LevelInfoTable` "LevelToLoad"): FNAF 1 nights 1-5; FNAF 2 nights 1-5 **and Withered**; FNAF 3 nights 1-5; Dark Rooms
+Plushtrap + Nightmare BB (normal and hard); every other minigame only with its own hard version; each Night Terror alone.
+
+**Pizza Party** (`IsLevelUnlocked`, row `PizzaPartyID`): open once every base-game level is beaten **except Withered** (DLC levels excluded). The logic keeps
+requiring every level (stricter, never wrong).
+
+**Prizes** (`AwardRandomPrize` -> `GetRandomAvailablePrize` -> `GetAvailablePrizesForLevel`, `Prize_Info_DataTable`): after a level win the game draws one prize,
+weighted by `RandomWeight`, among the prizes with a weight, allowed for the level (`CanBeAwardedFromAnyLevel` or listed in `AllowedLevels`) and not of category 6
+outside the DLC levels, minus every prize already owned. So every eligible prize comes out eventually, with no duplicates. Of the 57 prize checks:
+53 can come from any level win; **Helpy Plush** (prize 88) is the 25-coin milestone prize (never a random award); the **Freddy, Chica and Bonnie Bobbleheads**
+(77-79) are category 6, only drawn in the DLC (Curse of Dreadbear) levels. Those four are filler only.
+
+**Checks nothing sends.** No code in the mod or the client sends `Collect All Hub Trophies`, `Complete Normal Ending`, `Win Prize Counter Blackjack`, or any goal
+location but `Goal - Glitchtrap Ending (You Do Not Die)` (sent from the save's `GlitchtrapDefeated`). Items there could never be received. Since 2026-10-25 they
+are not created (ids kept); only the chosen goal (it holds Victory) and Glitchtrap "You Do Not Die" exist, the latter filler only when it is not the goal.
+
+**The tape room** (for the unique tapes, not built yet): the shelf slots (`AquiredLog`) each have a `LogNumber` and destroy themselves when it is above
+`GetGlitchtrapStage` (the stage follows the tape count, `UpdateGlitchtrapStage`); the room never asks which tapes are owned. The log a slot plays is
+`CassetteLog<LogNumber>`. In the vanilla game a tape is therefore not tied to a log: the room shows logs 1..N in story order. The stage also drives Glitchtrap
+elsewhere (`GlitchtrapSetup2`, the hub). Never override `HasGlitch` for this: a physical tape destroys itself when `HasGlitch` says it is owned.

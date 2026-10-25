@@ -48,13 +48,14 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
 
 ## Logic to check
 
-- **Stopgap in place (2026-10-05): unlock items only on level-completion locations**, to be replaced by real access rules for tapes, tokens and prizes so unlock items can go anywhere that is really reachable (the user's goal; see HANDOVER "Logic redesign"), so a tape, token or prize that is physically inside a gated level can never hold that level's unlock item (before: every seed did that, about 14 per seed). 297 real-generator runs, 0 misplaced; see docs/testing.md.
-  Still open: where tapes, tokens and prizes really are (they have no access rule, which only matters now for the other progression items: Glitch Tapes, the 30 base Faz Tokens, Prize Counter Key, all needed only for goals), and the Pizza Party unlock condition.
+- **Real access rules, stopgap removed (2026-10-25, unreleased).** Every tape, Faz Token and prize has the access rule the game's own files give it (a pickup needs every level played on its map; a prize any level win; the uncertain ones are filler only), and unlock items go anywhere really reachable.
+  The checks nothing sends (Hub Trophies, Normal Ending, Blackjack, the unused goals) are not created. Details: docs/level-gating.md "Rules", docs/game-research.md "Where the tapes, tokens and prizes are", docs/testing.md "Real access rules, no stopgap".
+  Still to see in a real room: the rules are read from game data and Blueprint code (VERIFIED offline), not seen in game.
 - **Every goal generates (fixed 2026-10-25, unreleased).** `complete_all_minigames_nights_hard_mode`, `hundred_percent` and `token_tape_quota` used to fail with `Game appears as unbeatable` (the rules asked for the `useful` Nightmare Mode License and for filler Faz Tokens, which `state.has` does not count).
   Now the hard goal needs every level plus Pizza Party (no License; it stays in the pool as a useful item), and the 30 base Faz Tokens are progression (skip balancing) while the spare-slot Faz Tokens stay filler. Every goal x every toggle combination generates; see "Every goal generates" in docs/testing.md.
 - The earlier "generator verified" runs used `--skip_output` and never checked beatability (see docs/testing.md).
-- **Tape and Faz Token locations have no access rule in the world** (`Prize Counter` and `Faz Tokens` regions connect from the Hub with no requirement; only levels are gated). If a tape or token is physically inside a gated level, a seed can put that level's
-  access item on that tape and soft-lock the player. Needs the tape-id -> level map from the game (`AwardGlitch` logs `GlitchID` and the map name); pre-existing, not caused by the listen change.
+- (Fixed 2026-10-25) Tape and Faz Token locations had no access rule; they now have the real one (see above).
+- Not detected yet, so not checks: Hub Trophies, Normal Ending, Blackjack. They could come back once the mod or client can see them (needs a probe in game).
 
 ## To verify in game
 

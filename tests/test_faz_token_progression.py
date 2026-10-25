@@ -1,10 +1,11 @@
-"""The 30 base Faz Tokens are progression, the filler Faz Tokens stay filler.
+"""As many base Faz Tokens are progression as the goal needs (0, required_faz_tokens or all 30); the others and the spare-slot ones stay filler.
 
 Why: the goals `hundred_percent` and `token_tape_quota` ask for Faz Token items (`state.has("Faz Token", n)`), and Archipelago only counts progression items in
 `state.has`. With every Faz Token classified as filler those two goals could never be generated while the Faz Tokens are randomized (`FillError: Game appears
 as unbeatable`, 2026-10-05 and again 2026-10-25). The filler Faz Tokens that fill the spare slots keep the filler classification: the logic never needs more
 than the 30 base ones (`required_faz_tokens` tops out at 30), and ~96 extra progression items would only slow the fill and mislabel them in hints.
 Both kinds are the same item (same name, same id): the mod counts Faz Token items by id for the TV, so the classification changes nothing in game.
+Since 2026-10-25 only as many are progression as the goal needs (the user's choice "count by need"): the tight per_level seeds did not fit otherwise.
 
 The pure part reads data.py; the rest runs the REAL generator (full runs, built from the working tree) and reads each item's classification flags back
 from the generated `.archipelago` file. Skipped without an Archipelago install.
@@ -87,13 +88,13 @@ class TestFazTokenClassificationInRealSeeds(unittest.TestCase):
             futures = {tag: pool.submit(one, tag, *job) for tag, job in jobs.items()}
             return {tag: future.result() for tag, future in futures.items()}
 
-    def test_the_token_goals_generate_with_the_tokens_randomized_and_only_30_tokens_are_progression(self):
+    def test_the_token_goals_generate_and_exactly_the_needed_tokens_are_progression(self):
         on = (True, True, True)
         results = self.run_all({
             "hundred": ("hundred_percent", on, ""),
             "quota": ("token_tape_quota", on, ""),
             "quota30": ("token_tape_quota", on, "  required_faz_tokens: 30\n  required_tapes: 16\n"),
-            "levels": ("complete_all_minigames_nights", on, ""),  # a goal that does not need tokens: the classification is the same
+            "levels": ("complete_all_minigames_nights", on, ""),  # a goal that does not need tokens: none is progression
             "tokens_off": ("token_tape_quota", (True, False, True), ""),
             "from_pool": ("hundred_percent", on, "  start_inventory_from_pool:\n    Faz Token: 5\n"),
         })
@@ -101,8 +102,9 @@ class TestFazTokenClassificationInRealSeeds(unittest.TestCase):
             with self.subTest(tag):
                 self.assertIsNotNone(placements, f"not generated / not beatable: {reason}")
                 groups = (True, False, True) if tag == "tokens_off" else on
+                needed = {"hundred": 30, "quota": 15, "quota30": 30, "levels": 0, "tokens_off": 0}
                 if tag != "from_pool":  # five tokens went to the start inventory, the rest of the pool is unchanged
-                    self.assertEqual(check.token_problems(items, groups), [])
+                    self.assertEqual(check.token_problems(items, groups, needed[tag]), [])
         self.assertTrue(any(i == check.FAZ_TOKEN_ID and not f & 1 for i, _, f in results["levels"][2]), "the default seed has filler Faz Tokens")
         # what the server and every client see: plain progression (1), like a Glitch Tape; the skip-balancing bit never leaves the generator
         progression_flags = {f for i, _, f in results["hundred"][2] if i == check.FAZ_TOKEN_ID and f & 1}

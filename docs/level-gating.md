@@ -83,15 +83,21 @@ answer; see git history, commits 4ae0d57 and before.)
 
 | Location | Logic requires |
 | :--- | :--- |
-| Any level (rows 0-28, 30-40) | its own gate item only |
-| Pizza Party | **every level's item**: the mod never gates it and its vanilla unlock condition is UNVERIFIED |
+| Any level (rows 0-28, 30-40) | its own gate item only (VERIFIED in game) |
+| Pizza Party | **every level's item** (the game opens it once every base level but Withered is beaten, read from its code; stricter is never wrong) |
+| Tape or Faz Token inside a level | **every** level played on its map (`levels.PICKUP_MAPS`, `LEVEL_MAPS`), e.g. tape 13 = Night Terrors Circus Baby, tape 05 and token 25 = both Vent Repair Ennard levels (they only exist in the hard one) |
+| Tape 14, Faz Tokens 27-28 | the Pizza Party rule (they are in the Pizza Party map) |
+| Intro tape, Faz Token 29 (hub) | nothing (VERIFIED in game) |
+| 53 of the 57 prizes | any one level item (a level win draws a random prize not owned yet) |
+| Filler only (`levels.FILLER_ONLY_CHECKS`): hub / gallery tapes 08, 09, 15, gallery token 30, Helpy Plush, the 3 Bobbleheads; Glitchtrap "You Do Not Die" when it is not the goal | every level, and only filler may land there (their real condition is not known for sure) |
 
-Pizza Party being last in logic matters: before this rule the generator could place `Unlock FNAF 1 - Night 5 (Hard)` on
-`Complete Pizza Party`, which the game may only offer after that very level. Goal/prize/token/tape locations keep their rules.
+Where those facts come from: [game-research.md](game-research.md), "Where the tapes, tokens and prizes are". Not created any more (nothing sends them):
+`Collect All Hub Trophies`, `Complete Normal Ending`, `Win Prize Counter Blackjack` and the goal locations but the chosen goal and Glitchtrap "You Do Not Die".
 
-**Where unlock items may be placed: a STOPGAP** (2026-10-05; the intended end state is "anywhere that is really reachable", which needs the real access of tapes, tokens and prizes, see docs/TODO.md): only on the 40 level-completion locations (`levels.may_hold_unlock_item`, applied in `rules.py` with `add_item_rule`).
-Tapes, Faz Tokens, prizes, the trophies, the blackjack win, Pizza Party and the goals are not modelled as gated, so an unlock item there could sit behind the very level it opens.
-A level location needs only its own item (VERIFIED), so every unlock item can always be obtained by playing levels the player already has. The real generator check is in docs/testing.md.
+**Unlock items go anywhere really reachable** (since 2026-10-25). Until then a stopgap kept them on the 40 level locations (`levels.may_hold_unlock_item`),
+because tapes, tokens and prizes had no access rule. It only protected a slot's own unlock items: a real two-FNAF room still put one slot's items on the
+other's tapes inside locked levels. With the real rules the generator sees every dependency, across slots too, and the stopgap is gone.
+The real generator check is in docs/testing.md.
 
 ## Verified in game (2026-10-04, new seed, section mode, starting section FNAF 2)
 

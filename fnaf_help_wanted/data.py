@@ -402,15 +402,29 @@ def _group_names(prizes: bool, faz_tokens: bool, tapes: bool) -> set[str]:
     return off
 
 
-def region_locations(prizes: bool = True, faz_tokens: bool = True, tapes: bool = True) -> dict[str, list[str]]:
-    """The locations each region gets for these toggles (True = randomized). All on is exactly ACTIVE_REGION_LOCATIONS."""
-    off = _group_names(prizes, faz_tokens, tapes)
+# Checks nothing in the mod or the client ever sends: an item placed there could never be received. Not created (ids kept, never renumbered).
+NEVER_SENT_CHECKS = frozenset({"Collect All Hub Trophies", "Complete Normal Ending", "Win Prize Counter Blackjack"})
+GOAL_CHECKS = (GOAL_COMPLETE_ALL_MINIGAMES, GOAL_COMPLETE_ALL_MINIGAMES_HARD, GOAL_GLITCHTRAP_DIE, GOAL_GLITCHTRAP_SURVIVE,
+               GOAL_HUNDRED_PERCENT, GOAL_TOKEN_TAPE_QUOTA)
+
+
+def _not_created(prizes: bool, faz_tokens: bool, tapes: bool, goal: str) -> set[str]:
+    """Locations a seed does not create: the groups that are off, the never-sent checks, and the goal locations but the chosen goal and
+    Glitchtrap "You Do Not Die" (the only goal location the client sends, from the save's GlitchtrapDefeated)."""
+    return (_group_names(prizes, faz_tokens, tapes) | NEVER_SENT_CHECKS
+            | {name for name in GOAL_CHECKS if name not in (goal, GOAL_GLITCHTRAP_SURVIVE)})
+
+
+def region_locations(prizes: bool = True, faz_tokens: bool = True, tapes: bool = True,
+                     goal: str = GOAL_COMPLETE_ALL_MINIGAMES) -> dict[str, list[str]]:
+    """The locations each region gets for these toggles (True = randomized) and this goal location."""
+    off = _not_created(prizes, faz_tokens, tapes, goal)
     return {region: [name for name in names if name not in off] for region, names in ACTIVE_REGION_LOCATIONS.items()}
 
 
 def full_clear_checks(prizes: bool = True, faz_tokens: bool = True, tapes: bool = True) -> list[str]:
     """FULL_CLEAR_CHECKS (what the 100 % goal reaches) without the locations that do not exist for these toggles."""
-    off = _group_names(prizes, faz_tokens, tapes)
+    off = _group_names(prizes, faz_tokens, tapes) | NEVER_SENT_CHECKS
     return [name for name in FULL_CLEAR_CHECKS if name not in off]
 
 
@@ -418,6 +432,33 @@ def full_clear_checks(prizes: bool = True, faz_tokens: bool = True, tapes: bool 
 # "Faz Coupon" is the filler while the Faz Tokens are not randomized: an item that does nothing in the game, so the room does not hand out Faz Token
 # items that vanilla tokens would ignore. (Traps / bonuses may come later; they would be new codes after this one.)
 EXTRA_ITEM_CODES = {"Faz Coupon": 60}
+
+
+# Items the pool may lose when a seed has fewer locations than items (only the tightest plan: per_level with every group off has 42 free
+# slots for 43 items): the Nightmare Mode License first (no rule needs it, and as a useful item it cannot fill a filler-only check), then the
+# traps. Never an item a rule needs.
+OPTIONAL_ITEMS = ("Nightmare Mode License", "Hallucination")
+
+
+def trim_to_fit(names: list[str], slots: int) -> list[str]:
+    """The pool without as few optional items as needed to fit in `slots` (unchanged when it already fits)."""
+    names = list(names)
+    for optional in OPTIONAL_ITEMS:
+        while len(names) > slots and optional in names:
+            names.remove(optional)
+    return names
+
+
+def capacity(pool_unlock_items: int, filler_only: frozenset[str], groups: tuple[bool, bool, bool], goal: str,
+             required_tapes: int, required_faz_tokens: int) -> tuple[int, int]:
+    """(progression items, checks that may hold one) of a seed. Progression: the unlock items in the pool, the Prize Counter Key, and only as many
+    Glitch Tapes / Faz Tokens as the goal needs (the rest are filler). Checks: the created locations minus the goal (it holds Victory), the
+    filler-only checks and Glitchtrap "You Do Not Die" when it is not the goal. More progression than checks cannot be generated."""
+    prizes, faz_tokens, tapes = groups
+    tapes_needed, tokens_needed = tape_token_requirements(goal, required_tapes, required_faz_tokens, tapes, faz_tokens)
+    created = [name for names in region_locations(prizes, faz_tokens, tapes, goal=goal).values() for name in names]
+    usable = [name for name in created if name not in filler_only and name not in (goal, GOAL_GLITCHTRAP_SURVIVE)]
+    return pool_unlock_items + 1 + tapes_needed + tokens_needed, len(usable)
 
 
 def filler_item_name(faz_tokens: bool = True) -> str:
