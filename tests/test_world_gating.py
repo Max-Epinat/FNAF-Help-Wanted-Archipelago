@@ -34,11 +34,13 @@ def _load(name):
 data = _load("data")
 levels = _load("levels")
 
+# code 1 was "Glitch Tape" (16 identical copies) until unique tapes (2026-10-26): retired, never reused; the 16 tape items are 61-76
 BASE_ITEM_CODES = {
-    "Glitch Tape": 1, "FNAF 1 Access Pass": 2, "FNAF 2 Access Pass": 3, "FNAF 3 Access Pass": 4,
+    "FNAF 1 Access Pass": 2, "FNAF 2 Access Pass": 3, "FNAF 3 Access Pass": 4,
     "Parts and Service Toolkit": 5, "Vent Repair Toolkit": 6, "Dark Rooms Flashlight": 7,
     "Night Terrors Security Badge": 8, "Prize Counter Key": 9, "Nightmare Mode License": 10,
     "Faz Token": 11, "Hallucination": 12, "Victory": 13,
+    **{name: 61 + index for index, name in enumerate(data.TAPE_ITEM_NAMES)},
 }
 
 ALL_ITEM_CODES = {**{n: d.code for n, d in data.ITEM_TABLE.items()}, **levels.APPENDED_ITEM_CODES}

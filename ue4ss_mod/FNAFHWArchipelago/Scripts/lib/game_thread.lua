@@ -25,6 +25,10 @@ GameThread.GAME_INSTANCE_CLASS = "BP_FNAF_GameInstance_C"
 -- Never use RegisterLoadMapPreHook / RegisterLoadMapPostHook: in UE4SS 3.0.1 they crash this game at its first map load
 -- (VERIFIED 2026-10-21, 2 of 2 launches: unhandled C++ exception in KERNELBASE, call-stack hash 1EA7F574, 10-13 s after start).
 GameThread.QUIET_SECONDS = 5
+-- The one exception, for one job only (tape_shelf.lua, through every_in_tape_room): in the tape room the shelf must be relabelled within about a
+-- second. That job runs only while the map the diagnostics last saw is this one (never in the hub, the map the crash fix is about), and it
+-- touches only the room's shelf slots (no save, no PlayerCoins). Seen working in a real room (2026-10-27, one session); that it is always safe is PARTIAL.
+GameThread.TAPE_ROOM_MAP = "Cassete_DarkRoom"
 
 -- params (all optional): find_first, in_game_thread, run_on_game_thread, loop_async, now
 function GameThread.init(params)
@@ -40,6 +44,7 @@ function GameThread.init(params)
         instance = nil, last_scan = -math.huge, scans = 0,
         started = now(), loops = {}, loop_order = {}, error_kinds = 0, errors_seen = {}, job_seen = false,
         quiet_until = -math.huge, held = 0,
+        last_map = nil, room_visits = 0,  -- the map the diagnostics last saw, and how many times they saw the tape room entered
     }
 
     local function start_quiet()
@@ -88,20 +93,19 @@ function GameThread.init(params)
     -- previous one has not run yet, so a stalled game thread (loading screen) cannot build up a backlog. Errors are logged once each.
     -- In the quiet time after a map change the body is held: skipped, counted, run on a later tick. options.always = true
     -- (the diagnostics only) runs it in the quiet time too.
-    function self.every(name, ms, fn, options)
-        local always = options ~= nil and options.always == true
+    -- may_run() decides on the game thread whether this tick's body runs (false: skipped, run again on a later tick); call() runs it.
+    local function schedule(name, ms, may_run, call)
         local loop = { name = name, runs = 0, skipped = 0, pending = false, stopped = false }
         state.loops[name] = loop
         state.loop_order[#state.loop_order + 1] = name
 
         local function body()
             if run_on_game_thread then state.job_seen = true end
-            if not always and now() < state.quiet_until then
+            if not may_run() then
                 loop.pending = false
-                state.held = state.held + 1
                 return
             end
-            local ok, result = pcall(fn)
+            local ok, result = pcall(call)
             loop.pending = false
             loop.runs = loop.runs + 1
             if not ok then
@@ -134,6 +138,25 @@ function GameThread.init(params)
         return loop
     end
 
+    function self.every(name, ms, fn, options)
+        local always = options ~= nil and options.always == true
+        return schedule(name, ms, function()
+            if not always and now() < state.quiet_until then
+                state.held = state.held + 1
+                return false
+            end
+            return true
+        end, fn)
+    end
+
+    -- For tape_shelf.lua only (a test keeps every other module from using it): fn(visit) runs every `ms` milliseconds, but ONLY while the map the
+    -- diagnostics last saw is the tape room, and then also during the pause after the map change. visit counts the times the diagnostics saw the
+    -- room entered, so the job knows a new visit (new shelf slots). Never in the hub or any other map; nothing at all without the diagnostics.
+    function self.every_in_tape_room(name, ms, fn)
+        return schedule(name, ms, function() return state.last_map == GameThread.TAPE_ROOM_MAP end,
+            function() return fn(state.room_visits) end)
+    end
+
     function self.stats(map_name)
         local parts = {}
         for _, name in ipairs(state.loop_order) do
@@ -155,7 +178,9 @@ function GameThread.init(params)
                 print(string.format("[DIAG] map: '%s' -> '%s' (up %ds)", tostring(last_map or ""), map, self.uptime()))
                 if seen_map then start_quiet() end
                 if map ~= "" then seen_map = true end
+                if map == GameThread.TAPE_ROOM_MAP then state.room_visits = state.room_visits + 1 end
                 last_map = map
+                state.last_map = map
             end
             if ticks % GameThread.HEARTBEAT_SECONDS == 0 then
                 print(self.stats(map))

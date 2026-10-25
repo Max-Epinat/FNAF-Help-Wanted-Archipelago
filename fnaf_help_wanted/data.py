@@ -31,8 +31,37 @@ def _build_location_table(region_locations: dict[str, list[str]]) -> dict[str, L
     return location_table
 
 
+# Item codes that are retired: never used again by any item (append only). 1 was the old Glitch Tape item, 16 identical copies, until unique tapes
+# (2026-10-26) replaced it with one item per log (TAPE_ITEMS below). Rooms generated before that hand it out; the mod ignores it.
+RETIRED_ITEM_CODES = {1: "Glitch Tape"}
+
+# Unique tapes: one item per log of the tape room, numbered like the label the room shows ("TAPE #n"), codes 61-76 in log order.
+# The log order is the user's choice (2026-10-26): the intro tape, then the hub's section order and LevelInfoTable row order inside a section,
+# Pizza Party, then the gallery / hub tapes. The check is the tape pickup that holds that log in the vanilla game (docs/game-research.md "Tapes").
+# (log, item name, check)
+TAPE_ITEMS = (
+    (1, "Glitch Tape #01 (Intro)", "Collect Prize Counter Intro Tape"),
+    (2, "Glitch Tape #02 (FNAF 1)", "Collect Glitch Tape 07"),
+    (3, "Glitch Tape #03 (FNAF 3)", "Collect Glitch Tape 02"),
+    (4, "Glitch Tape #04 (Parts and Service Chica)", "Collect Glitch Tape 10"),
+    (5, "Glitch Tape #05 (Parts and Service Freddy)", "Collect Glitch Tape 12"),
+    (6, "Glitch Tape #06 (Parts and Service Foxy)", "Collect Glitch Tape 11"),
+    (7, "Glitch Tape #07 (Vent Repair Mangle)", "Collect Glitch Tape 16"),
+    (8, "Glitch Tape #08 (Vent Repair Ennard)", "Collect Glitch Tape 05"),
+    (9, "Glitch Tape #09 (Dark Rooms Plushbaby)", "Collect Glitch Tape 03"),
+    (10, "Glitch Tape #10 (Dark Rooms Funtime Foxy)", "Collect Glitch Tape 04"),
+    (11, "Glitch Tape #11 (Night Terrors Circus Baby)", "Collect Glitch Tape 13"),
+    (12, "Glitch Tape #12 (Night Terrors Nightmare Fredbear)", "Collect Glitch Tape 06"),
+    (13, "Glitch Tape #13 (Pizza Party)", "Collect Glitch Tape 14"),
+    (14, "Glitch Tape #14 (Gallery)", "Collect Glitch Tape 08"),
+    (15, "Glitch Tape #15 (Hub)", "Collect Glitch Tape 09"),
+    (16, "Glitch Tape #16 (Hub)", "Collect Glitch Tape 15"),
+)
+TAPE_ITEM_NAMES = tuple(name for _, name, _ in TAPE_ITEMS)
+TAPE_LOG_CHECKS = {log: check for log, _, check in TAPE_ITEMS}
+FIRST_TAPE_ITEM_CODE = 61
+
 ITEM_TABLE = {
-    "Glitch Tape": ItemData(1, quantity=16, progression=True),
     "FNAF 1 Access Pass": ItemData(2, progression=True),
     "FNAF 2 Access Pass": ItemData(3, progression=True),
     "FNAF 3 Access Pass": ItemData(4, progression=True),
@@ -46,6 +75,8 @@ ITEM_TABLE = {
     "Faz Token": ItemData(11, quantity=30, progression=True, skip_balancing=True),
     "Hallucination": ItemData(12, quantity=2, trap=True),
     "Victory": ItemData(13, quantity=0, progression=True),
+    # progression: only as many as the goal needs stay progression, picked at random per seed (pick_progression_tapes); the others are filler
+    **{name: ItemData(FIRST_TAPE_ITEM_CODE + log - 1, progression=True) for log, name, _ in TAPE_ITEMS},
 }
 
 PLUSHIE_PRIZES = [
@@ -387,7 +418,7 @@ REGION_CONNECTIONS = {
 
 # ---- location groups: the yaml toggles randomize_prizes / randomize_faz_tokens / randomize_glitch_tapes ----------------------------
 # A group that is off is NOT randomized: its locations are not created (their ids stay in LOCATION_TABLE, never renumbered), the items that
-# belong to it (Glitch Tape, the 30 base Faz Tokens) are not in the pool, the logic no longer asks for them, and the game keeps its own
+# belong to it (the 16 tape items, the 30 base Faz Tokens) are not in the pool, the logic no longer asks for them, and the game keeps its own
 # behaviour for them (vanilla). All of it is pure so tests/test_location_groups.py can run it without Archipelago.
 
 def _group_names(prizes: bool, faz_tokens: bool, tapes: bool) -> set[str]:
@@ -452,7 +483,7 @@ def trim_to_fit(names: list[str], slots: int) -> list[str]:
 def capacity(pool_unlock_items: int, filler_only: frozenset[str], groups: tuple[bool, bool, bool], goal: str,
              required_tapes: int, required_faz_tokens: int) -> tuple[int, int]:
     """(progression items, checks that may hold one) of a seed. Progression: the unlock items in the pool, the Prize Counter Key, and only as many
-    Glitch Tapes / Faz Tokens as the goal needs (the rest are filler). Checks: the created locations minus the goal (it holds Victory), the
+    tape items / Faz Tokens as the goal needs (the rest are filler). Checks: the created locations minus the goal (it holds Victory), the
     filler-only checks and Glitchtrap "You Do Not Die" when it is not the goal. More progression than checks cannot be generated."""
     prizes, faz_tokens, tapes = groups
     tapes_needed, tokens_needed = tape_token_requirements(goal, required_tapes, required_faz_tokens, tapes, faz_tokens)
@@ -472,12 +503,17 @@ def unrandomized_items(faz_tokens: bool = True, tapes: bool = True) -> frozenset
     if not faz_tokens:
         items.add("Faz Token")
     if not tapes:
-        items.add("Glitch Tape")
+        items.update(TAPE_ITEM_NAMES)
     return frozenset(items)
 
 
+def pick_progression_tapes(rng, count: int) -> frozenset[str]:
+    """The tape items that stay progression in a seed: `count` of the 16 (all of them when count >= 16), chosen with the world's random."""
+    return frozenset(rng.sample(TAPE_ITEM_NAMES, min(max(count, 0), len(TAPE_ITEM_NAMES))))
+
+
 def tape_token_requirements(goal: str, required_tapes: int, required_faz_tokens: int, tapes: bool, faz_tokens: bool) -> tuple[int, int]:
-    """(Glitch Tape items, Faz Token items) the logic asks for to reach a goal location; 0 = nothing.
+    """(tape items, Faz Token items) the logic asks for to reach a goal location; 0 = nothing.
     A group that is not randomized has no such items, so its requirement leaves the logic (the game itself still has those tapes / tokens)."""
     if goal in (GOAL_GLITCHTRAP_DIE, GOAL_GLITCHTRAP_SURVIVE):
         need_tapes, need_tokens = max(1, required_tapes), 0

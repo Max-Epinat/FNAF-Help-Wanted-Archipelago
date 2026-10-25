@@ -75,7 +75,7 @@ requires:
     token_tape_quota: 0
 
   required_tapes:
-    # How many glitch tapes are required before the ending check is valid.
+    # How many tape items (any of the 16) are required before the ending check is valid.
     #
     # You can define additional values between the minimum and maximum values.
     # Minimum value is 0
@@ -167,8 +167,9 @@ requires:
   randomize_glitch_tapes:
     # Whether the Glitch Tapes are part of the randomizer.
     # 
-    # On (the default): picking up a tape sends a check (16 locations), the Glitch Tape items you receive set how many tapes the tape room shows.
-    # Off: tapes are vanilla. They have no locations, no Glitch Tape items are in the pool, and the tape room shows the tapes you really picked up.
+    # On (the default): picking up a tape sends a check (16 locations). There are 16 tape items, one per log ("Glitch Tape #01 (Intro)" ...), and
+    # the tape room shows exactly the logs you have received.
+    # Off: tapes are vanilla. They have no locations, no tape items are in the pool, and the tape room shows the tapes you really picked up.
     'false': 0
     'true': 50
 

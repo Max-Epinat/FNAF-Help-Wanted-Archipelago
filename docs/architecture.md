@@ -41,7 +41,7 @@
 | :--- | :--- |
 | 40 levels, Pizza Party | `BP_FNAF_GameInstance_C:SaveLevelVictory(row)`, row from the game's `LevelInfoTable`; also read from the save by the client |
 | 30 Faz Tokens | `UnlockCoin` and `GrabbableToken_C:AttemptGrab` hooks |
-| 16 Glitch Tapes | `AwardGlitch` hook (a real pickup) and the client's poll of `CollectedGlitches`. Playing a tape in the tape room (`SetGlitchListenedTo`) is only logged: the room shows tapes the player never picked up, and a check per played tape was a free check |
+| 16 tape checks | `AwardGlitch` hook (a real pickup) and the client's poll of `CollectedGlitches`. Playing a tape in the tape room (`SetGlitchListenedTo`) is only logged: the room shows tapes the player never picked up, and a check per played tape was a free check |
 | 57 prizes | The client's save poll, which reads the prize ids from the .sav file. The mod only counts the prizes in the save: it never decodes their ids (that crashed the game). 24 more prizes of the game's list have no save id and are not locations |
 
 **Location groups.** The prizes, Faz Tokens and tapes can be switched off in the yaml (`randomize_prizes`, `randomize_faz_tokens`, `randomize_glitch_tapes`). The game and the mod still
@@ -61,7 +61,7 @@ connect, and the mod derives state from it:
 | Section items, hard-section items, per-level items | Authorize a level gate (`level_gate.lua`). Tested in game. |
 | Faz Token | The displayed coin count equals the number of Faz Token items (`faz_tokens.lua`). Tested in game. With `randomize_faz_tokens` off (line `RANDOMIZED_GROUPS faz_tokens=0`) the mod leaves the count alone: vanilla, the tokens really picked up (HYPOTHESIS in game). |
 | Nightmare Mode License | Sets nightmare mode (`exact_hooks.lua`); effect not verified in game. |
-| Glitch Tape | The number of tapes in the tape area equals the number of Glitch Tape items (`derived_counters.lua`: the hook on `FNAFSaveGame_C:GetGlitchCount` returns that number). Verified in game with a forced value and with one real Glitch Tape item from a room; reconnect and several items not checked yet. With `randomize_glitch_tapes` off (`RANDOMIZED_GROUPS tapes=0`) the hook returns nothing and the game's own count stands: the tapes really picked up (HYPOTHESIS in game). |
+| 16 tape items ("Glitch Tape #01 (Intro)" ... "#16 (Hub)", one per log) | The tape room keeps as many shelf slots as different tape items received (`derived_counters.lua`: the hook on `FNAFSaveGame_C:GetGlitchCount` returns that number; VERIFIED in game with the old identical tapes), then `tape_shelf.lua` gives those slots the logs received, in order (seen working in a real room 2026-10-26). It is the only job allowed to run during the 0.4.2 pause after a map change, only in the tape room (`game_thread.every_in_tape_room`), 0.5 s after the room is noticed, every 0.25 s for at most 2 s, and only on slots whose label shows their own number (seen working by the user in a real room 2026-10-27, one session). The retired "Glitch Tape" item (id 101000001) of old rooms is ignored with one log line. With `randomize_glitch_tapes` off (`RANDOMIZED_GROUPS tapes=0`) the hook returns nothing and the game's own count stands: the tapes really picked up (HYPOTHESIS in game). |
 | Prize Counter Key, traps | No in-game effect yet; used by the logic only. |
 
 One-shot effects are applied exactly once per session: the client persists `applied_item_count`, the mod applies items beyond it in order and

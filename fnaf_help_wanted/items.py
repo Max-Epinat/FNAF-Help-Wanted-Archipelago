@@ -8,8 +8,8 @@ class FNAFHWItem(Item):
     game = GAME_NAME
 
 
-# ITEM_TABLE holds the original items (codes 1..13). The hard-section and per-level items are appended
-# with higher codes (see levels.py); existing codes never change.
+# ITEM_TABLE holds the original items (codes 2..13) and the 16 tape items (61-76). The hard-section and per-level items are appended
+# with codes 14..59 (see levels.py), the fillers after them; existing codes never change and retired ones (data.RETIRED_ITEM_CODES) are never reused.
 ALL_ITEM_TABLE: dict[str, ItemData] = {
     **ITEM_TABLE,
     **{name: ItemData(code, progression=True) for name, code in APPENDED_ITEM_CODES.items()},

@@ -73,7 +73,7 @@ class TestGeneratorCheckHelpers(unittest.TestCase):
 
     def test_the_real_rule_replay_follows_the_maps_and_catches_a_token_holding_its_own_key(self):
         good = ["Beat FNAF 1 - Night 1: FNAF 3 Access Pass", "Collect Faz Token 07: Night Terrors Security Badge",
-                "Collect Glitch Tape 13: Glitch Tape", "Collect Faz Token 01: Faz Token", "Collect Prize Counter Intro Tape: Faz Token"]
+                "Collect Glitch Tape 13: Glitch Tape #04 (Parts and Service Chica)","Collect Faz Token 01: Faz Token", "Collect Prize Counter Intro Tape: Faz Token"]
         self.assertEqual(self.replay(good), [])
         locked = ["Beat FNAF 1 - Night 1: Faz Token", "Collect Faz Token 07: FNAF 3 Access Pass"]  # an FNAF 3 token holding the FNAF 3 pass
         self.assertTrue(any("Collect Faz Token 07" in p for p in self.replay(locked)))

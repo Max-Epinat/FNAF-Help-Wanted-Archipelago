@@ -63,9 +63,10 @@ class TestFazTokenItemData(unittest.TestCase):
         body = init.split("def _get_item_classification(", 1)[1].split("\n    def ", 1)[0]
         self.assertIn("ItemClassification.progression_skip_balancing if item_data.skip_balancing else ItemClassification.progression", body)
 
-    def test_the_glitch_tape_and_the_coupon_are_unchanged(self):
-        self.assertTrue(data.ITEM_TABLE["Glitch Tape"].progression)
-        self.assertFalse(data.ITEM_TABLE["Glitch Tape"].skip_balancing)
+    def test_the_tape_items_and_the_coupon_are_unchanged(self):
+        for name in data.TAPE_ITEM_NAMES:
+            self.assertTrue(data.ITEM_TABLE[name].progression)
+            self.assertFalse(data.ITEM_TABLE[name].skip_balancing)
         self.assertNotIn("Faz Coupon", data.ITEM_TABLE)
 
 
@@ -105,6 +106,9 @@ class TestFazTokenClassificationInRealSeeds(unittest.TestCase):
                 needed = {"hundred": 30, "quota": 15, "quota30": 30, "levels": 0, "tokens_off": 0}
                 if tag != "from_pool":  # five tokens went to the start inventory, the rest of the pool is unchanged
                     self.assertEqual(check.token_problems(items, groups, needed[tag]), [])
+                # unique tapes: the 16 tape items once each, as many progression as the goal needs (default required_tapes 8)
+                tapes_needed = {"hundred": 16, "quota": 8, "quota30": 16, "levels": 0, "tokens_off": 8, "from_pool": 16}
+                self.assertEqual(check.tape_problems(items, groups, tapes_needed[tag]), [])
         self.assertTrue(any(i == check.FAZ_TOKEN_ID and not f & 1 for i, _, f in results["levels"][2]), "the default seed has filler Faz Tokens")
         # what the server and every client see: plain progression (1), like a Glitch Tape; the skip-balancing bit never leaves the generator
         progression_flags = {f for i, _, f in results["hundred"][2] if i == check.FAZ_TOKEN_ID and f & 1}

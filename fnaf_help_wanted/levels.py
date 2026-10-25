@@ -158,7 +158,7 @@ LEVEL_MAPS: dict[int, str] = {
 PIZZA_PARTY_MAP = "Finale_Ending"
 
 # The map each tape / Faz Token pickup is placed in: the GlitchID / CoinID of the placed HiddenGlitchTrigger_02 / HiddenCoin actor
-# ("Collect Glitch Tape NN" = GlitchID + 1, the intro tape is GlitchID 14; "Collect Faz Token NN" = CoinID). Only those two actors award tapes and coins.
+# ("Collect Glitch Tape NN" = GlitchID + 2 for GlitchIDs 0-2 and GlitchID + 1 from 4 on (no GlitchID 3), the intro tape is GlitchID 14; "Collect Faz Token NN" = CoinID). Only those two actors award tapes and coins.
 # Tape 02 (GlitchID 0, the class default) is the one trigger without an id, in FNAF 3; coin 20 is spawned by Parts and Service Foxy (GrabbableFoxyHead).
 # Some pickups show only on some nights or only in the nightmare version (the Ennard tape and coin 25 are destroyed outside it), so a pickup needs
 # EVERY level played on its map: each one appears in at least one of them.

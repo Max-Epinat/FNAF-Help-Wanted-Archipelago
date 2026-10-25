@@ -9,6 +9,7 @@ from .data import (
     GOAL_HUNDRED_PERCENT,
     GOAL_TOKEN_TAPE_QUOTA,
     MINIGAME_AND_NIGHT_CHECKS,
+    TAPE_ITEM_NAMES,
     full_clear_checks,
     tape_token_requirements,
 )
@@ -40,10 +41,11 @@ def set_rules(world) -> None:
     tapes_on = bool(world.options.randomize_glitch_tapes.value)
 
     def has_tapes_and_tokens(goal_name: str):
-        """Item part of a goal. A group that is not randomized has no items, so the logic does not ask for them (see data.tape_token_requirements)."""
+        """Item part of a goal: any `tapes_needed` of the 16 tape items. A group that is not randomized has no items, so the logic does not ask for
+        them (see data.tape_token_requirements)."""
         tapes_needed, tokens_needed = tape_token_requirements(goal_name, required_tapes, required_faz_tokens, tapes_on, tokens_on)
         return lambda state: (
-            (tapes_needed <= 0 or state.has("Glitch Tape", player, tapes_needed))
+            (tapes_needed <= 0 or state.has_from_list(TAPE_ITEM_NAMES, player, tapes_needed))
             and (tokens_needed <= 0 or state.has("Faz Token", player, tokens_needed))
         )
 

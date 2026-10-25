@@ -4,8 +4,8 @@ from BaseClasses import ItemClassification
 from Options import OptionError
 from worlds.AutoWorld import WebWorld, World
 
-from .data import (GAME_NAME, GOAL_GLITCHTRAP_SURVIVE, ITEM_TABLE, ItemData, filler_item_name, tape_token_requirements, trim_to_fit,
-                   unrandomized_items)
+from .data import (GAME_NAME, GOAL_GLITCHTRAP_SURVIVE, ITEM_TABLE, TAPE_ITEM_NAMES, ItemData, filler_item_name, pick_progression_tapes,
+                   tape_token_requirements, trim_to_fit, unrandomized_items)
 from .items import ALL_ITEM_TABLE, FNAFHWItem, item_name_to_id
 from .levels import FILLER_ONLY_CHECKS, MANAGED_ITEM_NAMES, SECTIONS, GatingPlan, build_plan, slot_gate_data
 from .locations import location_name_to_id
@@ -65,7 +65,7 @@ class FNAFHWWorld(World):
         goal_location.place_locked_item(self.create_item("Victory"))
 
         # Section / hard / per-level items are decided by the unlock plan, everything else is fixed, except the items of a group that is not
-        # randomized (Glitch Tape with the tape locations, the base Faz Tokens with the token locations): items follow their locations.
+        # randomized (the 16 tape items with the tape locations, the base Faz Tokens with the token locations): items follow their locations.
         not_randomized = unrandomized_items(
             bool(self.options.randomize_faz_tokens.value), bool(self.options.randomize_glitch_tapes.value))
         names = []
@@ -78,15 +78,20 @@ class FNAFHWWorld(World):
             self.multiworld.push_precollected(self.create_item(item_name))
 
         unfilled_location_count = len(self.multiworld.get_unfilled_locations(self.player))
-        # Only as many Glitch Tapes / Faz Tokens are progression as the goal needs; the others are filler (same item and id: the game counts them all).
+        # Only as many tape items / Faz Tokens are progression as the goal needs; the others are filler (a Faz Token is the same item and id
+        # either way: the game counts them all). Which tape items stay progression is picked at random per seed (any of them counts for the goal).
         tapes_needed, tokens_needed = tape_token_requirements(
             goal_location_name, self.options.required_tapes.value, self.options.required_faz_tokens.value,
             bool(self.options.randomize_glitch_tapes.value), bool(self.options.randomize_faz_tokens.value))
-        still_progression = {"Glitch Tape": tapes_needed, "Faz Token": tokens_needed}
+        progression_tapes = pick_progression_tapes(self.random, tapes_needed)
+        still_progression = {"Faz Token": tokens_needed}
         pool = []
         # the tightest plan has one item too many: drop the License (then a trap), never an item a rule needs (data.trim_to_fit)
         for item_name in trim_to_fit(names, unfilled_location_count):
-            if item_name in still_progression:
+            if item_name in TAPE_ITEM_NAMES:
+                pool.append(self.create_item(item_name) if item_name in progression_tapes
+                            else FNAFHWItem(item_name, ItemClassification.filler, item_name_to_id[item_name], self.player))
+            elif item_name in still_progression:
                 progression = still_progression[item_name] > 0
                 still_progression[item_name] -= 1
                 pool.append(self.create_item(item_name) if progression

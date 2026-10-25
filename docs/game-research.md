@@ -86,7 +86,7 @@ game data), **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **BLOCKED**.
 - **PARTIAL** `GetGlitchCount` is called about 4-6 times when the hub loads and about 16 when the tape room loads (`calls` 22 -> 43 -> 69 across hub reloads and room entries); the earlier probe saw none in the hub. Why the hub asks is **HYPOTHESIS**. No sign of calls inside a level (the intro scene).
 - **HYPOTHESIS** (one locked launch, one open launch) The tape room entrance needs `UnlockedAudioLog = true` in the save: a save built from a fresh starter save (flag absent) refused entry even with 1 tape item; the same save with only that flag added opened the room and `VisitedDarkRoom` stayed absent. Every earlier save that worked had the flag. The clean-save generator copies it from the template, so a player starting from a never-played normal save may find the room locked until they unlock it in vanilla.
 - **VERIFIED** Picking up the intro tape fired `AwardGlitch` once with `GlitchID=14` (`Collect Prize Counter Intro Tape`), saved `CollectedGlitches=[14]`, was queued while the client was disconnected and sent on reconnect; the id does not come from our count (11/12). The returned Glitch Tape raised the room to 12.
-- **VERIFIED** Playing a tape in the room fired the `SetGlitchListenedTo` check: `Collect Glitch Tape 03` and `11` were sent with `CollectedGlitches` = `[14]` and `GlitchesListenedTo` = `[1, 10]`. **PARTIAL** which tapes were played (probably `TAPE #2` and `#11`, so slot = GlitchID + 1) is inferred. Fixed: the hook now only logs (`[ARCHI] Tape listened to, no check sent`); offline tests cover it, the in-game confirmation is pending.
+- **VERIFIED** Playing a tape in the room fired the `SetGlitchListenedTo` check: `Collect Glitch Tape 03` and `11` were sent with `CollectedGlitches` = `[14]` and `GlitchesListenedTo` = `[1, 10]`. **Corrected 2026-10-26:** the values are log numbers (the tape player passes the slot's `LogNumber`), so `TAPE #1` and `TAPE #10` were played; the client mapped them as if they were GlitchIDs. Fixed: the hook now only logs (`[ARCHI] Tape listened to, no check sent`); offline tests cover it, the in-game confirmation is pending.
 
 ### `ap_hookclass` on the game instance blacked out the tape area (2026-10-05)
 
@@ -226,7 +226,10 @@ games needed, and some items sat on checks nothing ever sends. Everything below 
 disassembler for cooked Blueprint bytecode); every Blueprint function involved disassembled with nothing unreadable. Cross-checks against what was seen in
 game: the intro tape is GlitchID 14 in `IntroArcadeSet`, Faz Token 29 is in the hub.
 
-**Tapes.** Only `HiddenGlitchTrigger_02` calls `AwardGlitch`, with its own `GlitchID` (class default 0). Location `Collect Glitch Tape NN` = GlitchID + 1; the intro tape is 14.
+**Tapes.** Only `HiddenGlitchTrigger_02` calls `AwardGlitch`, with its own `GlitchID` (class default 0). Location `Collect Glitch Tape NN` = GlitchID + 2 for
+GlitchIDs 0-2 and GlitchID + 1 from 4 on (there is no GlitchID 3: the client's map in `save_reader.py` has it right); the intro tape is 14.
+Re-checked on 2026-10-26: exactly **one trigger per map, 16 in all**, no map has several tapes; the only other code that adds tapes is `UnlockAllGlitches`
+(every id 0-16, called only from the VR player pawn: a debug cheat, HYPOTHESIS).
 At begin play the trigger destroys itself only in the demo edition (`EFNAFGameType` Demo / Normal / Arcade) or when `HasGlitch(GlitchID)` (the save already has it).
 The tape stage is only used for the "tape N" counter widget, never to hide a tape.
 
@@ -239,8 +242,8 @@ The tape stage is only used for the "tape N" counter widget, never to hide a tap
 | 05 | 4 | Vent Repair Ennard: **destroyed outside the nightmare version, so only in Vent Repair (Hard) - Ennard** |
 | 06 | 5 | Night Terrors Nightmare Fredbear |
 | 07 | 6 | FNAF 1 |
-| 08 | 7 | `Gallery` (hub; condition not read: filler only) |
-| 09, 15 | 8, 15 | hub (`Main_Menu_With_Showtime`; condition not read: filler only) |
+| 08 | 7 | `Gallery` (placed in the map; no condition found, see below; filler only until seen in game) |
+| 09, 15 | 8, 15 | hub (`Main_Menu_With_Showtime`, placed in the map itself; no condition found; filler only until seen in game) |
 | 10, 11, 12 | 9, 10, 11 | Parts and Service Chica, Foxy, Freddy (normal, hard) |
 | 13 | 12 | Night Terrors Circus Baby |
 | 14 | 13 | `Finale_Ending` (Pizza Party) |
@@ -270,7 +273,57 @@ outside the DLC levels, minus every prize already owned. So every eligible prize
 location but `Goal - Glitchtrap Ending (You Do Not Die)` (sent from the save's `GlitchtrapDefeated`). Items there could never be received. Since 2026-10-25 they
 are not created (ids kept); only the chosen goal (it holds Victory) and Glitchtrap "You Do Not Die" exist, the latter filler only when it is not the goal.
 
-**The tape room** (for the unique tapes, not built yet): the shelf slots (`AquiredLog`) each have a `LogNumber` and destroy themselves when it is above
-`GetGlitchtrapStage` (the stage follows the tape count, `UpdateGlitchtrapStage`); the room never asks which tapes are owned. The log a slot plays is
-`CassetteLog<LogNumber>`. In the vanilla game a tape is therefore not tied to a log: the room shows logs 1..N in story order. The stage also drives Glitchtrap
-elsewhere (`GlitchtrapSetup2`, the hub). Never override `HasGlitch` for this: a physical tape destroys itself when `HasGlitch` says it is owned.
+**The hub and gallery tapes (2026-10-26).** The triggers with GlitchIDs 8 and 15 are placed in the hub map itself, 7 in `Gallery`. No other actor of those
+maps points at them, the hub's and the gallery's level scripts have no tape code at all, and `MainMenu_GlitchMessageManager` only stores the player pawn (the
+Glitchtrap plush and the Strange Mask prize point at it, nothing points at the tapes). The gallery button (`SendToGallery`) loads the gallery with no
+condition of its own. So the only condition is the trigger's own (demo edition, or the save already has the tape). Where they sit and whether a fresh save
+reaches them is not seen yet, so they stay filler only.
+
+### The tape room (unique tapes, 2026-10-26)
+
+From the Blueprint code (VERIFIED from game data, not all seen in game):
+- 16 shelf slots (`AquiredLog_C`, actors `AquiredLog16`..`31`) with `LogNumber` 1..16. At begin play a slot keeps itself when
+  `GetGlitchtrapStage >= LogNumber`, else it calls `K2_DestroyActor`. `BP_FNAF_GameInstance_C:GetGlitchtrapStage` is simply
+  `GetSaveGame()->GetGlitchCount()`, the number the mod already overrides; `UpdateGlitchtrapStage` does nothing but read the save.
+  So the room keeps slots 1..N for a count N. The room never asks which tapes are owned: in the vanilla game a tape is not tied to a log.
+- The tape player (`CasettePlayerSetup_C`) reads the played slot's `LogNumber` when a tape is played and plays `DEVLOG-LOG<n>` with the subtitles
+  `CassetteLog<n>`. It then calls `SetGlitchListenedTo(LogNumber)`: **the "listened" set holds log numbers, not GlitchIDs** (the 2026-10-05 inference
+  "slot = GlitchID + 1" above was a misreading; it is harmless, that hook only logs).
+- The slot's label is a picture: the `TapeText_C` widget picks `TapeTex1`, `TapeTex2`, `TapeText3`..`16` from its integer `Text` in `PreConstruct`;
+  `SetupLog` sets `Text = LogNumber`.
+- Flat mode picks tapes **by position**: `TapeRoom_PlayerPawn_C` stores the slots that exist at its begin play (`AllTapes`), steps through 0..stage-1 (at most
+  15), moves the hand to `TapeLocations[i]` and plays `AllTapes[i]`. Gaps on the shelf would break this, so the mod keeps the shelf without gaps.
+- What else reads the stage (= the tape count): `GlitchtrapSetup2` (the Glitchtrap figure in the hub's `StageLighting` and in the tape room; its offset and look),
+  `TouchToPlayWidget` (the "11:{stage+43}" clock), `HandUnitSoundManagerForMainMenu` (hub voice messages at stage 3, 6, and 12 after visiting the tape room,
+  written into the save's `HUBUpdateVOCollected`), the pickup's "tape N" counter (`HiddenGlitchTrigger_02`). The Glitchtrap ending's own logic
+  (`GlitchtrapMenuLogic`, map `Glitchtrap_Menu_Ending`) only checks timing during Showtime; what sends the player there was not found in the readable code (UNVERIFIED).
+  Unique tapes do not change the stage: it stays the number of tape items received, as before.
+- **Not probed (UNVERIFIED in game):** `GetGlitchtrapStage` itself; the code says it is `GetGlitchCount`, and nothing in the design depends on more.
+
+The probe of 2026-10-26 (one run, flat mode, count forced to 3, `UE4SS.log` read by me):
+- **VERIFIED (one run)** Setting a kept slot's `LogNumber` and its label widget's `Text`, then calling the widget's `PreConstruct(false)`, relabelled it: slot 2
+  showed TAPE #5 (picture `TapeText5`) and played log 5 (seen and heard by the user); the game then logged `SetGlitchListenedTo` with 5.
+- **VERIFIED (one run)** About 10 s after the room loaded, `FindAllOf("AquiredLog_C")` still returned all 16 slots; the 13 that removed themselves had no
+  label widget object. The mod therefore only touches slots that have a label.
+- **VERIFIED** A hook on `AquiredLog_C:ReceiveBeginPlay` can only be registered while the room is loaded (UE4SS: the function must exist); registered
+  in the room, it fired 16 times on the next entry. A hook on `AquiredLog_C:SetupLog` never reaches Lua: UE4SS logs `Property type 'DelegateProperty'
+  not supported` (its parameter is a delegate). No crash either way.
+
+The mod (`tape_shelf.lua`): on each room visit slot n gets the n-th log received (logs {2, 9} -> slot 1 = log 2, slot 2 = log 9), so the shelf
+has no gaps. **Seen working by the user in a real room on 2026-10-26**, with the relabel about 5 s after entering. Never override `HasGlitch` for this: a
+physical tape destroys itself when `HasGlitch` says it is owned, so its check could never be sent.
+
+**Where those 5 s came from** (read from the code, 2026-10-27): the diagnostics notice a map change on their 1 s tick (0-1 s), the 0.4.2 pause holds
+every timer job for `QUIET_SECONDS` measured with `os.time`, i.e. whole seconds (4-5 s), the shelf job ticked once a second (0-1 s) and its first tick
+in the room only noted the visit (+1 s): about 4 s at best, 6.5 s typically, 8 s at worst after the map change (the room's fade-in hides part of it).
+
+**Faster relabel (2026-10-27; seen working by the user in a real room 2026-10-27, one session: the labels change in about a second; that it never loses a tape or crashes is PARTIAL until more sessions).** The shelf job alone (`game_thread.every_in_tape_room`, the map name
+`Cassete_DarkRoom` is built in) may run during the pause, and only while the map the diagnostics last saw is the tape room: in the hub, the
+map the 0.4.2 crash fix is about, nothing changes, and every other job is still held. It touches only the room's shelf slots and their label widgets
+(no save, no save poll, no `PlayerCoins`, no hook, no load-map hooks). It runs every 0.25 s, waits 2 runs (at least 0.5 s after the room was noticed:
+the user's choice, to be safe rather than fast), then makes at most 8 passes (2 s) and stops once every log is on the shelf.
+Expected delay after the map change: about 0.5-1.75 s (the diagnostics' 0-1 s, the wait, up to 0.25 s of tick phase). Safety rule (the one real danger of going
+faster): a slot is touched only when its label shows its own number. The label widget's `Text` starts at 0 (no value in the class defaults, read from
+the game data) and only `SetupLog` sets it, after the slot decided to stay; relabelling a slot before that decision would make it compare the new,
+higher number with the tape count and remove itself (a lost tape). The residual risk: a pass may run while the room itself is still loading (searching
+for the slots on the game thread is how the mod works everywhere, but not tested during a load).

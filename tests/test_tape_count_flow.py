@@ -1,9 +1,10 @@
 """The tape count end to end, offline.
 
 `test_lua_logic.TestDerivedCounters` tests `derived_counters.lua` alone. Here the real client core (`BridgeCore`) writes the real
-`ap_inbox.txt`, and the real Lua modules of the mod (`bridge_io`, `item_sync`, `derived_counters`, `exact_hooks`), wired like `main.lua`,
-read it in a Lua interpreter. The "room" is the value the `FNAFSaveGame_C:GetGlitchCount` hook returns (the number of tapes the tape
-room shows).
+`ap_inbox.txt`, and the real Lua modules of the mod (`bridge_io`, `item_sync`, `derived_counters`, `tape_shelf`, `exact_hooks`), wired like
+`main.lua`, read it in a Lua interpreter. The "room" is the value the `FNAFSaveGame_C:GetGlitchCount` hook returns (how many shelf slots the
+tape room keeps). Since unique tapes (2026-10-26) each of the 16 tape items is its own id and counts once; which log each slot then plays is
+tape_shelf.lua's job (tests/test_lua_tape_shelf.py).
 
 What this can NOT tell: which tapes the room draws for a given count, or whether the game behaves the same on every launch. Those stay
 in-game checks (see docs/testing.md, "Tape count"). No test here touches a real save: LOCALAPPDATA is redirected.
@@ -35,7 +36,19 @@ from tests.test_lua_logic import LIB, PRELUDE
 
 GETTER = "/Game/ProductionAssets/Blueprints/Data/SaveGame/FNAFSaveGame.FNAFSaveGame_C:GetGlitchCount"
 GI = "/Game/ProductionAssets/Blueprints/System/BP_FNAF_GameInstance.BP_FNAF_GameInstance_C:"
-TAPE, TOKEN, PASS = 101000001, 101000011, 101000002
+TOKEN, PASS = 101000011, 101000002
+TAPES = list(range(101000061, 101000077))  # "Glitch Tape #01 (Intro)" .. "Glitch Tape #16 (Hub)", log n = TAPES[n - 1]
+OLD_TAPE = 101000001  # the retired "Glitch Tape" item of rooms generated before unique tapes
+
+
+def tapes(n, first=1):
+    """n different tape items, from log `first` on."""
+    return TAPES[first - 1:first - 1 + n]
+
+
+def tape_count(ids):
+    """What the room must show for a received list: each tape item once."""
+    return len(set(ids) & set(TAPES))
 EMPTY_SET = struct.pack("<II", 0, 0)
 
 
@@ -52,6 +65,7 @@ class GameRun:
 
         self.applied = []  # (index, item id) of every effect the game applied in this run
         self.counters = module("derived_counters.lua").init()
+        self.shelf = module("tape_shelf.lua").init(self.lua.table(every_in_tape_room=lambda *a: None, find_all=lambda _: self.lua.table()))
         self.lua.globals()["__loops"][1]()  # the hook registration loop runs once the game is ready
         self.items = module("item_sync.lua").init(self.lua.table(
             apply=self._apply, ack=lambda count: self.bridge.append_outbox(f"ITEMS_APPLIED {int(count)}")))
@@ -75,10 +89,12 @@ class GameRun:
     def _on_session_sync(self, session_id):
         self.items.on_session_sync(session_id)
         self.counters.on_session_sync(session_id)
+        self.shelf.on_session_sync(session_id)
 
     def _on_snapshot(self, spec):
         self.items.on_snapshot(spec)
         self.counters.on_snapshot(spec)
+        self.shelf.on_snapshot(spec)
 
     def poll(self):
         self.bridge.poll_inbox()
@@ -177,29 +193,29 @@ class TestSeveralItemsInARow(TapeFlowCase):
         self.settle(core, game)
         self.assertEqual(game.room(), 0)  # a session with no items: no tape, not the save's own count
         received = []
-        for ids in ([TAPE], [TAPE], [TOKEN], [TAPE], [PASS, TAPE, TAPE]):
+        for ids in (tapes(1, 1), tapes(1, 2), [TOKEN], tapes(1, 3), [PASS] + tapes(2, 4)):
             self.send(core, len(received), ids)
             received += ids
             self.settle(core, game)
-            self.assertEqual(game.room(), received.count(TAPE), received)
+            self.assertEqual(game.room(), tape_count(received), received)
             self.assertEqual(game.item_status()[1:], (len(received), len(received)))
         self.assertEqual(game.room(), 5)
 
     def test_every_getter_call_of_one_room_visit_sees_the_same_number(self):
         core, game = self.new_core(), self.new_game()
         self.connect(core)
-        self.send(core, 0, [TAPE, TAPE, TAPE])
+        self.send(core, 0, tapes(3))
         self.settle(core, game)
         self.assertEqual({game.room() for _ in range(16)}, {3})  # the room asks 16 times when it loads
         self.assertIn("calls=16", game.counters.status())
 
     def test_sixteen_is_the_most_the_world_hands_out(self):
-        """The tape room has 16 AquiredLog_C actors and the world creates 16 Glitch Tape items; the mod does not clamp (see the report)."""
+        """The tape room has 16 AquiredLog_C actors and the world creates 16 tape items, one per log."""
         data = (project_root / "fnaf_help_wanted" / "data.py").read_text(encoding="utf-8")
-        self.assertIn('"Glitch Tape": ItemData(1, quantity=16', data)
+        self.assertIn('"Glitch Tape #16 (Hub)"', data)
         core, game = self.new_core(), self.new_game()
         self.connect(core)
-        self.send(core, 0, [TAPE] * 16)
+        self.send(core, 0, tapes(16))
         self.settle(core, game)
         self.assertEqual(game.room(), 16)
 
@@ -214,7 +230,7 @@ class TestReconnectAndRestart(TapeFlowCase):
     def prepare(self, n_tapes=3):
         core, game = self.new_core(), self.new_game()
         self.connect(core)
-        ids = [TAPE] * n_tapes
+        ids = tapes(n_tapes)
         self.send(core, 0, ids)
         self.settle(core, game)
         self.assertEqual(game.room(), n_tapes)
@@ -260,13 +276,13 @@ class TestReconnectAndRestart(TapeFlowCase):
         """The count comes from the received list, not from what was applied: losing an acknowledgement cannot change what the room shows."""
         core, game = self.new_core(), self.new_game()
         self.connect(core)
-        self.send(core, 0, [TAPE, TAPE])
+        self.send(core, 0, tapes(2))
         game.poll()
         game.tick()  # applied, but the client never read ITEMS_APPLIED
         game2 = self.new_game()
         game2.poll()
         self.assertEqual(game2.room(), 2)
-        self.assertEqual(game2.item_status()[1:], (0, 2))  # applied again (Glitch Tape has no one-shot effect: harmless)
+        self.assertEqual(game2.item_status()[1:], (0, 2))  # applied again (tape items have no one-shot effect: harmless)
         game2.tick()
         self.assertEqual(game2.item_status()[1:], (2, 2))
         self.assertEqual(game2.room(), 2)
@@ -291,7 +307,7 @@ class TestReconnectAndRestart(TapeFlowCase):
     def test_a_shorter_server_list_after_a_room_reset_lowers_the_count(self):
         core, game, _ = self.prepare(3)
         self.connect(core)
-        self.send(core, 0, [TAPE])  # the room was restarted: only one item left
+        self.send(core, 0, tapes(1))  # the room was restarted: only one item left
         self.settle(core, game)
         self.assertEqual(game.room(), 1)
         self.assertEqual(game.item_status()[1:], (1, 1))
@@ -301,7 +317,7 @@ class TestNewSeedStartsAtZero(TapeFlowCase):
     def test_a_new_seed_resets_the_count_in_a_running_game(self):
         core_a, game = self.new_core("SeedA"), self.new_game()
         self.connect(core_a)
-        self.send(core_a, 0, [TAPE, TAPE, TAPE])
+        self.send(core_a, 0, tapes(3))
         self.settle(core_a, game)
         self.assertEqual(game.room(), 3)
 
@@ -310,7 +326,7 @@ class TestNewSeedStartsAtZero(TapeFlowCase):
         self.settle(core_b, game)
         self.assertEqual(game.room(), 0)
         self.assertEqual(game.item_status(), ("SeedB_HWtest", 0, 0))
-        self.send(core_b, 0, [TAPE])
+        self.send(core_b, 0, tapes(1))
         self.settle(core_b, game)
         self.assertEqual(game.room(), 1)
 
@@ -320,7 +336,7 @@ class TestNewSeedStartsAtZero(TapeFlowCase):
         inbox = self.bridge_dir / "ap_inbox.txt"
         core_a, game = self.new_core("SeedA"), self.new_game()
         self.connect(core_a)
-        self.send(core_a, 0, [TAPE, TAPE, TAPE])
+        self.send(core_a, 0, tapes(3))
         self.settle(core_a, game)
         self.assertEqual(game.room(), 3)
         before = inbox.read_bytes()
@@ -343,7 +359,7 @@ class TestNewSeedStartsAtZero(TapeFlowCase):
     def test_a_game_restart_after_a_new_seed_does_not_see_the_old_seed(self):
         core_a, game = self.new_core("SeedA"), self.new_game()
         self.connect(core_a)
-        self.send(core_a, 0, [TAPE] * 5)
+        self.send(core_a, 0, tapes(5))
         self.settle(core_a, game)
         core_b = self.new_core("SeedB")
         self.connect(core_b)
@@ -355,16 +371,16 @@ class TestNewSeedStartsAtZero(TapeFlowCase):
     def test_going_back_to_the_old_seed_gets_its_own_count_again(self):
         core_a, game = self.new_core("SeedA"), self.new_game()
         self.connect(core_a)
-        self.send(core_a, 0, [TAPE, TAPE])
+        self.send(core_a, 0, tapes(2))
         self.settle(core_a, game)
         core_b = self.new_core("SeedB")
         self.connect(core_b)
-        self.send(core_b, 0, [TAPE] * 4)
+        self.send(core_b, 0, tapes(4))
         self.settle(core_b, game)
         self.assertEqual(game.room(), 4)
         core_a2 = self.new_core("SeedA")
         self.connect(core_a2)
-        self.send(core_a2, 0, [TAPE, TAPE])
+        self.send(core_a2, 0, tapes(2))
         self.settle(core_a2, game)
         self.assertEqual(game.room(), 2)
 
@@ -405,7 +421,7 @@ class TestTapeChecksAlongsideTheCount(TapeFlowCase):
                 core, game = self.new_core(f"Seed{received}"), self.new_game()
                 self.connect(core)
                 if received:
-                    self.send(core, 0, [TAPE] * received)
+                    self.send(core, 0, tapes(received))
                 self.settle(core, game)
                 self.assertEqual(game.room(), received)
                 game.award_glitch(5)
@@ -419,7 +435,7 @@ class TestTapeChecksAlongsideTheCount(TapeFlowCase):
         sent its location check (TAPE #2 -> Collect Glitch Tape 03): every Glitch Tape item became a free check. Only a pickup counts."""
         core, game = self.new_core(), self.new_game()
         self.connect(core)
-        self.send(core, 0, [TAPE] * 11)
+        self.send(core, 0, tapes(11))
         self.settle(core, game)
         for gid in (1, 10, 5):
             game.listen_glitch(gid)
@@ -430,7 +446,7 @@ class TestTapeChecksAlongsideTheCount(TapeFlowCase):
     def test_a_pickup_still_sends_its_check_after_the_tape_was_listened_to(self):
         core, game = self.new_core(), self.new_game()
         self.connect(core)
-        self.send(core, 0, [TAPE] * 7)
+        self.send(core, 0, tapes(7))
         self.settle(core, game)
         game.listen_glitch(5)  # played in the room first (no check) ...
         self.assertEqual(self.pump(core), [])
@@ -445,7 +461,7 @@ class TestTapeChecksAlongsideTheCount(TapeFlowCase):
         game.award_glitch(5)
         self.assertEqual(len(self.pump(core)), 1)
         self.assertEqual(game.room(), 0)  # the check is out, the item has not come back yet
-        self.send(core, 0, [TAPE])  # our own location held a Glitch Tape for us
+        self.send(core, 0, tapes(1))  # our own location held a tape item for us
         self.settle(core, game)
         self.assertEqual(game.room(), 1)
         self.assertEqual(self.pump(core), [])  # and nothing is sent again
@@ -468,7 +484,7 @@ class TestTapeChecksAlongsideTheCount(TapeFlowCase):
         loc_id = core.location_name_to_id[self.LOCATION]
         self.assertEqual(len(self.pump(core)), 1)
         self.connect(core, checked=[loc_id])  # reconnect: the server lists the check
-        self.send(core, 0, [TAPE])
+        self.send(core, 0, tapes(1))
         self.settle(core, game)
         game.award_glitch(5)
         self.assertEqual(self.pump(core), [])
@@ -479,18 +495,19 @@ class TestTheCountNeverDriftsFromTheServersList(TapeFlowCase):
     def test_a_gap_in_the_item_list_leaves_the_last_complete_count_and_a_later_fill_repairs_it(self):
         core, game = self.new_core(), self.new_game()
         self.connect(core)
-        self.send(core, 0, [TAPE, TAPE])
+        self.send(core, 0, tapes(2))
         self.settle(core, game)
-        self.send(core, 3, [TAPE])  # index 2 never arrived: the client sends no snapshot rather than a wrong one
+        self.send(core, 3, tapes(1, 4))  # index 2 never arrived: the client sends no snapshot rather than a wrong one
         self.settle(core, game)
         self.assertEqual(game.room(), 2)
-        self.send(core, 2, [TAPE])
+        self.send(core, 2, tapes(1, 3))
         self.settle(core, game)
         self.assertEqual(game.room(), 4)  # indexes 0..3 are now all known: 4 tapes
 
     def test_a_long_random_session_never_disagrees_with_the_server(self):
-        """Items, drops, reconnects, client restarts and game restarts in any order: after every step the room shows exactly the Glitch
-        Tape items in the server's list, and the game's applied count equals the list length (each index applied once, ever)."""
+        """Items, drops, reconnects, client restarts and game restarts in any order: after every step the room shows exactly the tape
+        items in the server's list, each once (a duplicate, e.g. from !getitem, adds nothing), and the game's applied count equals the list
+        length (each index applied once, ever)."""
         rng = random.Random(20261005)
         core = self.new_core("SeedRandom")
         game = self.new_game()
@@ -499,7 +516,7 @@ class TestTheCountNeverDriftsFromTheServersList(TapeFlowCase):
         for step in range(300):
             op = rng.choice(["items", "items", "items", "reconnect", "client_restart", "game_restart", "drop"])
             if op == "items":
-                batch = [rng.choice([TAPE, TAPE, TOKEN, PASS]) for _ in range(rng.randint(1, 3))]
+                batch = [rng.choice([rng.choice(TAPES), rng.choice(TAPES), TOKEN, PASS]) for _ in range(rng.randint(1, 3))]
                 self.send(core, len(server), batch)
                 server += batch
             elif op == "reconnect":
@@ -514,10 +531,29 @@ class TestTheCountNeverDriftsFromTheServersList(TapeFlowCase):
             else:
                 core.update_status("DISCONNECTED")
             self.settle(core, game)
-            self.assertEqual(game.room(), server.count(TAPE), (step, op))
+            self.assertEqual(game.room(), tape_count(server), (step, op))
             self.assertEqual(game.item_status()[1:], (len(server), len(server)), (step, op))
         applied = sorted(index for run in self.games for index, _ in run.applied)
         self.assertEqual(applied, list(range(len(server))))
+
+
+class TestARoomGeneratedBeforeUniqueTapes(TapeFlowCase):
+    """Such a room hands out the retired "Glitch Tape" (id 101000001). Decided with the user (2026-10-26): no fallback to the old count; the id
+    is ignored with one clear line and nothing breaks. Those rooms must be regenerated (RELEASE_NOTES.md)."""
+
+    def test_the_old_item_shows_no_tape_says_so_once_and_breaks_nothing(self):
+        core, game = self.new_core(), self.new_game()
+        self.connect(core)
+        self.send(core, 0, [OLD_TAPE, OLD_TAPE, TOKEN, OLD_TAPE])
+        self.settle(core, game)
+        self.assertEqual(game.room(), 0)
+        self.assertEqual(game.item_status()[1:], (4, 4))  # every item still acknowledged: the client and the room are not stuck
+        self.send(core, 4, [OLD_TAPE])
+        self.settle(core, game)
+        lines = [line for line in game.log() if str(OLD_TAPE) in line]
+        self.assertEqual(len(lines), 1, game.log())
+        self.assertIn("regenerate", lines[0].lower())
+        self.assertFalse([line for line in game.log() if "[ERROR]" in line], game.log())
 
 
 if __name__ == "__main__":

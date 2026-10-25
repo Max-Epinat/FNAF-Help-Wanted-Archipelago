@@ -18,21 +18,13 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
   `IsLevelBeaten` Blueprint logic (names seen in its data: `PizzaPartyID`, `CompletedLevelCounter`, `GetInitialUnlockedLevels`) or probing in game
   would allow relaxing that rule.
 
-- **Tape count: the override works with a forced value and with a real item (VERIFIED in game 2026-10-05: `!getitem Glitch Tape` gave a tape in the room).** `GetGlitchCount` hands the hook no parameters, so `:set` was impossible; returning the value from the callback works (0 tapes in the save, `ap_counter_force tapes 2` -> 2 tapes in the room, `off` -> 0).
-  Offline, the whole chain (client -> inbox -> mod) is now covered for several items, reconnect, restarts, a new seed at 0 and tape checks (`tests/test_tape_count_flow.py`, 2026-10-05); that is not an in-game confirmation.
-  Still to check in game: the tape room shows exactly as many tapes as Glitch Tape items received with several items, with 0 at the start and after a reconnect, and which tapes it shows (the first N? the ones the save has?). Whether a tape picked up in a level should be visible in the room before its item arrives is a design question for later.
-  History of the failed first attempt follows.
-- (history) **Tape count: NOT WORKING (tried 2026-10-05).** `lib/derived_counters.lua` hooks `FNAFSaveGame_C:GetGlitchCount`, but that function reaches the hook with no parameters (`extra_args=0`), so there is no return value to override and the tape area
-  showed no change with `ap_counter_force tapes 2`. The engine in `derived_counters.lua` (item count -> override, session handling, console commands, tests) is fine and stays for other targets; the *target* is unknown.
-  The attempt to list function parameters from Lua failed too (Lua's `UFunction` has no `ForEachProperty`), see "Tapes, coins and prizes" in game-research.md. Next, in order: (1) retest `ap_counter_force tapes 2` with the callback-return experiment;
-  (2) inside the tape area run `ap_instances UserWidget 100` and `ap_instances Actor 400` to learn which Blueprint classes the room is made of, then `ap_class` those and `ap_hookfn` their safe getters (`args=N [...]` shows what each receives);
-  (3) if the room reads `CollectedGlitches` directly, say so plainly: the mod cannot change the number without writing the save set, which is the location state (corrupts checks) - then the options are to leave the tape area vanilla or to accept a save-level design.
+- **Tape room: unique tapes (2026-10-26, replaces the tape count of 2026-10-05).** The 16 tape items are one per log; `derived_counters.lua` sets the tape count to
+  the number of different tape items received (the room keeps that many slots) and `tape_shelf.lua` gives the kept slots the logs received, in order. The
+  count mechanism itself (returning the value from the `GetGlitchCount` hook) is VERIFIED in game since 2026-10-05; the rest is in "To verify in game" below.
+  Design question still open: whether a tape picked up in a level should be visible in the room before its item arrives (today: no, the room follows the items).
 - **TV milestone prizes (5/10/... coins) still follow the vanilla pickup.** They are awarded inside the physical coin pickup (`AttemptAwardSpecialPrize`), so Faz Token items alone never trigger them. Needs a probe of that award path
   (hook only `AttemptAwardSpecialPrize` and `UnlockCoin`, which the mod already hooks; log the coin count it sees) before choosing between letting the game run its own award when the item count changes (unhook, call, rehook) or something else.
 - Fold `faz_tokens.lua` into `derived_counters.lua` once the tape counter is proven (it has extra behaviour: the `PlayerCoins` cache write, which the generic module does not have).
-  **Decided (2026-10-05): the tape menu follows the Glitch Tape ITEMS received** (like the Faz Token count), not the tape checks. The 16 items are identical, so the
-  menu will show the first N tapes in the game's tape order, N = number of Glitch Tape items. Still to settle once the probe names the getters: whether the physical
-  pickup should still show a tape the player has not "received" yet (the check is sent either way).
 - **Find the ids of the 24 dropped prize locations** (see "Prizes" in [game-research.md](game-research.md)); every id found can be switched back on.
 
 ## Changes since v0.2.0 (for the next release notes)
@@ -58,6 +50,17 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
 - Not detected yet, so not checks: Hub Trophies, Normal Ending, Blackjack. They could come back once the mod or client can see them (needs a probe in game).
 
 ## To verify in game
+
+- **Unique tapes (2026-10-26). The user tested it in a real room on 2026-10-26 and reports that the unique tapes work** (with the relabel about 5 s after entering); the list is kept as the regression checklist. Needs the apworld AND the mod reinstalled, and a room generated with this apworld.
+  1. Receive `Glitch Tape #01 (Intro)` only: the room shows one tape, labelled TAPE #1, and it plays the intro log.
+  2. Receive one later tape only (e.g. `!getitem Glitch Tape #09 (Dark Rooms Plushbaby)` in a fresh room): one tape on the shelf, labelled TAPE #9 after the relabel, playing log 9.
+  3. Several logs with gaps (e.g. #02, #09, #14): the shelf shows them side by side from the first spot, labelled #2, #9, #14 in that order, each playing its own log, in flat mode (keyboard / controller selection) as well as by grabbing. `UE4SS.log`: `[ARCHI] Tape shelf: N slot(s) relabelled (pass 1); the shelf shows 3 log(s): 2,9,14`.
+  4. **Faster relabel (2026-10-27; seen working by the user in a real room 2026-10-27, one session: the labels change in about a second; still to watch over more sessions: the log lines below, the hub, no tape missing).** On every room visit the labels should change about 0.5-1.75 s after the map change (often hidden by the fade-in), not about 5 s; before that the shelf shows logs 1..K in plain order and playing a tape could play a log we do not own (the check is never affected). Judge whether it is still noticeable. `UE4SS.log`: `[ARCHI] Tape shelf: K of K log(s) on the shelf after N pass(es): ...` right after the `[DIAG] map: ... -> 'Cassete_DarkRoom'` line, with no `(stopped at the cap)`.
+     Also check nothing else changed: entering the hub still logs `[DIAG] map changed: timers paused for 5s`, items, tokens and the level menu still update a few seconds later, and no tape on the shelf goes missing (the shelf shows as many tapes as tape items received).
+  5. A room generated before this version (only old `Glitch Tape` items): no crash, the tape room shows no tape, and `UE4SS.log` has exactly one `[WARN] [ARCHI] This room hands out the old 'Glitch Tape' item (id 101000001) ...` line per session.
+  6. `randomize_glitch_tapes: false`: no tape item in the room at all, the tape room shows the tapes picked up (vanilla), no `Tape shelf` line.
+  7. `ap_tape_shelf_status` and `ap_counter_status` (count = number of different tape items received) agree with what the room shows.
+  Not probed, left as is: `GetGlitchtrapStage` (UNVERIFIED in game; the Blueprint code reads it straight from `GetGlitchCount`, which the mod already sets to the tape count, so the stage stays the item count as before).
 
 - **Every goal generates (2026-10-25, world only, HYPOTHESIS in a real room).** One short room per fixed goal (`complete_all_minigames_nights_hard_mode`, `hundred_percent`, `token_tape_quota`) generates and connects; Faz Token items still arrive and the TV
   count goes up by one per Faz Token item, base or filler (`ap_coin_status`: `items=` = every Faz Token received); the Nightmare Mode License, when it arrives, logs `Granted Nightmare Mode License!` as before; reaching Pizza Party still ends the game.
@@ -94,7 +97,7 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
   Then check that a real defeat in a level still sends (`Level lost on map '<level>': death sent`), and that `true` (the default) still sends the gift box one. Also look at which map the log line names for the other level types.
 - The launcher client with **DeathLink** and with VR (flat mode is what was tested).
 - Whether the TV milestone prizes (5, 10, ... coins) are pickup-time awards that a physical pickup should be blocked from granting. UNVERIFIED.
-- Nightmare Mode License and the other items without a verified in-game effect (Glitch Tape, Prize Counter Key, traps).
+- Nightmare Mode License and the other items without a verified in-game effect (Prize Counter Key, traps).
 
 ## Ideas
 

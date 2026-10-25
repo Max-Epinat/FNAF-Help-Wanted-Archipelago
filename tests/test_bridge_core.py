@@ -175,6 +175,15 @@ class TestReceivedItems(CoreTestCase):
         self.assertEqual(self.core.state.applied_item_count, 1)
         self.assertEqual(self.core.state.next_item_index, 1)
 
+    def test_the_sixteen_tape_items_and_the_retired_one_reach_the_game_unchanged(self):
+        """Unique tapes (2026-10-26): the mod tells the tape items apart by id (101000061-101000076), so the client must forward every id as the
+        server sent it, duplicates and the retired "Glitch Tape" (101000001) of old rooms included (the mod ignores that one)."""
+        self.connect()
+        ids = list(range(101000061, 101000077)) + [101000061, 101000001]
+        self.core.on_received_items({"index": 0, "items": [{"item": i, "player": 1, "location": 5, "flags": 1} for i in ids]})
+        snapshot = [l for l in self.inbox() if l.startswith("RECEIVED_SNAPSHOT")][-1]
+        self.assertEqual(snapshot, "RECEIVED_SNAPSHOT " + ",".join(str(i) for i in ids))
+
     def test_already_delivered_indexes_are_not_sent_as_items_again(self):
         self.connect()
         packet = {"index": 0, "items": [{"item": 7, "player": 1, "location": 1, "flags": 0}]}

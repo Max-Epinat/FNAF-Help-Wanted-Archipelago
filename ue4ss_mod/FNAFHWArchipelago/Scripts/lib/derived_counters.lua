@@ -6,12 +6,15 @@
 -- are the location state the client reads to send checks.
 --
 -- Counters (DEFINITIONS):
---   tapes   FNAFSaveGame_C:GetGlitchCount  <- number of "Glitch Tape" items received.
+--   tapes   FNAFSaveGame_C:GetGlitchCount  <- how many of the 16 tape items ("Glitch Tape #01 (Intro)" .. "#16 (Hub)", ids 101000061-101000076)
+--           were received, each counted once. The game's Glitchtrap stage IS this count (GetGlitchtrapStage = GetGlitchCount, read from the
+--           Blueprint code), so the tape room keeps exactly that many shelf slots; tape_shelf.lua then gives them the logs received.
+--           The retired "Glitch Tape" item (101000001, rooms generated before unique tapes) counts for nothing: no fallback.
 --           VERIFIED (2026-10-05, ap_hookfn): entering the tape area (map Cassete_DarkRoom) calls it 16 times; the hub does not.
 --           VERIFIED (2026-10-05, in game, forced value): the hook receives NO parameters (log: "extra_args=0 vanilla=nil"), so there is
 --           no return-value parameter to :set; but RETURNING the value from the callback works (UE4SS: a returned value overrides the
 --           function's result). With 0 tapes in the save, `ap_counter_force tapes 2` made the tape room show 2 tapes and `off`
---           put it back to 0. A real room's `!getitem Glitch Tape` gave a tape too. NOT yet verified: several items, a reconnect, and which tapes the room shows.
+--           put it back to 0. The count followed the old Glitch Tape items in real rooms (2026-10-05); with the 16 new ids it is HYPOTHESIS.
 --
 -- While no Archipelago session is active (or its item list has not arrived yet) nothing is overridden: vanilla behaviour.
 -- Hooked Blueprint functions must never be called from Lua (it crashed the game): we only override the calls the game makes.
@@ -21,20 +24,27 @@ local DerivedCounters = {}
 
 local SAVE = "/Game/ProductionAssets/Blueprints/Data/SaveGame/FNAFSaveGame.FNAFSaveGame_C"
 
+local TAPE_ITEM_IDS = {}
+for id = 101000061, 101000076 do TAPE_ITEM_IDS[#TAPE_ITEM_IDS + 1] = id end  -- the 16 tape items, codes 61-76 (fnaf_help_wanted/data.py)
+
 DerivedCounters.DEFINITIONS = {
-    { name = "tapes", item_id = 101000001, targets = { SAVE .. ":GetGlitchCount" } },  -- item id: "Glitch Tape"
+    { name = "tapes", item_ids = TAPE_ITEM_IDS, targets = { SAVE .. ":GetGlitchCount" } },
 }
 
--- Pure: how many times `item_id` is in "101000001,101000011,101000001". An empty payload is a valid, empty list.
--- Returns (count, nil) or (nil, error).
-function DerivedCounters.count_items(spec, item_id)
-    local count = 0
+-- Pure: how many DIFFERENT ids of the list `item_ids` are in "101000061,101000011,101000062" (each counts once: a duplicate, e.g. from
+-- !getitem, adds nothing). An empty payload is a valid, empty list. Returns (count, nil) or (nil, error).
+function DerivedCounters.count_items(spec, item_ids)
+    local wanted, seen, count = {}, {}, 0
+    for _, id in ipairs(item_ids or {}) do wanted[id] = true end
     for token in tostring(spec or ""):gmatch("[^,%s]+") do
         local id = tonumber(token)
         if not id then
             return nil, "bad item id '" .. token .. "'"
         end
-        if id == item_id then count = count + 1 end
+        if wanted[id] and not seen[id] then
+            seen[id] = true
+            count = count + 1
+        end
     end
     return count, nil
 end
@@ -148,7 +158,7 @@ function DerivedCounters.init(params)
         state.logged = {}
     end
 
-    -- A group the slot does not randomize (e.g. no tape locations and no Glitch Tape items) is vanilla: stop overriding what the game shows.
+    -- A group the slot does not randomize (e.g. no tape locations and no tape items) is vanilla: stop overriding what the game shows.
     -- Returns false for a counter that does not exist.
     function self.set_randomized(name, value)
         local counter = state.counters[name]
@@ -167,7 +177,7 @@ function DerivedCounters.init(params)
     function self.on_snapshot(spec)
         local counts = {}
         for _, name in ipairs(state.order) do
-            local count, err = DerivedCounters.count_items(spec, state.counters[name].def.item_id)
+            local count, err = DerivedCounters.count_items(spec, state.counters[name].def.item_ids)
             if not count then
                 print("[WARN] [SYNC] Derived counters: bad snapshot ignored (" .. tostring(err) .. ")")
                 return

@@ -31,6 +31,8 @@
   | `test_lua_save_slot.py` | The mod side in `lupa`: the `SAVE_SLOT` line, the slot enforced and loaded once, switching session while the game runs, unsafe names refused, the save hooks keep the current slot. |
   | `test_lua_groups.py` | The mod side in `lupa`: the `RANDOMIZED_GROUPS` line, the tape count and the TV count going vanilla and coming back (new session, debug override), the connection panel's total. |
   | `test_lua_logic.py` | The mod's Lua logic run in a real Lua interpreter (`lupa`) with the game's functions stubbed: `death_link.lua` (decisions, the registered hook, the gift box rule and its `DEATH_LINK_GIFT_BOX` line, the console experiment commands), `level_gate.lua`, `item_sync.lua`, `game_thread.lua` (game-thread timers, cached game instance, diagnostics), `derived_counters.lua` (the tape count follows the items), the inbox replay collapse in `bridge_io.lua`, and the crash fixes in `exact_hooks.lua` (no prize id decoded, no `GetName`). Skipped without `lupa`. |
+  | `test_unique_tapes.py` | Unique tapes, world side: the 16 tape items (names, codes 61-76 in log order, one progression item each, the log -> check table and the maps it names), the old "Glitch Tape" gone and code 1 retired, tapes off = no tape item, the random pick of the progression tapes, the rule counting any of the 16, and the generator harness: the replay counts the 16 (progression only, not the old name) and `tape_problems` reads a seed's tape flags. |
+  | `test_lua_tape_shelf.py` | `tape_shelf.lua` in `lupa` with fake shelf slots: only labelled slots are touched, logs in shelf order with no gaps, a slot already right is left alone, retries catch a late label and then stop, a new visit relabels again, nothing outside the tape room / without a session / with tapes off, the old item ignored with one line per session, and with the real `game_thread.lua` the relabel never runs inside the 5 s pause. |
   | `test_tape_count_flow.py` | The tape count end to end: the real client core writes the real inbox, the real Lua modules (`bridge_io`, `item_sync`, `derived_counters`, `exact_hooks`) read it in `lupa`. Several items in a row, reconnect, game and client restarts, a new seed at 0 (including the save generator on a completed save), a shorter server list, a gap in the list, tape checks next to the count, and a 300-step random session that must never disagree with the server's list. Skipped without `lupa`. |
   | `test_mod_switch.py` | The real `main.lua` run from a temporary mod folder: `archipelago_enabled = false` in `config.lua` leaves nothing hooked, no timers, no commands and no bridge files; a missing key, `true` or any other value keeps the mod on; the line is in `config.lua.example` and the install guide. Skipped without `lupa`. |
   | `test_crash_report.py` | `scripts/crash_report.py` on synthetic minidumps (nothing from a real run). |
@@ -53,7 +55,8 @@ Restart the Python client after changing `ap_client/main.py`; `launch-*.bat` re-
 
 ### Tape count (`derived_counters.lua`): offline versus in game
 
-Covered offline (`tests/test_tape_count_flow.py`, `TestDerivedCounters` in `test_lua_logic.py`, `test_clean_save.py`): the number the `GetGlitchCount` hook returns follows the Glitch Tape items of the server's list
+Covered offline (`tests/test_tape_count_flow.py`, `TestDerivedCounters` in `test_lua_logic.py`, `test_clean_save.py`): the number the `GetGlitchCount` hook returns follows the tape items of the server's list (since 2026-10-26: the number of
+different tape items among the 16, the retired id counts for nothing)
 for several items in a row, a dropped connection, a reconnect, a game restart (with and without the client, with and without the acknowledgement having reached the client), a client restart, a new seed (0, nothing from
 the old seed, the generated save holds no tapes, the normal save is not touched), a room reset, a gap in the list, and a random 300-step mix of all of them; tape checks are sent once whatever the count.
 Known property recorded by a test: a connect starts from an empty snapshot, so the count reads 0 (not the old value) between the `RECEIVED_SNAPSHOT` line and the server's list.
@@ -62,6 +65,39 @@ Known property recorded by a test: a connect starts from an empty snapshot, so t
 whether `GetGlitchCount` is also called inside levels (it was only seen in the tape area), and every hook-level fact (the hook returning the value is VERIFIED once, with a forced value and with one real item).
 Useful in game: `ap_counter_status` (`items=` is what the server's list gives, `effective=` what the hook returns, `calls=` how many times the game asked, `forced=nil` must hold), `ap_items_status` (`applied=N of N`),
 and the log line `[GAME] tapes observed (...): extra_args=0 vanilla=nil -> N (returned from the callback)`, printed once per distinct outcome.
+
+### Unique tapes (2026-10-26)
+
+Tests first, shown failing on the old code (the new modules missing, `TestDerivedCounters` 9 of 16 failing, the wiring checks), then the code.
+Mutation check: 37 mutants of the new code (shelf: unlabelled slots touched, no sorting, original numbers re-read, outside the room, the first tick acting, endless or
+single pass, the visit not reset, PreConstruct / Text / LogNumber not set, tapes-off or session ignored, old logs kept, the old-item line repeated or missing, the
+old item as log 1, ids off by one, exempt from the pause, bad snapshot accepted, one broken slot stopping the pass; the count: duplicates or the old id counted,
+an id missing; main.lua wiring; world: tapes off keeping the items, a fixed pick, codes reversed, not progression, logs swapped, code 1 reused; harness: the old name
+or filler counted, tape flags unchecked or the check not run), all killed. The first run left one survivor (the visit not reset), which exposed a weak test; a test
+that uses every pass before leaving the room now kills it. The world glue (`__init__.py`, `rules.py`) is checked by the real generator (slow mutants below).
+`scripts/generator_check.py` also runs `tape_problems` on every seed: each of the 16 tape items once, exactly the needed number progression, none with the tapes off.
+Slow mutants (real generator): every / no tape item progression (killed by the real-seed flag check in `test_faz_token_progression.py`); the rule asking for one tape
+or none (killed by the static check of the rule line only).
+Full-run sweeps of 2026-10-26, `accessibility: full`: **(A)** all 6 goals x 3 unlock modes x sections `fnaf_1`, `night_terrors`, `parts_and_service` x seeds 1-3,
+everything on: **162 of 162 generated, 0 problems**. **(B)** all 6 goals x 3 unlock modes x `fnaf_1`, `night_terrors` x seeds 1, 2 x the 8 toggle combinations:
+**568 generated with 0 problems, 8 refused as expected** (the same 100 % / per_level / prizes off / tapes on seeds as before), `RESULT: OK`.
+Negative control (the real script on a deliberately broken apworld, `token_tape_quota`): every tape item progression -> `16 progression tape items, expected 8`,
+`RESULT: PROBLEM`, exit 1; no tape item progression -> `FillError: Game appears as unbeatable`, `RESULT: PROBLEM`, exit 1.
+
+**Not coverable offline**: VR with relabelled slots, and what a real room's old `Glitch Tape` items do in game. (The relabel itself was seen working by the user in a
+real room on 2026-10-26.)
+
+**Faster relabel (2026-10-27).** `game_thread.every_in_tape_room` (the only exemption from the pause, the room name built in) and the shelf's new schedule
+(0.25 s, wait 2 runs, at most 8 passes) with the per-slot rule (only slots whose label shows their own number). Tests first, shown failing (25 of 36 in
+`test_lua_tape_shelf.py`), including `TestTheRealScheduler` with the real `game_thread.lua` on a whole-second clock like `os.time`: the shelf relabels
+during the pause 2 runs after the room is noticed, another job is still held for the whole pause (4-5 s, unchanged), nothing runs in the hub or any other
+map or without the diagnostics, and no file but `tape_shelf.lua` (handed it by `main.lua`) uses the exemption.
+Mutation check: 19 mutants (scheduler: the room job on every map, held by the pause too, every job exempt, visits not counted, last map not recorded,
+a wrong room name; shelf: label number not checked, a fake label for a missing one (nil or invalid object), no minimum wait, no cap, once a second,
+no early stop, slots redone, logs by arrival instead of by place, a new visit not noticed, passes without a session, one broken slot stopping the pass;
+main.lua handing the ordinary scheduler), all killed. The first run left one survivor (a fake label for a missing one): in every test the unlabelled
+slots sat beyond the logs received, so the place rule hid it; a test with a log waiting for an unlabelled slot's place now kills it.
+**Not coverable offline** (HYPOTHESIS until seen in a real room): the real delay, whether a pass during the room's own load is harmless, and the fade-in.
 
 ## World / generator check (outside unittest)
 

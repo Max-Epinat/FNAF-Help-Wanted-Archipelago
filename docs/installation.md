@@ -44,7 +44,7 @@ It will:
    DeathLink: `death_link` turns it on. With it on, `death_link_gift_box` (default `true`) decides whether the game over from the prize gift box jumpscare is also sent as a death;
    set it to `false` to keep that one out. It changes nothing when `death_link` is off, and it never changes what happens when another player dies.
    Less grinding: `randomize_prizes`, `randomize_faz_tokens` and `randomize_glitch_tapes` (all `true` by default) each take one kind of collectible out of the randomizer.
-   A group that is `false` has no locations, no matching items (Glitch Tape, the 30 base Faz Tokens) and is **vanilla in game**: you still pick the things up and the game
+   A group that is `false` has no locations, no matching items (the 16 tape items, the 30 base Faz Tokens) and is **vanilla in game**: you still pick the things up and the game
    shows them as usual (the tape room shows the tapes you picked up, the TV the tokens you picked up), it just never sends a check. A goal that asks for tapes or tokens
    no longer asks for the ones that are not randomized (you still need them in the real game; the multiworld simply cannot check them).
    Update the apworld **and** the mod together (`install-mod.ps1` does both): an old mod would keep showing item counts for a group that is `false`.

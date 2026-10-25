@@ -76,7 +76,9 @@ class TestRealGenerator(unittest.TestCase):
                 self.assertEqual(check.logic_problems(check.read_spoiler(self.scratch, tag), {"P1": world}, check.read_multidata(self.scratch, tag),
                                                       self.data, self.levels), [])
                 items = set(placements.values())
-                self.assertEqual("Glitch Tape" in items, combo[2])  # no Glitch Tape item without tape locations
+                tapes = items & set(self.data.TAPE_ITEM_NAMES)
+                self.assertEqual(tapes, set(self.data.TAPE_ITEM_NAMES) if combo[2] else set())  # all 16 tape items, or none without tape locations
+                self.assertNotIn("Glitch Tape", items)  # the retired item
                 if combo[1]:
                     self.assertNotIn("Faz Coupon", items)
                 else:  # vanilla tokens: not a single Faz Token item is handed out, the spare slots hold the coupon

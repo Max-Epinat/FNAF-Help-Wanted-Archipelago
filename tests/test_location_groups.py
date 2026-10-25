@@ -118,8 +118,8 @@ class TestPoolPerCombination(unittest.TestCase):
     def test_the_items_of_a_group_that_is_off_are_not_in_the_pool(self):
         self.assertEqual(data.unrandomized_items(True, True), frozenset())
         self.assertEqual(data.unrandomized_items(False, True), frozenset({"Faz Token"}))
-        self.assertEqual(data.unrandomized_items(True, False), frozenset({"Glitch Tape"}))
-        self.assertEqual(data.unrandomized_items(False, False), frozenset({"Faz Token", "Glitch Tape"}))
+        self.assertEqual(data.unrandomized_items(True, False), frozenset(data.TAPE_ITEM_NAMES))
+        self.assertEqual(data.unrandomized_items(False, False), frozenset({"Faz Token", *data.TAPE_ITEM_NAMES}))
         self.assertFalse(data.unrandomized_items(False, False) & levels.MANAGED_ITEM_NAMES)
         self.assertFalse(data.unrandomized_items(False, False) - set(data.ITEM_TABLE))  # only real, existing items
 
@@ -171,9 +171,9 @@ class TestPoolPerCombination(unittest.TestCase):
         for node in tree.body:
             if isinstance(node, ast.ClassDef) and node.name in ("RequiredTapes", "RequiredFazTokens"):
                 ranges[node.name] = next(s.value.value for s in node.body if isinstance(s, ast.Assign) and s.targets[0].id == "range_end")
-        self.assertLessEqual(ranges["RequiredTapes"], data.ITEM_TABLE["Glitch Tape"].quantity)
+        self.assertLessEqual(ranges["RequiredTapes"], len(data.TAPE_ITEM_NAMES))
         self.assertLessEqual(ranges["RequiredFazTokens"], data.ITEM_TABLE["Faz Token"].quantity)
-        self.assertEqual(len(data.GLITCH_TAPE_CHECKS), data.ITEM_TABLE["Glitch Tape"].quantity)
+        self.assertEqual(len(data.GLITCH_TAPE_CHECKS), len(data.TAPE_ITEM_NAMES))
         self.assertEqual(len(data.FAZ_TOKEN_CHECKS), data.ITEM_TABLE["Faz Token"].quantity)
 
 
@@ -189,7 +189,8 @@ class TestFiller(unittest.TestCase):
         self.assertEqual(data.EXTRA_ITEM_CODES, {"Faz Coupon": 60})
         used = {item.code for item in data.ITEM_TABLE.values()} | set(levels.APPENDED_ITEM_CODES.values())
         self.assertNotIn(60, used)
-        self.assertEqual(sorted(used), list(range(1, 14)) + list(range(14, 60)))  # 1..59 are unchanged and 60 is the next free id
+        # 2..59 are unchanged, 60 is the coupon, 61-76 the tape items (2026-10-26); 1 (the old "Glitch Tape") is retired, never reused
+        self.assertEqual(sorted(used), list(range(2, 60)) + list(range(61, 77)))
         self.assertNotIn("Faz Coupon", data.ITEM_TABLE)
 
     def test_the_world_registers_and_uses_it(self):

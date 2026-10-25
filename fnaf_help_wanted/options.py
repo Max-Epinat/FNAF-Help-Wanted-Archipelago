@@ -17,7 +17,7 @@ class Goal(Choice):
 
 
 class RequiredTapes(Range):
-    """How many glitch tapes are required before the ending check is valid."""
+    """How many tape items (any of the 16) are required before the ending check is valid."""
 
     display_name = "Required Glitch Tapes"
     range_start = 0
@@ -119,8 +119,9 @@ class RandomizeFazTokens(DefaultOnToggle):
 class RandomizeGlitchTapes(DefaultOnToggle):
     """Whether the Glitch Tapes are part of the randomizer.
 
-    On (the default): picking up a tape sends a check (16 locations), the Glitch Tape items you receive set how many tapes the tape room shows.
-    Off: tapes are vanilla. They have no locations, no Glitch Tape items are in the pool, and the tape room shows the tapes you really picked up.
+    On (the default): picking up a tape sends a check (16 locations). There are 16 tape items, one per log ("Glitch Tape #01 (Intro)" ...), and
+    the tape room shows exactly the logs you have received.
+    Off: tapes are vanilla. They have no locations, no tape items are in the pool, and the tape room shows the tapes you really picked up.
     """
 
     display_name = "Randomize Glitch Tapes"

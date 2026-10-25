@@ -1169,10 +1169,12 @@ class TestExactHooksCrashFixes(LuaCase):
 
 @unittest.skipIf(LuaRuntime is None, "lupa is not installed")
 class TestDerivedCounters(LuaCase):
-    """derived_counters.lua: the tape count the game shows follows the Glitch Tape items received."""
+    """derived_counters.lua: the tape count the game shows = how many of the 16 tape items ("Glitch Tape #01 (Intro)" ...) were received.
+    That count decides how many shelf slots the tape room keeps; tape_shelf.lua then gives them their logs."""
 
     PATH = "/Game/ProductionAssets/Blueprints/Data/SaveGame/FNAFSaveGame.FNAFSaveGame_C:GetGlitchCount"
-    TAPE = 101000001
+    T1, T2, T3 = 101000061, 101000062, 101000063  # logs 1-3
+    OLD_TAPE = 101000001  # the retired "Glitch Tape" item
     TOKEN = 101000011
 
     def setUp(self):
@@ -1198,24 +1200,43 @@ class TestDerivedCounters(LuaCase):
         self.assertIn(self.PATH, [str(k) for k in self.hooks().keys()])
         self.assertTrue(self.lua.globals()["__loops"][1]())  # all hooked: the loop stops
 
+    def tapes(self, *ids):
+        return ",".join(str(i) for i in ids)
+
     def test_count_items(self):
-        self.assertEqual(tuple(self.module.count_items("101000001,101000011,101000001", self.TAPE)), (2, None))
-        self.assertEqual(tuple(self.module.count_items("", self.TAPE)), (0, None))
-        self.assertEqual(tuple(self.module.count_items(None, self.TAPE)), (0, None))
-        count, err = self.module.count_items("1,x", self.TAPE)
+        ids = self.module.DEFINITIONS[1]["item_ids"]
+        self.assertEqual(tuple(self.module.count_items(self.tapes(self.T1, self.TOKEN, self.T2), ids)), (2, None))
+        self.assertEqual(tuple(self.module.count_items("", ids)), (0, None))
+        self.assertEqual(tuple(self.module.count_items(None, ids)), (0, None))
+        count, err = self.module.count_items("1,x", ids)
         self.assertIsNone(count)
         self.assertIn("bad item id", str(err))
+
+    def test_the_sixteen_tape_items_count_each_once_and_the_old_item_not_at_all(self):
+        ids = self.module.DEFINITIONS[1]["item_ids"]
+        self.assertEqual(sorted(ids.values()), list(range(101000061, 101000077)))
+        every_tape = self.tapes(*range(101000061, 101000077))
+        self.assertEqual(tuple(self.module.count_items(every_tape, ids)), (16, None))
+        self.assertEqual(tuple(self.module.count_items(self.tapes(self.T2, self.T2, self.T2), ids)), (1, None))  # a duplicate (!getitem)
+        self.assertEqual(tuple(self.module.count_items(self.tapes(self.OLD_TAPE, self.OLD_TAPE), ids)), (0, None))
+        for neighbour in (101000060, 101000077):
+            self.assertEqual(tuple(self.module.count_items(str(neighbour), ids)), (0, None))
 
     def test_vanilla_until_a_session_and_its_item_list_exist(self):
         self.assertEqual(self.call_getter(4), 4)  # no session: the game's own number
         self.instance.on_session_sync("seed_slot")
         self.assertEqual(self.call_getter(4), 4)  # session, but the list has not arrived yet
-        self.instance.on_snapshot("101000001,101000001,101000001,101000011")
-        self.assertEqual(self.call_getter(4), 3)  # 3 Glitch Tape items, whatever the save says
+        self.instance.on_snapshot(self.tapes(self.T1, self.T2, self.T3, self.TOKEN))
+        self.assertEqual(self.call_getter(4), 3)  # 3 tape items, whatever the save says
         self.assertEqual(self.call_getter(0), 3)
 
+    def test_an_old_room_with_only_the_old_item_shows_no_tapes(self):
+        self.instance.on_session_sync("seed_slot")
+        self.instance.on_snapshot(self.tapes(self.OLD_TAPE, self.OLD_TAPE))
+        self.assertEqual(self.call_getter(4), 0)
+
     def test_items_without_a_session_never_override_the_game(self):
-        self.instance.on_snapshot("101000001,101000001")  # no SESSION_SYNC yet
+        self.instance.on_snapshot(self.tapes(self.T1, self.T2))  # no SESSION_SYNC yet
         self.assertEqual(self.call_getter(4), 4)
 
     def test_without_a_return_value_parameter_the_value_is_returned_from_the_callback(self):
@@ -1235,29 +1256,29 @@ class TestDerivedCounters(LuaCase):
         self.instance.on_snapshot("")
         self.assertEqual(self.call_getter(4), 0)
 
-    def test_only_glitch_tape_items_count_and_the_latest_snapshot_replaces_the_count(self):
+    def test_only_tape_items_count_and_the_latest_snapshot_replaces_the_count(self):
         self.instance.on_session_sync("seed_slot")
-        self.instance.on_snapshot("101000011,101000011,101000001")
+        self.instance.on_snapshot(self.tapes(self.TOKEN, self.TOKEN, self.T1))
         self.assertEqual(self.call_getter(9), 1)
-        self.instance.on_snapshot("101000001,101000001,101000011")
+        self.instance.on_snapshot(self.tapes(self.T1, self.T2, self.TOKEN))
         self.assertEqual(self.call_getter(9), 2)
 
     def test_a_bad_snapshot_changes_nothing(self):
         self.instance.on_session_sync("seed_slot")
-        self.instance.on_snapshot("101000001")
-        self.instance.on_snapshot("101000001,oops")
+        self.instance.on_snapshot(self.tapes(self.T1))
+        self.instance.on_snapshot(self.tapes(self.T1) + ",oops")
         self.assertEqual(self.call_getter(9), 1)
         self.assertTrue(any("bad snapshot ignored" in line for line in self.log()))
 
     def test_a_new_session_forgets_the_old_count_until_its_own_list_arrives(self):
         self.instance.on_session_sync("seed_a")
-        self.instance.on_snapshot("101000001,101000001")
+        self.instance.on_snapshot(self.tapes(self.T1, self.T2))
         self.assertEqual(self.call_getter(7), 2)
         self.instance.on_session_sync("seed_a")  # a reconnect to the same session keeps it
         self.assertEqual(self.call_getter(7), 2)
         self.instance.on_session_sync("seed_b")
         self.assertEqual(self.call_getter(7), 7)  # vanilla, not seed_a's tapes
-        self.instance.on_snapshot("101000001")
+        self.instance.on_snapshot(self.tapes(self.T3))
         self.assertEqual(self.call_getter(7), 1)
 
     def test_force_overrides_without_a_session_and_off_restores_vanilla(self):
@@ -1269,7 +1290,7 @@ class TestDerivedCounters(LuaCase):
 
     def test_each_distinct_outcome_is_logged_once(self):
         self.instance.on_session_sync("seed_slot")
-        self.instance.on_snapshot("101000001")
+        self.instance.on_snapshot(self.tapes(self.T1))
         for _ in range(5):
             self.call_getter(4)
         lines = [line for line in self.log() if "[GAME] tapes observed" in line]
@@ -1292,12 +1313,15 @@ class TestDerivedCounters(LuaCase):
         for call in ("derived_counters.on_session_sync(session_id)", "derived_counters.on_snapshot(spec)", "derived_counters.lua"):
             self.assertIn(call, main)
 
-    def test_the_tape_item_id_matches_the_world(self):
-        # ITEM_OFFSET (101000000) + the code of "Glitch Tape" (1) in fnaf_help_wanted/data.py
-        data = (project_root / "fnaf_help_wanted" / "data.py").read_text(encoding="utf-8")
-        self.assertIn("ITEM_OFFSET = 101000000", data)
-        self.assertIn('"Glitch Tape": ItemData(1,', data)
-        self.assertEqual(self.module.DEFINITIONS[1]["item_id"], 101000001)
+    def test_the_tape_item_ids_match_the_world(self):
+        import importlib.util
+        import sys
+        spec = importlib.util.spec_from_file_location("_fnafhw_data_counters", project_root / "fnaf_help_wanted" / "data.py")
+        data = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = data
+        spec.loader.exec_module(data)
+        world_ids = [data.ITEM_OFFSET + data.ITEM_TABLE[name].code for name in data.TAPE_ITEM_NAMES]
+        self.assertEqual(sorted(self.module.DEFINITIONS[1]["item_ids"].values()), sorted(world_ids))
 
 
 class TestDeathLinkGiftBoxPure(LuaCase):

@@ -96,6 +96,7 @@ local level_gate = nil
 local item_sync = nil
 local faz_tokens = nil
 local derived_counters = nil
+local tape_shelf = nil
 local death_link = nil
 
 -- ITEM lines are informational only now: item effects are applied exactly once from the server's
@@ -123,6 +124,7 @@ local bridge_io = bridge_io_builder({
         if item_sync then item_sync.on_session_sync(session_id) end
         if faz_tokens then faz_tokens.on_session_sync(session_id) end
         if derived_counters then derived_counters.on_session_sync(session_id) end
+        if tape_shelf then tape_shelf.on_session_sync(session_id) end
     end,
     on_gate_table = function(spec)
         if level_gate then level_gate.set_table(spec) end
@@ -135,6 +137,7 @@ local bridge_io = bridge_io_builder({
         if item_sync then item_sync.on_snapshot(spec) end
         if faz_tokens then faz_tokens.on_snapshot(spec) end
         if derived_counters then derived_counters.on_snapshot(spec) end
+        if tape_shelf then tape_shelf.on_snapshot(spec) end
     end,
     on_applied_items = function(spec)
         if item_sync then item_sync.on_applied(spec) end
@@ -152,6 +155,7 @@ local bridge_io = bridge_io_builder({
         -- a group the slot does not randomize is vanilla: the tape room / the TV show what the save really holds (prizes only matter to the client)
         if faz_tokens then faz_tokens.set_randomized(groups.faz_tokens) end
         if derived_counters then derived_counters.set_randomized("tapes", groups.tapes) end
+        if tape_shelf then tape_shelf.set_randomized(groups.tapes) end
     end,
     on_deathlink = function(spec, is_replay)
         if death_link then death_link.on_incoming(spec, is_replay) end
@@ -233,7 +237,7 @@ else
     print("[ERROR] Faz tokens failed to load: " .. tostring(faz_or_err))
 end
 
--- Counters the game shows, derived from the items received (the tape count follows the Glitch Tape items), see lib/derived_counters.lua
+-- Counters the game shows, derived from the items received (the tape count = how many of the 16 tape items arrived), see lib/derived_counters.lua
 local counters_ok, counters_or_err = pcall(function()
     return dofile(mod_dir .. "/Scripts/lib/derived_counters.lua").init({ every = game_thread.every })
 end)
@@ -241,6 +245,17 @@ if counters_ok then
     derived_counters = counters_or_err
 else
     print("[ERROR] Derived counters failed to load: " .. tostring(counters_or_err))
+end
+
+-- Unique tapes: the tape room's kept slots get the logs received, see lib/tape_shelf.lua. The only job that may run during the pause after a
+-- map change, and only in the tape room (see game_thread.lua).
+local shelf_ok, shelf_or_err = pcall(function()
+    return dofile(mod_dir .. "/Scripts/lib/tape_shelf.lua").init({ every_in_tape_room = game_thread.every_in_tape_room })
+end)
+if shelf_ok then
+    tape_shelf = shelf_or_err
+else
+    print("[ERROR] Tape shelf failed to load: " .. tostring(shelf_or_err))
 end
 
 -- One-shot item effects, applied exactly once per item from the server's list (see item_sync.lua)

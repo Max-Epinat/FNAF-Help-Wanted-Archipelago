@@ -221,8 +221,8 @@ def logic_problems(text: str, worlds: dict, multidata: dict, data, levels) -> li
             reached.add((location, player))
             changed = True
             have[(item, owner)] = have.get((item, owner), 0) + 1
-            if item in ("Faz Token", "Glitch Tape") and owner in worlds and flags(location, player) & PROGRESSION_FLAG:
-                counter = tokens if item == "Faz Token" else tapes
+            if (item == "Faz Token" or item in data.TAPE_ITEM_NAMES) and owner in worlds and flags(location, player) & PROGRESSION_FLAG:
+                counter = tokens if item == "Faz Token" else tapes  # any of the 16 tape items counts once (each exists once)
                 counter[owner] = counter.get(owner, 0) + 1
     problems = []
     for player, w in worlds.items():
@@ -307,6 +307,31 @@ def token_problems(location_items, groups: tuple[bool, bool, bool], base_tokens:
     odd = sorted({f for f in flags if not f & PROGRESSION_FLAG and f != 0})
     if odd:
         problems.append(f"filler Faz Tokens with flags {odd}, expected 0 (plain filler)")
+    return problems
+
+
+TAPE_ITEM_IDS = tuple(range(101000061, 101000077))  # data.ITEM_OFFSET + 61..76, the 16 tape items (one per log)
+RETIRED_TAPE_ID = 101000001  # the old Glitch Tape item (code 1), retired with unique tapes
+
+
+def tape_problems(location_items, groups: tuple[bool, bool, bool], tapes_needed: int) -> list[str]:
+    """With the tapes randomized each of the 16 tape items is in the seed once, exactly `tapes_needed` of them progression (which ones is random)
+    and the others plain filler; with them off there is no tape item at all. The retired id never appears."""
+    problems = []
+    if any(item_id == RETIRED_TAPE_ID for item_id, _player, _f in location_items):
+        problems.append("the retired Glitch Tape item (id 101000001) is in the seed")
+    tapes = [(item_id, f) for item_id, _player, f in location_items if item_id in TAPE_ITEM_IDS]
+    if not groups[2]:
+        return problems + ([f"{len(tapes)} tape item(s) although the tapes are not randomized"] if tapes else [])
+    ids = sorted(item_id for item_id, _ in tapes)
+    if ids != list(TAPE_ITEM_IDS):
+        problems.append(f"the tape items are not the 16 logs once each: {ids}")
+    progression = sum(1 for _, f in tapes if f & PROGRESSION_FLAG)
+    if progression != tapes_needed:
+        problems.append(f"{progression} progression tape items, expected {tapes_needed}")
+    odd = sorted({f for _, f in tapes if not f & PROGRESSION_FLAG and f != 0})
+    if odd:
+        problems.append(f"filler tape items with flags {odd}, expected 0 (plain filler)")
     return problems
 
 
@@ -416,8 +441,10 @@ def main() -> int:
                         logic_bad += 1
                         print(f"  REAL RULES ({mode}/{hard}/{section}/seed {seed}): {'; '.join(bad)}")
                     off_level_runs += unlock_items_off_levels(text, levels) > 0
-                    tokens_needed = data.tape_token_requirements(goal_location(data, goal), 8, 15, groups[2], groups[1])[1]
-                    wrong = group_problems(placements, groups, data, goal) + token_problems(read_location_items(scratch), groups, tokens_needed)
+                    tapes_needed, tokens_needed = data.tape_token_requirements(goal_location(data, goal), 8, 15, groups[2], groups[1])
+                    location_items = read_location_items(scratch)
+                    wrong = (group_problems(placements, groups, data, goal) + token_problems(location_items, groups, tokens_needed)
+                             + tape_problems(location_items, groups, tapes_needed))
                     if wrong:
                         group_bad += 1
                         print(f"  GROUPS {group_text} ({mode}/{hard}/{section}/seed {seed}): {'; '.join(wrong)}")

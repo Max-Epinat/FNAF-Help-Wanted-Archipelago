@@ -16,7 +16,7 @@ if str(project_root) not in sys.path:
 
 from tests.test_lua_logic import LIB, LuaCase
 
-TAPE_ITEM = 101000001
+TAPE_ITEM = 101000061  # "Glitch Tape #01 (Intro)"; the n-th tape item is TAPE_ITEM + n - 1
 TOKEN_ITEM = 101000011
 GETTER = "/Game/ProductionAssets/Blueprints/Data/SaveGame/FNAFSaveGame.FNAFSaveGame_C:GetGlitchCount"
 TOTAL_COINS = "/Game/ProductionAssets/Blueprints/Data/SaveGame/FNAFSaveGame.FNAFSaveGame_C:GetTotalCoinCount"
@@ -96,6 +96,7 @@ class TestInboxLine(LuaCase):
         main = (LIB.parent / "main.lua").read_text(encoding="utf-8")
         self.assertIn("on_randomized_groups", main)
         self.assertIn("derived_counters.set_randomized", main)
+        self.assertIn("tape_shelf.set_randomized", main)
         self.assertIn("faz_tokens.set_randomized", main)
 
 
@@ -109,7 +110,7 @@ class TestTapeCountIsVanillaWhenTapesAreNotRandomized(RetHelper):
 
     def start(self, tapes=2):
         self.instance.on_session_sync("seed_slot")
-        self.instance.on_snapshot(",".join([str(TAPE_ITEM)] * tapes))
+        self.instance.on_snapshot(",".join(str(TAPE_ITEM + n) for n in range(tapes)))
 
     def test_randomized_is_the_default_and_follows_the_items(self):
         self.start(2)
