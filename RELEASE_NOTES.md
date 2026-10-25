@@ -3,7 +3,7 @@ Test release of **FNAF Help Wanted x Archipelago** (prerelease).
 > **Warning: rooms generated before this version will not work with it. Regenerate them with this apworld.** Their tape item ("Glitch Tape") no
 > longer exists: the game ignores it and the tape room stays empty. Update both the apworld **and** the mod.
 
-## What's new (next version)
+## What's new in 0.5.0
 
 - **Every tape is unique.** There are 16 tape items, one per log, named like the label in the tape room: "Glitch Tape #01 (Intro)", "Glitch Tape #02 (FNAF 1)", ... "Glitch Tape #16 (Hub)". The tape room shows exactly the logs you received, side by side with no gaps (if you have #02 and #09, the shelf shows TAPE #2 and TAPE #9).
 - When you enter the tape room the labels change within about a second. Before that the shelf shows the first tapes in plain order, so a tape played in that moment can be a log you do not have yet (it never sends a check).
@@ -19,7 +19,7 @@ Test release of **FNAF Help Wanted x Archipelago** (prerelease).
 You need Windows, the Steam game, [Archipelago](https://github.com/ArchipelagoMW/Archipelago/releases) 0.6.7+ and [UE4SS v3.0.1](https://github.com/UE4SS-RE/RE-UE4SS/releases).
 
 1. Extract UE4SS into `...\FNAFVRHelpWanted\freddys\Binaries\Win64\`, start the game once, close it.
-2. Unzip `FNAF-HW-Archipelago-v0.4.2.zip` and double-click `install-mod.bat`.
+2. Unzip `FNAF-HW-Archipelago-v0.5.0.zip` and double-click `install-mod.bat`.
 3. Put the yaml from `templates` in your Archipelago `Players` folder and edit it.
 4. Start **FNAF Help Wanted Client** from the Archipelago Launcher, connect, **then** start the game.
 
