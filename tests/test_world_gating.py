@@ -441,10 +441,10 @@ class TestNightmareLogicIsGone(unittest.TestCase):
         self.assertNotIn("nightmare_logic", (project_root / "templates" / "Five Nights at Freddy's Help Wanted.yaml").read_text(encoding="utf-8"))
         self.assertNotIn("nightmare_logic", (project_root / "README.md").read_text(encoding="utf-8"))
 
-    def test_only_the_hard_mode_goal_still_asks_for_the_license(self):
-        """Still true today and still a generation failure (the item is `useful`, not progression): see docs/TODO.md, "Logic to check"."""
+    def test_no_goal_asks_for_the_license_any_more(self):
+        """The hard-mode goal asked for it too, which made that goal ungeneratable (the item is `useful`); dropped on 2026-10-25 (tests/test_goal_generation.py)."""
         rules = (WORLD_DIR / "rules.py").read_text(encoding="utf-8")
-        self.assertEqual(rules.count("Nightmare Mode License"), 1)
+        self.assertEqual(rules.count("Nightmare Mode License"), 0)
 
 
 class TestUndetectablePrizes(unittest.TestCase):

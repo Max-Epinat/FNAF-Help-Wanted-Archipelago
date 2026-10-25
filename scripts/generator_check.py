@@ -13,26 +13,29 @@ the toggles leave in the multiworld (none of a group that is off, all of a group
 Usage:  py scripts/generator_check.py [--archipelago <Archipelago folder, default %ProgramData%\\Archipelago>] [--seeds 1,2,3] [--sections all|fnaf_1,fnaf_2,...] [--goals a,b]
                                       [--groups on,off,prizes,faz_tokens+tapes,...]
 --groups: `on` = every group randomized (the default), `off` = none, otherwise the groups joined by `+` are randomized and the others are not.
-Run the tests first: they rebuild dist/fnaf_help_wanted.apworld, which is what this checks. Exit code 1 when a required goal fails or an unlock item is misplaced.
+Run the tests first: they rebuild dist/fnaf_help_wanted.apworld, which is what this checks. Exit code 1 when any goal fails, an unlock item is misplaced, a location group is wrong or the Faz Token classification is wrong.
 """
 
 import argparse
 import importlib.util
+import io
 import itertools
 import os
+import pickle
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import zipfile
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 GAME = "Five Nights at Freddy's: Help Wanted"
 ALL_GOALS = ["complete_all_minigames_nights", "complete_all_minigames_nights_hard_mode", "glitchtrap_ending_die",
              "glitchtrap_ending_survive", "hundred_percent", "token_tape_quota"]
-REQUIRED_GOALS = ["complete_all_minigames_nights"]  # the template's goal: it must always generate
+REQUIRED_GOALS = ALL_GOALS  # every goal must generate (since 2026-10-25); a failing goal makes the run a PROBLEM
 MODES = [("per_section", "grouped"), ("per_section", "separate"), ("per_level", "grouped")]
 
 
@@ -106,6 +109,44 @@ def parse_spoiler_locations(text: str) -> dict[str, str]:
 def misplaced_unlock_items(placements: dict[str, str], unlock_items, may_hold) -> list[str]:
     """Locations that hold an unlock item although they may not."""
     return sorted(location for location, item in placements.items() if item in unlock_items and not may_hold(location))
+
+
+FAZ_TOKEN_ID = 101000011  # data.ITEM_OFFSET + 11, the id the mod counts for the TV
+PROGRESSION_FLAG = 0b0001  # ItemClassification.progression in the flags the server sends with every item
+
+
+class _LooseUnpickler(pickle.Unpickler):
+    """Reads the generated .archipelago file without Archipelago's modules: any class it names becomes an empty stand-in (only plain data is used)."""
+
+    def find_class(self, module, name):
+        try:
+            return super().find_class(module, name)
+        except Exception:
+            return type(name, (), {"__init__": lambda self, *a, **k: None, "__setstate__": lambda self, state: None})
+
+
+def read_location_items(scratch: Path, tag: str = "run", player: int = 1) -> list[tuple[int, int, int]]:
+    """(item id, owning player, classification flags) of every location of `player` in the seed generate() just wrote for `tag`."""
+    with zipfile.ZipFile(next((scratch / f"output_{tag}").glob("*.zip"))) as archive:
+        raw = archive.read(next(name for name in archive.namelist() if name.endswith(".archipelago")))
+    multidata = _LooseUnpickler(io.BytesIO(zlib.decompress(raw[1:]))).load()  # one version byte, then a zlib-compressed pickle
+    return [tuple(entry[:3]) for entry in multidata["locations"][player].values()]
+
+
+def token_problems(location_items, groups: tuple[bool, bool, bool], base_tokens: int = 30) -> list[str]:
+    """With the Faz Tokens randomized exactly the 30 base Faz Tokens are progression (what the goals count) and every other Faz Token is plain filler;
+    with them off there is no Faz Token item at all."""
+    flags = [f for item_id, _player, f in location_items if item_id == FAZ_TOKEN_ID]
+    if not groups[1]:
+        return [f"{len(flags)} Faz Token item(s) although the Faz Tokens are not randomized"] if flags else []
+    problems = []
+    progression = sum(1 for f in flags if f & PROGRESSION_FLAG)
+    if progression != base_tokens:
+        problems.append(f"{progression} progression Faz Tokens, expected {base_tokens}")
+    odd = sorted({f for f in flags if not f & PROGRESSION_FLAG and f != 0})
+    if odd:
+        problems.append(f"filler Faz Tokens with flags {odd}, expected 0 (plain filler)")
+    return problems
 
 
 def build_scratch(archipelago: Path, scratch: Path, apworld: Path | None = None) -> None:
@@ -182,7 +223,7 @@ def main() -> int:
                     if bad:
                         misplaced += 1
                         print(f"  MISPLACED ({mode}/{hard}/{section}/seed {seed}): {bad[:3]}")
-                    wrong = group_problems(placements, groups, data)
+                    wrong = group_problems(placements, groups, data) + token_problems(read_location_items(scratch), groups)
                     if wrong:
                         group_bad += 1
                         print(f"  GROUPS {group_text} ({mode}/{hard}/{section}/seed {seed}): {'; '.join(wrong)}")

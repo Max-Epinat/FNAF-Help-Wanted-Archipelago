@@ -13,6 +13,7 @@ class ItemData:
     progression: bool = False
     useful: bool = False
     trap: bool = False
+    skip_balancing: bool = False  # progression that progression balancing leaves alone (many identical counted copies)
 
 
 @dataclass(frozen=True)
@@ -41,7 +42,8 @@ ITEM_TABLE = {
     "Night Terrors Security Badge": ItemData(8, progression=True),
     "Prize Counter Key": ItemData(9, progression=True),
     "Nightmare Mode License": ItemData(10, useful=True),
-    "Faz Token": ItemData(11, quantity=30),
+    # the 30 base tokens count for the goals (state.has only counts progression); the spare-slot Faz Tokens are filler (create_filler)
+    "Faz Token": ItemData(11, quantity=30, progression=True, skip_balancing=True),
     "Hallucination": ItemData(12, quantity=2, trap=True),
     "Victory": ItemData(13, quantity=0, progression=True),
 }

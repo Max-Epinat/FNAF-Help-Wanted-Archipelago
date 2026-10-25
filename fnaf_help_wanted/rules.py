@@ -70,11 +70,11 @@ def set_rules(world) -> None:
         lambda state: can_reach_all(state, MINIGAME_AND_NIGHT_CHECKS),
     )
 
+    # every level (hard ones included) plus Pizza Party; the nightmare license item is not asked for: the game ends the multiworld on Pizza Party anyway
     add_rule(
         goal_hard,
         lambda state: can_reach_all(state, MINIGAME_AND_NIGHT_CHECKS)
-        and state.can_reach("Complete Pizza Party", "Location", player)
-        and state.has("Nightmare Mode License", player),
+        and state.can_reach("Complete Pizza Party", "Location", player),
     )
 
     die_items = has_tapes_and_tokens(GOAL_GLITCHTRAP_DIE)

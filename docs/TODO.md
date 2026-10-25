@@ -49,14 +49,18 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
 ## Logic to check
 
 - **Stopgap in place (2026-10-05): unlock items only on level-completion locations**, to be replaced by real access rules for tapes, tokens and prizes so unlock items can go anywhere that is really reachable (the user's goal; see HANDOVER "Logic redesign"), so a tape, token or prize that is physically inside a gated level can never hold that level's unlock item (before: every seed did that, about 14 per seed). 297 real-generator runs, 0 misplaced; see docs/testing.md.
-  Still open: where tapes, tokens and prizes really are (they have no access rule, which only matters now for the other progression items: Glitch Tapes, Prize Counter Key, Nightmare Mode License, all needed only for goals), and the Pizza Party unlock condition.
-- **Three of the six goals cannot be generated** (full generator run, 2026-10-05, deterministic): `complete_all_minigames_nights_hard_mode`, `hundred_percent` and `token_tape_quota` always fail with `Game appears as unbeatable`, (the Glitchtrap goals failed only with the `nightmare_logic` option, removed on 2026-10-05: it was an invented extra requirement for the Nightmare Mode License).
-  Cause: the rules need `Nightmare Mode License` (classified `useful`) and `Faz Token` copies (not progression), which Archipelago does not count. Fix (a world change, needs a decision): make the 30 base Faz Tokens and the License progression (keep the filler Faz Tokens filler), then re-run the sweep in docs/testing.md. Until then hide or warn about those goals in the template.
+  Still open: where tapes, tokens and prizes really are (they have no access rule, which only matters now for the other progression items: Glitch Tapes, the 30 base Faz Tokens, Prize Counter Key, all needed only for goals), and the Pizza Party unlock condition.
+- **Every goal generates (fixed 2026-10-25, unreleased).** `complete_all_minigames_nights_hard_mode`, `hundred_percent` and `token_tape_quota` used to fail with `Game appears as unbeatable` (the rules asked for the `useful` Nightmare Mode License and for filler Faz Tokens, which `state.has` does not count).
+  Now the hard goal needs every level plus Pizza Party (no License; it stays in the pool as a useful item), and the 30 base Faz Tokens are progression (skip balancing) while the spare-slot Faz Tokens stay filler. Every goal x every toggle combination generates; see "Every goal generates" in docs/testing.md.
 - The earlier "generator verified" runs used `--skip_output` and never checked beatability (see docs/testing.md).
 - **Tape and Faz Token locations have no access rule in the world** (`Prize Counter` and `Faz Tokens` regions connect from the Hub with no requirement; only levels are gated). If a tape or token is physically inside a gated level, a seed can put that level's
   access item on that tape and soft-lock the player. Needs the tape-id -> level map from the game (`AwardGlitch` logs `GlitchID` and the map name); pre-existing, not caused by the listen change.
 
 ## To verify in game
+
+- **Every goal generates (2026-10-25, world only, HYPOTHESIS in a real room).** One short room per fixed goal (`complete_all_minigames_nights_hard_mode`, `hundred_percent`, `token_tape_quota`) generates and connects; Faz Token items still arrive and the TV
+  count goes up by one per Faz Token item, base or filler (`ap_coin_status`: `items=` = every Faz Token received); the Nightmare Mode License, when it arrives, logs `Granted Nightmare Mode License!` as before; reaching Pizza Party still ends the game.
+  In the hard goal's spoiler the License is just one more item (no goal needs it).
 
 - **Timers hold still after a map change** (`game_thread.lua`, for a player whose game died entering the hub). Launch (it must get past the title screen: the first version, with LoadMap hooks, crashed at start),
   go title -> hub -> a level -> hub. `UE4SS.log` must show `[DIAG] map changed: timers paused for 5s` after each `[DIAG] map:` line except the first ones at startup, items, tokens and the level menu must still

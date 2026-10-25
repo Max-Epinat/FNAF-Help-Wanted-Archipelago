@@ -43,7 +43,7 @@ class FNAFHWWorld(World):
         if item_data.trap:
             return ItemClassification.trap
         if item_data.progression:
-            return ItemClassification.progression
+            return ItemClassification.progression_skip_balancing if item_data.skip_balancing else ItemClassification.progression
         if item_data.useful:
             return ItemClassification.useful
         return ItemClassification.filler
@@ -84,7 +84,7 @@ class FNAFHWWorld(World):
             )
         filler_needed = unfilled_location_count - len(pool)
         for _ in range(filler_needed):
-            pool.append(self.create_item(self.get_filler_item_name()))
+            pool.append(self.create_filler())
 
         self.multiworld.itempool += pool
 
@@ -94,6 +94,12 @@ class FNAFHWWorld(World):
     def get_filler_item_name(self) -> str:
         # Faz Token items only while the Faz Tokens are randomized; vanilla tokens get the inert Faz Coupon (see data.filler_item_name)
         return filler_item_name(bool(self.options.randomize_faz_tokens.value))
+
+    def create_filler(self) -> FNAFHWItem:
+        # Always plain filler: create_item of a Faz Token gives one of the progression base tokens (also what start_inventory and plando get), the spare
+        # slots must not add more of those. Same name and id, so the game counts both kinds alike.
+        name = self.get_filler_item_name()
+        return FNAFHWItem(name, ItemClassification.filler, item_name_to_id[name], self.player)
 
     def fill_slot_data(self) -> dict[str, Any]:
         return {

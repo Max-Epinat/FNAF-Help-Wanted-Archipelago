@@ -68,7 +68,7 @@ Not finished or not verified yet:
   (a defeat on the map `Level_Victory`) was seen in two real events, both in Parts and Service Bonnie, and the hold-back worked once in game with the option off (**PARTIAL**: the other level types and the other player's side are not checked).
 - **The three randomize toggles** (`randomize_prizes`, `randomize_faz_tokens`, `randomize_glitch_tapes`): world generation with every combination (full generator runs), the client dropping checks of a group that is off, and the mod's switch to the vanilla tape room / TV are tested offline, and **VERIFIED in real rooms** by the maintainer (2026-10-10): prizes, Faz Tokens and tapes each turn on and off as intended, case by case. See [docs/game-research.md](docs/game-research.md#location-group-toggles-2026-10-10).
 - **Pizza Party**: the mod never locks it, and the unlock rule of the game is not known, so the logic expects every level to be cleared first.
-- **Items without an in-game effect**: Glitch Tape, Prize Counter Key, Nightmare Mode License (effect unverified) and the traps only matter for logic today.
+- **Items without an in-game effect**: Glitch Tape, Prize Counter Key and the traps only matter for logic today. The Nightmare Mode License is a useful item that no goal needs (its in-game effect is unverified).
 - `hard_variants: separate` has been generated and tested but not played in a room. VR launch has not been tested (flat mode has).
 - **Crashes** (2026-10-04 analysis, [docs/game-research.md](docs/game-research.md#crashes)): the game's own crash a few seconds after launch is not
   caused by the mod; just relaunch. A crash during play (about once an hour) was traced to the mod running UE4SS timers off the game thread and

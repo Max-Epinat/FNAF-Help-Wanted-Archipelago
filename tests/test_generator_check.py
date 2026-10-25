@@ -61,6 +61,17 @@ class TestGeneratorCheckHelpers(unittest.TestCase):
         on = {name: "Faz Coupon" for names in data.region_locations(True, True, True).values() for name in names}
         self.assertTrue(check.group_problems(on, (True, True, True), data))  # a coupon with the tokens randomized
 
+    def test_the_token_check_wants_exactly_the_30_base_faz_tokens_as_progression(self):
+        token, coupon = check.FAZ_TOKEN_ID, check.FAZ_TOKEN_ID + 49  # 101000060 = Faz Coupon
+        good = [(token, 1, 0b1001)] * 30 + [(token, 1, 0)] * 96
+        self.assertEqual(check.token_problems(good, (True, True, True)), [])
+        self.assertTrue(check.token_problems([(token, 1, 0)] * 126, (True, True, True)))  # today's world: no token counts in logic
+        self.assertTrue(check.token_problems([(token, 1, 0b1001)] * 126, (True, True, True)))  # the filler must stay filler
+        self.assertTrue(check.token_problems([(token, 1, 0b1001)] * 29 + [(token, 1, 0)] * 97, (True, True, True)))
+        self.assertTrue(check.token_problems(good[:30] + [(token, 1, 0b0010)], (True, True, True)))  # a filler token that is not plain filler
+        self.assertEqual(check.token_problems([(coupon, 1, 0)] * 40, (True, False, True)), [])
+        self.assertTrue(check.token_problems([(token, 1, 0)], (True, False, True)))  # tokens off: no Faz Token item at all
+
     def test_the_script_checks_the_same_rule_the_world_applies(self):
         levels = check.load_levels()
         self.assertTrue(levels.may_hold_unlock_item("Beat FNAF 1 - Night 1"))

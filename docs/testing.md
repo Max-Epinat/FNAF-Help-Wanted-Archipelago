@@ -24,6 +24,8 @@
   | `test_location_groups.py` | The three group toggles (`randomize_prizes`, `randomize_faz_tokens`, `randomize_glitch_tapes`): locations, ids, pool size and filler (Faz Token, or Faz Coupon with the tokens off) for all 8 combinations, the goals' tape / token requirements, the options / slot_data / template read statically. |
   | `test_location_groups_client.py` | The real `BridgeCore`: a check of a group that is off is never sent, queued or stored (mod checks, save poll, pending, resumed session), a packet without `missing_locations` filters nothing, the `RANDOMIZED_GROUPS` line, `total_count` in the status file. |
   | `test_location_groups_generator.py` | The real `ArchipelagoGenerate.exe` (full runs, built from the working tree): all 8 combinations generate a beatable seed with exactly the expected locations and no unlock item off a level location; the tightest plans; goals that asked for tapes with tapes off; `exclude_locations` naming a location that does not exist. Skipped without an Archipelago install (`ARCHIPELAGO_DIR`, default `C:\ProgramData\Archipelago`). |
+  | `test_goal_generation.py` | Every goal through the real generator, one test per goal over the 8 toggle combinations (beatable, right locations, no misplaced unlock item, 30 progression Faz Tokens, the License still in the pool); the hard goal's rule (every level plus Pizza Party, no License); the harness requires every goal. Generator part skipped without an Archipelago install. |
+  | `test_faz_token_progression.py` | The 30 base Faz Tokens are progression (skip balancing), the spare-slot ones filler, read back from real seeds (`.archipelago` flags); the token goals with the tokens on, `required_faz_tokens: 30`, `start_inventory_from_pool`. |
   | `test_session_saves.py` | One save file per multiworld on the real core and the real save reader (synthetic template, isolated LOCALAPPDATA): names, other sessions' saves untouched, going back to an older room, sessions made before keep `Playerarchi.sav`, a deleted save, the `SAVE_SLOT` line. |
   | `test_lua_save_slot.py` | The mod side in `lupa`: the `SAVE_SLOT` line, the slot enforced and loaded once, switching session while the game runs, unsafe names refused, the save hooks keep the current slot. |
   | `test_lua_groups.py` | The mod side in `lupa`: the `RANDOMIZED_GROUPS` line, the tape count and the TV count going vanilla and coming back (new session, debug override), the connection panel's total. |
@@ -78,9 +80,8 @@ One save per multiworld and the "no bridge" refusal: 37 more mutants (name share
 A first mutant run also showed that an unfiltered 100 % list is a real generator error (`KeyError: 'Collect Prize Counter Intro Tape'`), not only a theoretical one.
 
 Full-run sweep of 2026-10-10 (all 6 goals x the 3 unlock modes x sections `fnaf_1` and `night_terrors` x seeds 1, 2 x the 8 toggle combinations = 576 runs, `accessibility: full`): **0 spoiler/location mismatches, 0 misplaced unlock items**, and
-`complete_all_minigames_nights`, `glitchtrap_ending_die` and `glitchtrap_ending_survive` generated in all 96 runs each (the 12 runs of every combination). `complete_all_minigames_nights_hard_mode` still fails everywhere (License not progression, unchanged).
-`hundred_percent` and `token_tape_quota` still fail with the Faz Tokens randomized, as before (Faz Token not progression), **but generate once `randomize_faz_tokens` is false**: their failing requirement (`Faz Token` copies) is then no longer in the logic.
-That is a side effect of "a group that is off is not asked for", not a fix of those goals; the fix of item 3 in HANDOVER is still open. The tightest plans (per_level, all groups off: 49 slots for 43 items + 6 filler; per_section separate, all off) generate.
+`complete_all_minigames_nights`, `glitchtrap_ending_die` and `glitchtrap_ending_survive` generated in all 96 runs each (the 12 runs of every combination). At the time the three other goals failed (fixed 2026-10-25, see "Every goal generates" below).
+The tightest plans (per_level, all groups off: 49 slots for 43 items + 6 filler; per_section separate, all off) generate.
 
 Generator check done on 2026-10-05 after dropping the undetectable prizes: the apworld in a trimmed copy of the Archipelago install (never the
 installed `custom_worlds`), six yaml variants, `--skip_output`: all fill 152 items for 153 locations. **That run proved less than it said:** with `--skip_output` the generator
@@ -88,17 +89,30 @@ does not check that the game can be beaten. A deliberately unbeatable copy of th
 (`FillError: Game appears as unbeatable`, no zip) in a full run. Use a full run, in a scratch copy of Archipelago (`ArchipelagoGenerate.exe`, `lib`, `data`, `share`, the dlls and `host.yaml`; the built apworld alone in `custom_worlds`;
 stdin closed, the exe waits for Enter on a failure), and count a run as good only when the zip is written. The line `Could not access required locations for accessibility check. Missing: [...]` is a **warning** that lists locations the logic cannot reach.
 
-Full-run sweep of 2026-10-05 (6 goals x per_section grouped / separate x per_level, `accessibility` full on seed 1 and minimal on seeds 2-5, deterministic; run before the `nightmare_logic` option was removed, with it off, which is what the world does now):
+### Every goal generates (2026-10-25)
 
-| Goal | Generates |
+Until 2026-10-25 three goals could never be generated (`FillError: Game appears as unbeatable`): `complete_all_minigames_nights_hard_mode` (its rule asked for the `Nightmare Mode License`, a `useful` item) and
+`hundred_percent` / `token_tape_quota` with the Faz Tokens randomized (`state.has("Faz Token", n)` while every Faz Token was filler). Archipelago only counts progression items in `state.has`.
+Fix: the hard goal no longer asks for the License (the user's choice: the game ends the multiworld on Pizza Party whatever the goal, and the License has no verified effect; it stays in the pool as a useful item), and the 30 base
+Faz Tokens are `progression_skip_balancing` while the spare-slot Faz Tokens stay filler (`create_filler`). Both kinds are the same item and id, so the mod's TV count does not change (HYPOTHESIS until seen in a real room).
+The seed file keeps only the progression bit: the server and every client see the 30 base tokens with flag 1, like a Glitch Tape.
+
+`scripts/generator_check.py` now requires **every** goal (`REQUIRED_GOALS = ALL_GOALS`) and also checks, from the generated `.archipelago` file, that exactly 30 Faz Tokens are progression and every other Faz Token is plain filler (none with the tokens off).
+Negative controls (2026-10-25, the real script on a deliberately broken apworld): the License put back into the hard goal gives `failed=3`, `RESULT: PROBLEM`, exit 1; the filler tokens made progression gives `120 progression Faz Tokens, expected 30`, `RESULT: PROBLEM`, exit 1.
+Before the fix (same script, start section `fnaf_1`, seed 1, 3 unlock modes): the hard goal failed in every toggle combination, `hundred_percent` and `token_tape_quota` failed with the tokens on and generated with them off.
+
+Full-run sweep of 2026-10-25 after the fix, `accessibility: full`, 954 runs, **every one generated (beatable), 0 misplaced unlock items, 0 location / token problems**: (A) all 6 goals x the 3 unlock modes x all 7 start sections x seeds 1-3, everything randomized (378 runs, 63 per goal); (B) all 6 goals x the 3 unlock modes x sections `fnaf_1` and `night_terrors` x seeds 1, 2 x the 8 toggle combinations (576 runs, 12 per goal and combination). Commands: `py scripts/generator_check.py --sections all --seeds 1,2,3` and `py scripts/generator_check.py --sections fnaf_1,night_terrors --seeds 1,2 --groups on,off,prizes,faz_tokens,tapes,prizes+faz_tokens,prizes+tapes,faz_tokens+tapes`.
+
+| Goal | Generates (every toggle combination, every start section tried) |
 | :--- | :--- |
 | `complete_all_minigames_nights` | yes |
-| `glitchtrap_ending_die`, `glitchtrap_ending_survive` | yes (they failed only with the since-removed `nightmare_logic` on) |
-| `complete_all_minigames_nights_hard_mode` | **never** |
-| `hundred_percent`, `token_tape_quota` | **never** |
+| `complete_all_minigames_nights_hard_mode` | yes (every level, hard ones included, plus Pizza Party) |
+| `glitchtrap_ending_die`, `glitchtrap_ending_survive` | yes |
+| `hundred_percent` | yes |
+| `token_tape_quota` | yes |
 
-Cause (classification, unchanged since the first commit): the goal rules call `state.has("Nightmare Mode License")` and `state.has("Faz Token", n)`, but those items are `useful` / filler, and Archipelago only counts progression items in `state.has`, so the goal location can never be reached.
-These are loud generation failures, not stuck players. The shipped template (goal `complete_all_minigames_nights`) generates.
+Tests: `test_goal_generation.py` (one real-generator test per goal over the 8 toggle combinations, the hard goal's rule, the License kept in the pool, the harness requiring every goal), `test_faz_token_progression.py`; mutation check: 17 mutants (License back in the goal,
+Pizza Party or the levels dropped from it, License progression or out of the pool, harness back to one required goal, token not progression / no skip-balancing / 29 copies, filler via `create_item`, `create_filler` not filler, harness checks disabled), all killed.
 
 **Unlock items on level locations only** (rule added 2026-10-05, `levels.may_hold_unlock_item`, applied in `rules.py`): before it, **27 of 27** seeds put at least one unlock item (about 14 per seed) on a tape, token, prize, trophy or blackjack location,
 where the real game may need the very level it unlocks. After it: **297 of 297** runs generated and 0 misplaced (default start, 108 runs on 12 seeds; each of the 7 starting sections, 189 runs; per_section grouped / separate and per_level;
