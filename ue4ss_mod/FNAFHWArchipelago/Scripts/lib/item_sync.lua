@@ -11,6 +11,11 @@
 
 local ItemSync = {}
 
+-- An item that cannot be applied is retried every tick (the game instance may simply not exist yet during startup). After this many seconds of
+-- failing in a row it is given up, with an error in the log: otherwise one item that can never be applied (a property the game no longer has)
+-- would hold back every item after it, and the acknowledgement, for good.
+ItemSync.GIVE_UP_SECONDS = 300
+
 -- Pure: the items still to apply, in order. `applied` counts items by server order (0-based index).
 function ItemSync.pending(applied, ids)
     local out = {}
@@ -47,9 +52,11 @@ end
 
 -- params.apply(item_id, index) -> true when the effect is in place, false to retry later
 -- params.ack(count)            -> report "count items applied" to the client
+-- params.now()                 -> seconds, default os.time (injectable for tests)
 function ItemSync.init(params)
     local apply, ack = params.apply, params.ack
-    local state = { session_id = nil, applied = 0, ids = {}, last_fail_log = 0 }
+    local now = params.now or os.time
+    local state = { session_id = nil, applied = 0, ids = {}, last_fail_log = 0, stuck_index = nil, stuck_since = 0 }
 
     function ItemSync.on_session_sync(session_id)
         if state.session_id ~= session_id then
@@ -57,6 +64,7 @@ function ItemSync.init(params)
             state.applied = 0
             state.ids = {}
             state.last_fail_log = 0
+            state.stuck_index = nil
             print(string.format("[SESSION] Item sync: session '%s', applied count reset until the client reports it",
                 tostring(session_id)))
         end
@@ -87,23 +95,37 @@ function ItemSync.init(params)
         return state.session_id, state.applied, #state.ids
     end
 
-    -- Apply what is pending; call periodically. Stops at the first item that cannot be applied yet.
+    -- Apply what is pending; call periodically. Stops at the first item that cannot be applied yet, and gives it up after GIVE_UP_SECONDS.
     function ItemSync.tick()
         if state.session_id == nil then return end
         local progressed = false
         for _, item in ipairs(ItemSync.pending(state.applied, state.ids)) do
             local ok = apply(item.item_id, item.index)
-            if not ok then
-                local now = os.time()
-                if now - state.last_fail_log >= 30 then
-                    state.last_fail_log = now
-                    print(string.format("[WARN] [GAME] Item %d (index %d) not applicable yet; will retry",
-                        item.item_id, item.index))
+            if ok then
+                state.applied = item.index + 1
+                state.stuck_index = nil
+                progressed = true
+            else
+                local t = now()
+                if state.stuck_index ~= item.index then
+                    state.stuck_index = item.index
+                    state.stuck_since = t
                 end
-                break
+                if t - state.stuck_since >= ItemSync.GIVE_UP_SECONDS then
+                    print(string.format("[ERROR] [GAME] Item %d (index %d) could not be applied for %d s: giving it up, so the items after it are not held back",
+                        item.item_id, item.index, ItemSync.GIVE_UP_SECONDS))
+                    state.applied = item.index + 1
+                    state.stuck_index = nil
+                    progressed = true
+                else
+                    if t - state.last_fail_log >= 30 then
+                        state.last_fail_log = t
+                        print(string.format("[WARN] [GAME] Item %d (index %d) not applicable yet; will retry",
+                            item.item_id, item.index))
+                    end
+                    break
+                end
             end
-            state.applied = item.index + 1
-            progressed = true
         end
         if progressed then
             ack(state.applied)

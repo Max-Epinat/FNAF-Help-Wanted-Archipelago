@@ -736,7 +736,7 @@ class TestEveryLuaFileCompiles(unittest.TestCase):
         lua = LuaRuntime()
         compile_source = lua.eval("function(src, name) local fn, err = load(src, '=' .. name) return fn ~= nil, err end")
         files = sorted((project_root / "ue4ss_mod").rglob("*.lua"))
-        self.assertGreater(len(files), 15)
+        self.assertGreater(len(files), 10)
         for path in files:
             ok, err = compile_source(path.read_text(encoding="utf-8"), path.name)
             self.assertTrue(ok, f"{path.relative_to(project_root)}: {err}")

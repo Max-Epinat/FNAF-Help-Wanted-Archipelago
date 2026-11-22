@@ -67,6 +67,10 @@ if ((-not (Test-Path $venvDir)) -or (-not (Test-Path $venvPython))) {
         throw "No usable Python launcher was found. Install Python 3.11+ and ensure either python or py works in PowerShell."
     }
     if (Test-Path $venvDir) {
+        # A broken .venv of THIS repository is recreated. Never delete anything else that merely has that name.
+        if ((Split-Path $venvDir -Leaf) -ne ".venv" -or -not (Test-Path (Join-Path $clientDir "main.py"))) {
+            throw "Refusing to delete '$venvDir': it is not the .venv of this repository."
+        }
         Remove-Item -Path $venvDir -Recurse -Force
     }
 
@@ -77,6 +81,15 @@ if (-not (Test-Path $venvPython)) {
     throw "Virtual environment was created, but $venvPython is missing. Check Python installation and retry."
 }
 
-& $venvPython -m pip install --upgrade pip
-& $venvPython -m pip install -r (Join-Path $clientDir "requirements.txt")
+# Install the dependencies when the venv is new or requirements.txt changed, not at every start (it is slow, needs the network and would
+# pull in new versions behind your back). The hash of the installed requirements is kept inside the venv.
+$requirements = Join-Path $clientDir "requirements.txt"
+$stamp = Join-Path $venvDir "requirements.sha256"
+$wanted = (Get-FileHash -Path $requirements -Algorithm SHA256).Hash
+if ((-not (Test-Path $stamp)) -or ((Get-Content -Path $stamp -Raw).Trim() -ne $wanted)) {
+    Write-Host "Installing the client dependencies..."
+    & $venvPython -m pip install -r $requirements
+    if ($LASTEXITCODE -ne 0) { throw "pip could not install the client dependencies (exit code $LASTEXITCODE)." }
+    Set-Content -Path $stamp -Value $wanted
+}
 & $venvPython (Join-Path $clientDir "main.py")

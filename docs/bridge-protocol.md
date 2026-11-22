@@ -16,13 +16,30 @@ AP server <-websocket-> client --<bridge>/ap_inbox.txt--> Lua mod (game)
   not `ITEMS_...`: the `ITEM` handler matches by its first four characters).
 - **PowerShell `>>` writes UTF-16**, which the mod cannot read (the line is silently ignored). Append from Git Bash
   (`printf 'LINE\n' >> <bridge>/ap_inbox.txt`) or `Add-Content -Encoding ascii`.
-- `ap_inbox.txt` is **append-only and never truncated**, and the mod **re-reads it from the start on every game
+- `ap_inbox.txt` is **append-only while a client runs** (the client compacts it once, at start: see below), and the mod **re-reads it from the start on every game
   launch**. All state sent through it must therefore be safe to replay in order: the last line of each kind wins.
   Since every connect writes a self-contained block (see "Order at every connect") and `SESSION_SYNC` resets what the earlier blocks set, the mod
   replays **only the last block** (from the `CONNECTED` before the last `SESSION_SYNC` on) in that first pass and logs
   `[SYNC] Inbox replay: skipped N line(s)`. Lines appended later are all delivered. A new line kind must keep working under this rule: anything
   that has to survive a launch must be re-sent in every connect block.
-- `ap_outbox.txt` is read by the client from a persisted position (`outbox_position` in the session file).
+  **Compaction (client start, `BridgeIO.compact_inbox`).** Every `ReceivedItems` packet appends a snapshot of the whole item list, so a long session grows the file quadratically. When a client starts (it holds the instance lock, so nothing else writes) it rewrites the inbox as what the mod would end up with anyway: from the last connect block on, without `STATUS` / `PRINT` lines, with only the newest `RECEIVED_SNAPSHOT` and `APPLIED_ITEMS`; nothing is rewritten when that saves less than 4 KB. A mod that is already running sees the file shorter than what it has read, and reads it again from the start **as history** (a `DEATHLINK` in it is not applied twice). The block must keep starting with `CONNECTED` + `SESSION_SYNC`.
+- `ap_outbox.txt` is read by the client from a persisted position (`outbox_position` in the session file). Mods before the bare `CONNECT` put the room
+  password in it (`CONNECT <host> <port> <slot> <password>`), and nothing truncates it: at start the client overwrites those passwords with `*`, in place and
+  with the same length, in the part it has already executed (`BridgeIO.scrub_outbox_passwords`).
+
+## The saved password (standalone client)
+
+The password is **not** in `connection_profile.json`. It is stored encrypted in `connection_secret.dat` as `dpapi:<base64>` (Windows DPAPI, tied to the
+Windows account and to this program: another user or another PC cannot read it; there it is simply asked for again). Only the client reads and writes
+that file. Outside Windows (tests only; the game is Windows only) there is no such store and the value is `plain:<base64>`, which is not encryption.
+
+The Lua panel cannot encrypt, so a password the player sets there (`ap_connect <host> <port> <slot> [password]`) goes to the **drop file**
+`connection_password.txt` (plain text, the exact password, an empty file meaning "no password"). The client encrypts it into the secret file and deletes the drop
+file whenever it reads the profile: at start, and on every bare `CONNECT`. Until a client has run, the drop file is the one place a password is in plain
+text. The panel shows `(saved)` while a secret or a non-empty drop file exists and never shows the password; Backspace on that row forgets it.
+
+A profile from an older version that still has `"password"` is migrated at the next client start (moved into the secret file and removed from the profile).
+If the password cannot be encrypted it is left where it was, with a warning, rather than lost.
 
 ## Client -> mod (`ap_inbox.txt`)
 
@@ -65,6 +82,7 @@ without it, authorization replayed from old inbox history would never be cleared
 | :--- | :--- |
 | `LOCATION_CHECK <id>` / `LOCATION_CHECK_NAME <name>` | A location was earned. |
 | `GOAL` | Goal reached. |
+| `CONNECT` / `DISCONNECT` | (Standalone client only; the launcher client ignores them.) Connect with the saved `connection_profile.json` (read again at every bare `CONNECT`, so what the panel just wrote is used), or drop the connection. The mod writes the profile first and sends a bare `CONNECT`, so **the password never goes through the outbox** (an append-only file nothing truncates) **and never into the profile** (see "The saved password"). `CONNECT <host> <port> <slot> [password]` is still accepted from older mods; a bad port is refused with a `PRINT`. |
 | `SYNC` | Ask the server for the item list (`Sync`). |
 | `SAY <text>` | Chat message. |
 | `DEATHLINK <cause>` | The player died: send a DeathLink (ignored by the client unless DeathLink is enabled for the slot). |
@@ -75,7 +93,7 @@ without it, authorization replayed from old inbox history would never be cleared
 The server's list is the source of truth. The client keeps `applied_item_count` per session (`<bridge>/sessions/<seed>_<slot>.json`;
 sessions saved before the field existed start from their old `next_item_index`). `Scripts/lib/item_sync.lua` applies items
 `applied+1 ..` in order via `ExactHooks.apply_received_item`, stops at the first item that cannot be applied yet (retry every
-second; nothing is skipped), and acknowledges with `ITEMS_APPLIED`. Result (VERIFIED in game): nothing is lost to the startup
+second; nothing is skipped because of the startup race, but an item that still fails after `ItemSync.GIVE_UP_SECONDS` = 5 minutes is given up with an `[ERROR]` line in the log, so one item that can never be applied cannot hold back the items behind it and the acknowledgement for good), and acknowledges with `ITEMS_APPLIED`. Result (VERIFIED in game): nothing is lost to the startup
 race, nothing is applied twice across reconnects or game/client restarts, and a restarted room clamps instead of re-granting.
 
 Known limit: a crash between applying an effect and the client persisting the acknowledgement can re-apply the last item once.

@@ -1,7 +1,6 @@
 import asyncio
 import json
 import os
-import socket
 import sys
 import threading
 import time
@@ -79,9 +78,11 @@ except ImportError:
         format_items_snapshot_line,
     )
 
-BRIDGE_COMMAND_POLL_SECONDS = 0.05
-IPC_PORT = 38424
-
+BRIDGE_COMMAND_POLL_SECONDS = 0.05  # how often run() looks at the game's outbox and the save
+SERVER_WAIT_SECONDS = 1.0  # how long the session loop waits for a server packet before checking whether it was asked to stop
+RECONNECT_DELAYS_SECONDS = (2, 5, 10, 30, 60)  # waits before each new attempt after a lost session; the last one repeats until Disconnect
+RETRY_WAKE_SECONDS = 0.5  # how soon a wait before a new attempt notices Disconnect
+GUI_LOG_MAX_LINES = 2000  # the activity log keeps the newest lines: a session left open for days must not grow without bound
 
 
 class _MainSaveAPI(SaveAPI):
@@ -101,7 +102,7 @@ class _MainSaveAPI(SaveAPI):
 
 
 class APBridgeClient(BridgeCore):
-    """The standalone websockets transport (plus lock, IPC and window) around BridgeCore."""
+    """The standalone websockets transport (plus lock and window) around BridgeCore."""
 
     def __init__(self, bridge_dir: Path):
         self.bridge_dir = bridge_dir
@@ -119,6 +120,7 @@ class APBridgeClient(BridgeCore):
         self.loop: asyncio.AbstractEventLoop | None = None
         self.connect_event = asyncio.Event()
         self.active_session_task: asyncio.Task | None = None
+        self._send_tasks: set[asyncio.Task] = set()
 
         self._update_status(STATUS_DISCONNECTED, message="Idle. Waiting for connection command.")
 
@@ -139,8 +141,14 @@ class APBridgeClient(BridgeCore):
 
     def schedule_command(self, cmd_line: str) -> None:
         if self.loop and self.loop.is_running():
-            asyncio.run_coroutine_threadsafe(self._execute_command(cmd_line), self.loop)
+            future = asyncio.run_coroutine_threadsafe(self._execute_command(cmd_line), self.loop)
+            future.add_done_callback(self._report_command_failure)
 
+    @staticmethod
+    def _report_command_failure(future) -> None:
+        """A command scheduled from the window runs on the client's loop: its failure would otherwise vanish with the future."""
+        if not future.cancelled() and future.exception() is not None:
+            print(f"[AP Client] A command from the window failed: {future.exception()!r}")
 
     def _acquire_single_instance_lock(self) -> None:
         self._instance_lock.acquire()
@@ -162,12 +170,11 @@ class APBridgeClient(BridgeCore):
         if scheme in {"ws", "wss"}:
             return [f"{scheme}://{host}:{port}"]
         if host == "archipelago.gg" or host.endswith(".archipelago.gg"):
-            return [f"wss://{host}:{port}", f"ws://{host}:{port}"]
+            return [f"wss://{host}:{port}"]  # the official host always speaks TLS: never fall back to plaintext (it would carry the password)
         return [f"ws://{host}:{port}", f"wss://{host}:{port}"]
 
     async def run(self) -> None:
         self.loop = asyncio.get_running_loop()
-        ipc_server = await self._start_ipc_server()
         try:
             # If auto_connect is set in profile, trigger connection immediately
             if self.profile.get("auto_connect", False):
@@ -186,44 +193,41 @@ class APBridgeClient(BridgeCore):
 
                 await asyncio.sleep(BRIDGE_COMMAND_POLL_SECONDS)
         finally:
-            if ipc_server:
-                ipc_server.close()
-                await ipc_server.wait_closed()
             self.release_single_instance_lock()
 
-    async def _start_ipc_server(self):
-        try:
-            server = await asyncio.start_server(self._handle_ipc_client, "127.0.0.1", IPC_PORT)
-            print(f"[AP Client] IPC server listening on 127.0.0.1:{IPC_PORT}")
-            return server
-        except Exception as e:
-            print(f"[AP Client] Could not start IPC server (port in use?): {e}")
-            return None
-
-    async def _handle_ipc_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-        try:
-            while not reader.at_eof():
-                line = await reader.readline()
-                if not line:
-                    break
-                text = line.decode("utf-8").strip()
-                if text:
-                    await self._execute_command(text)
-                    writer.write(f"OK {self.status} {self.last_message}\n".encode("utf-8"))
-                    await writer.drain()
-        except Exception:
-            pass
-        finally:
-            writer.close()
-            await writer.wait_closed()
+    _outbox_read_error = ""  # the last read failure that was reported: this runs 20 times a second, so say each one once
 
     async def _poll_outbox(self) -> None:
-        lines = self.bridge.read_outbox_lines(self.state)
+        try:
+            lines = self.bridge.read_outbox_lines(self.state)
+        except Exception as e:  # a file that cannot be read must not end the loop that polls it; try again next time
+            if str(e) != self._outbox_read_error:
+                self._outbox_read_error = str(e)
+                print(f"[WARN] [OUTBOX] Could not read the game's outbox, will try again: {e!r}")
+            return
+        self._outbox_read_error = ""
         if not lines:
             return
         for line in lines:
-            await self._execute_command(line)
+            try:
+                await self._execute_command(line)
+            except Exception as e:  # whatever the game wrote, one bad line must not stop the client (the position is already past it)
+                print(f"[WARN] [OUTBOX] Ignoring '{line[:60]}': {e!r}")
         self.bridge.save_state(self.state, self.location_id_to_name)
+
+    def _apply_endpoint(self, arg: str) -> bool:
+        """`<host> <port> <slot> [password]` into the profile (saved). False, after telling the game, when it is not valid: nothing changes then."""
+        args = arg.split(" ")
+        port = int(args[1]) if len(args) >= 3 and args[1].isascii() and args[1].isdigit() else 0
+        if len(args) < 3 or not args[0] or not 0 < port < 65536:
+            self.bridge.write_inbox_line("PRINT Invalid connection settings, expected: <host> <port 1-65535> <slot> [password]")
+            return False
+        self.profile["server_host"] = args[0]
+        self.profile["server_port"] = port
+        self.profile["slot"] = args[2]
+        self.profile["password"] = args[3] if len(args) > 3 else ""
+        self.bridge.save_profile(self.profile)
+        return True
 
     async def _poll_savegame(self) -> None:
         for packet in self.collect_savegame_packets():
@@ -240,27 +244,22 @@ class APBridgeClient(BridgeCore):
             return
 
         if cmd == "CONNECT":
-            # CONNECT <host> <port> <slot> [password]
-            args = arg.split(" ")
-            if len(args) >= 3:
-                self.profile["server_host"] = args[0]
-                self.profile["server_port"] = int(args[1])
-                self.profile["slot"] = args[2]
-                self.profile["password"] = args[3] if len(args) > 3 else ""
-                self.server_str = f"{self.profile['server_host']}:{self.profile['server_port']}"
-                self.slot = self.profile["slot"]
-                self.bridge.save_profile(self.profile)
-                self.disconnect_requested = True
-                if self.ws:
-                    await self.ws.close()
-                self.connect_event.set()
-                self._update_status(STATUS_CONNECTING, message=f"Connecting to {self.server_str} as {self.slot}...")
+            # CONNECT                                   connect with the saved profile (what the mod and the window send: the password is only ever in
+            #                                           the profile file, never in the outbox, and a slot name may hold spaces)
+            # CONNECT <host> <port> <slot> [password]   older mods: the settings come with the command and are saved first
+            if arg:
+                if not self._apply_endpoint(arg):
+                    return
             else:
-                # Connect using saved profile
-                self.server_str = f"{self.profile['server_host']}:{self.profile['server_port']}"
-                self.slot = self.profile["slot"]
-                self.connect_event.set()
-                self._update_status(STATUS_CONNECTING, message=f"Connecting to {self.server_str}...")
+                # the game panel (or another program) may have rewritten the profile since this client started
+                self.profile = self.bridge.load_profile(fallback=self.profile)
+            self.server_str = f"{self.profile['server_host']}:{self.profile['server_port']}"
+            self.slot = self.profile["slot"]
+            self.disconnect_requested = True
+            if self.ws:
+                await self.ws.close()
+            self.connect_event.set()
+            self._update_status(STATUS_CONNECTING, message=f"Connecting to {self.server_str} as {self.slot}...")
             return
 
         if cmd == "DISCONNECT":
@@ -272,13 +271,7 @@ class APBridgeClient(BridgeCore):
 
         if cmd == "SAVE_PROFILE":
             # SAVE_PROFILE <host> <port> <slot> [password]
-            args = arg.split(" ")
-            if len(args) >= 3:
-                self.profile["server_host"] = args[0]
-                self.profile["server_port"] = int(args[1])
-                self.profile["slot"] = args[2]
-                self.profile["password"] = args[3] if len(args) > 3 else ""
-                self.bridge.save_profile(self.profile)
+            if self._apply_endpoint(arg):
                 self.bridge.write_inbox_line("PRINT Profile saved.")
             return
 
@@ -295,8 +288,40 @@ class APBridgeClient(BridgeCore):
             await self._send_packet(packet)
 
     async def _session_loop(self) -> None:
+        """Connect, and when a session that had started is lost (server restart, network gone) connect again with growing waits.
+
+        Nothing is retried when the user disconnected, when the room refused us, or when no session ever started (a wrong host or
+        slot would only fail the same way again): those stop with the error shown, as before."""
+        failures = 0
+        had_session = False
+        while True:
+            joined = await self._session_once()
+            if self.disconnect_requested:
+                return
+            if joined:
+                had_session = True
+                failures = 0
+            if not had_session:
+                return
+            delay = RECONNECT_DELAYS_SECONDS[min(failures, len(RECONNECT_DELAYS_SECONDS) - 1)]
+            failures += 1
+            self._update_status(STATUS_CONNECTING, message=f"Connection lost. Reconnecting in {delay} s (attempt {failures}); Disconnect stops it.")
+            await self._wait_to_retry(delay)
+            if self.disconnect_requested:  # Disconnect or a new Connect: each has already set its own status
+                return
+
+    async def _wait_to_retry(self, seconds: float) -> None:
+        """Sleep, but notice a Disconnect (or a new Connect) within half a second."""
+        deadline = time.monotonic() + seconds
+        while not self.disconnect_requested and time.monotonic() < deadline:
+            await asyncio.sleep(min(RETRY_WAKE_SECONDS, max(0.0, deadline - time.monotonic())))
+
+    async def _session_once(self) -> bool:
+        """One connection attempt. True when the room accepted us (the session started), whatever happened afterwards."""
         uris = self._build_uris()
         last_exc: Exception | None = None
+        established = False
+        joined = False
 
         for uri in uris:
             if self.disconnect_requested:
@@ -304,19 +329,20 @@ class APBridgeClient(BridgeCore):
             self._update_status(STATUS_CONNECTING, message=f"Connecting to {uri}...")
             try:
                 async with websockets.connect(uri, ping_interval=20, ping_timeout=20, max_size=None) as ws:
+                    established = True
                     self.ws = ws
                     self.last_error = ""
                     self._update_status(STATUS_AUTHENTICATING, message=f"Connected to socket. Authenticating as {self.slot}...")
 
+                    # The game's outbox and the save are polled by run() alone (one poller: two of them could run the commands out of order).
+                    # This loop only waits for the server; the timeout is how soon a refusal or a disconnect request is noticed.
                     while not self.disconnect_requested:
-                        await self._poll_outbox()
-                        await self._poll_savegame()
-
                         try:
-                            payload = await asyncio.wait_for(ws.recv(), timeout=BRIDGE_COMMAND_POLL_SECONDS)
-                            await self._handle_server_payload(payload)
+                            payload = await asyncio.wait_for(ws.recv(), timeout=SERVER_WAIT_SECONDS)
                         except asyncio.TimeoutError:
-                            pass
+                            continue
+                        await self._handle_server_payload(payload)
+                        joined = joined or self.status == STATUS_CONNECTED
 
                 last_exc = None
                 break
@@ -324,12 +350,15 @@ class APBridgeClient(BridgeCore):
                 last_exc = e
                 if not self.disconnect_requested:
                     self._update_status(STATUS_ERROR, error=str(e), message=f"Failed to connect to {uri}: {e}")
+                if established:
+                    break  # the server answered on this scheme: a dropped session is never retried on the other one (it could be plaintext)
 
         self.ws = None
         if self.disconnect_requested:
             self._update_status(STATUS_DISCONNECTED, message="Disconnected.")
         elif last_exc:
             self._update_status(STATUS_ERROR, error=str(last_exc), message=f"Connection failed: {last_exc}")
+        return joined
 
     async def _send_packet(self, packet: dict[str, Any]) -> None:
         if self.ws:
@@ -343,27 +372,45 @@ class APBridgeClient(BridgeCore):
             return
 
         for p in packets:
-            cmd = p.get("cmd")
-            if cmd == "RoomInfo":
-                self.current_seed_name = str(p.get("seed_name", ""))
-                print(f"[AP Client] RoomInfo received: seed_name='{self.current_seed_name}'")
-                await self._send_packet(self.build_connect_packet(str(uuid.uuid4())))
-            elif cmd == "Connected":
-                self._on_connected(p)
-            elif cmd == "ConnectionRefused":
-                self.on_connection_refused(p)
-            elif cmd == "RoomUpdate":
-                self._on_room_update(p)
-            elif cmd == "ReceivedItems":
-                self._on_received_items(p)
-            elif cmd == "PrintJSON":
-                self.on_print(p)
-            elif cmd == "Bounced":
-                self.on_bounced(p)
+            if not isinstance(p, dict):
+                continue
+            try:
+                await self._handle_server_packet(p)
+            except Exception as e:  # one odd packet must not drop the connection
+                print(f"[WARN] [SYNC] Could not handle a {p.get('cmd')!r} packet: {e!r}")
+                if p.get("cmd") == "Connected":  # no half-started session: say so and stop
+                    self._update_status(STATUS_ERROR, error=str(e), message=f"Could not start the session: {e}")
+                    self.disconnect_requested = True
+
+    async def _handle_server_packet(self, p: dict[str, Any]) -> None:
+        cmd = p.get("cmd")
+        if cmd == "RoomInfo":
+            self.current_seed_name = str(p.get("seed_name", ""))
+            print(f"[AP Client] RoomInfo received: seed_name='{self.current_seed_name}'")
+            await self._send_packet(self.build_connect_packet(str(uuid.uuid4())))
+        elif cmd == "Connected":
+            self._on_connected(p)
+        elif cmd == "ConnectionRefused":
+            self.on_connection_refused(p)
+        elif cmd == "RoomUpdate":
+            self._on_room_update(p)
+        elif cmd == "ReceivedItems":
+            self._on_received_items(p)
+        elif cmd == "PrintJSON":
+            self.on_print(p)
+        elif cmd == "Bounced":
+            self.on_bounced(p)
 
     def _on_connected(self, packet: dict[str, Any]) -> None:
         for outgoing in self.on_connected(packet):
-            asyncio.create_task(self._send_packet(outgoing))
+            task = asyncio.create_task(self._send_packet(outgoing))
+            self._send_tasks.add(task)  # asyncio keeps only a weak reference to a task: one nobody holds can vanish before it ends
+            task.add_done_callback(self._send_finished)
+
+    def _send_finished(self, task: asyncio.Task) -> None:
+        self._send_tasks.discard(task)
+        if not task.cancelled() and task.exception() is not None:
+            print(f"[WARN] [SYNC] Could not send to the server: {task.exception()!r}")
 
 
 
@@ -469,15 +516,26 @@ class DesktopGUI:
         self.log("Archipelago Client initialized. Ready to connect.")
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
+    def _post(self, callback) -> None:
+        """Run `callback` on the Tk thread. The client runs on another thread, and once the window is closing Tk refuses the call: that must
+        not raise inside the client."""
+        try:
+            self.root.after(0, callback)
+        except Exception:
+            pass
+
     def log(self, text: str) -> None:
         tstr = time.strftime("[%H:%M:%S] ")
         def _do_log():
             try:
                 self.log_box.insert("end", tstr + text + "\n")
+                excess = int(self.log_box.index("end-1c").split(".")[0]) - 1 - GUI_LOG_MAX_LINES  # "end-1c" is on the empty line after the last newline
+                if excess > 0:
+                    self.log_box.delete("1.0", f"{excess + 1}.0")
                 self.log_box.see("end")
             except Exception:
                 pass
-        self.root.after(0, _do_log)
+        self._post(_do_log)
 
     def update_status(self, status: str, message: str = "") -> None:
         def _do_update():
@@ -502,19 +560,19 @@ class DesktopGUI:
                     self.log(f"Status [{status}]: {message}")
             except Exception:
                 pass
-        self.root.after(0, _do_update)
+        self._post(_do_update)
 
     def update_stats(self) -> None:
         def _do_stats():
             try:
                 chk_count = len(self.client.state.checked_locations)
                 item_count = self.client.received_items_count
-                ids = self.client.seed_location_ids  # the real total of this seed (None: the server gave no list, so 153 as before the toggles)
-                total = len(ids) if ids is not None else 153
+                ids = self.client.seed_location_ids  # the real total of this seed (None: the server gave no list, so 146: every group on)
+                total = len(ids) if ids is not None else 146
                 self.lbl_stats.config(text=f"Checks: {chk_count} / {total} | Items: {item_count}")
             except Exception:
                 pass
-        self.root.after(0, _do_stats)
+        self._post(_do_stats)
 
     def bring_to_front(self) -> None:
         def _do_bring():
@@ -526,7 +584,7 @@ class DesktopGUI:
                 self.root.focus_force()
             except Exception:
                 pass
-        self.root.after(0, _do_bring)
+        self._post(_do_bring)
 
     def on_connect_toggle(self) -> None:
         if self.client.status in (STATUS_CONNECTED, STATUS_CONNECTING, STATUS_AUTHENTICATING):
@@ -549,10 +607,15 @@ class DesktopGUI:
             self.client.profile["auto_connect"] = autoconnect
             self.client.bridge.save_profile(self.client.profile)
 
-            cmd = f"CONNECT {host} {port} {slot} {pwd}".strip()
-            self.client.schedule_command(cmd)
+            self.client.schedule_command("CONNECT")  # the profile was just saved: the password and a slot name with spaces never go through a command line
 
     def on_send_goal(self) -> None:
+        from tkinter import messagebox
+
+        # The goal marks the slot as finished for the whole multiworld and cannot be taken back: never on a single stray click.
+        if not messagebox.askyesno("Send Goal", "Send the goal (victory) to the multiworld?\n\nThis marks your slot as finished and cannot be undone.",
+                                   icon="warning", parent=self.root):
+            return
         self.client.schedule_command("GOAL")
         self.log("Manual Goal packet requested.")
 

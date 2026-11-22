@@ -16,11 +16,14 @@ param(
     [switch]$Normal,
     [switch]$VR,
     [ValidateSet("Launcher", "Standalone", "None")][string]$Client = "Launcher",
-    [string]$ArchipelagoDir = "C:\ProgramData\Archipelago",
+    [string]$ArchipelagoDir = "",
     [switch]$HeadlessBridge
 )
 
 $ErrorActionPreference = "Stop"
+
+# Where Archipelago's own installer puts it, on whatever drive Windows keeps ProgramData (same default as install-mod.ps1).
+if (-not $ArchipelagoDir -and $env:ProgramData) { $ArchipelagoDir = Join-Path $env:ProgramData "Archipelago" }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
@@ -31,8 +34,9 @@ function Find-GameRoot {
     }
 
     $candidates = [System.Collections.Generic.List[string]]::new()
-    $candidates.Add("C:\Program Files (x86)\Steam\steamapps\common\FNAFVRHelpWanted")
-    $candidates.Add("C:\Program Files\Steam\steamapps\common\FNAFVRHelpWanted")
+    foreach ($programFiles in @(${env:ProgramFiles(x86)}, $env:ProgramFiles)) {
+        if ($programFiles) { $candidates.Add((Join-Path $programFiles "Steam\steamapps\common\FNAFVRHelpWanted")) }
+    }
 
     $drives = Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Root
     foreach ($d in $drives) {
@@ -62,7 +66,9 @@ function Find-GameRoot {
         }
     }
 
-    return "C:\Program Files (x86)\Steam\steamapps\common\FNAFVRHelpWanted"
+    # Not found: name the usual place, so the error below says where it looked and how to point at the game.
+    $programFiles = if (${env:ProgramFiles(x86)}) { ${env:ProgramFiles(x86)} } else { $env:ProgramFiles }
+    return (Join-Path $programFiles "Steam\steamapps\common\FNAFVRHelpWanted")
 }
 
 $effectiveGameRoot = Find-GameRoot -RequestedPath $GameRoot
@@ -151,6 +157,10 @@ if ($Client -eq "None") {
             throw "No usable Python launcher found. Please install Python 3.10+ and ensure python or py is in PATH."
         }
         if (Test-Path $venvDir) {
+            # A broken .venv of THIS repository is recreated. Never delete anything else that merely has that name.
+            if ((Split-Path $venvDir -Leaf) -ne ".venv" -or -not (Test-Path (Join-Path $repoRoot "ap_client\main.py"))) {
+                throw "Refusing to delete '$venvDir': it is not the .venv of this repository."
+            }
             Remove-Item -Path $venvDir -Recurse -Force
         }
         & $bootstrap.Exe @($bootstrap.Args + @("-m", "venv", $venvDir))
@@ -219,6 +229,6 @@ if ($Client -eq "Launcher") {
 } elseif ($Client -eq "Standalone") {
     Write-Host "- Archipelago Client window is open on your desktop." -ForegroundColor White
     Write-Host "- Press [F1] in-game anytime to check status, connect, or bring the window to front." -ForegroundColor White
-    Write-Host "- Console commands available: ap_connect, ap_disconnect, ap_status, ap_check_name." -ForegroundColor White
+    Write-Host "- Console commands available: ap_connect, ap_disconnect, ap_status." -ForegroundColor White
 }
 Write-Host "==========================================================" -ForegroundColor Cyan

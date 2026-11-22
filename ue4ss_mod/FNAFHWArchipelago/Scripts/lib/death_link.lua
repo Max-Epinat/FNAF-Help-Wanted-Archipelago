@@ -32,7 +32,8 @@ DeathLink.DEBOUNCE_SECONDS = 3      -- one defeat must not become two deaths
 DeathLink.SUPPRESS_SECONDS = 10     -- after we made the player lose, the defeat that follows is ours, not theirs
 DeathLink.DEFAULT_CAUSE = "lost a level"
 DeathLink.APPLY_COOLDOWN_SECONDS = 10  -- at most one incoming death every this many seconds
-DeathLink.REHOOK_DELAY_MS = 2000       -- how long after the forced defeat the hook goes back
+DeathLink.REHOOK_DELAY_MS = 2000       -- how long after the forced defeat the hook goes back (and between tries)
+DeathLink.REHOOK_ATTEMPTS = 5          -- tries to put it back before giving up
 
 -- The maps of the playable levels (locations.json minus the finale). A test keeps this in sync with that file.
 DeathLink.LEVEL_MAPS = {
@@ -205,10 +206,21 @@ function DeathLink.init(params)
                 print("[ERROR] [DEATHLINK] LevelDefeat failed: " .. tostring(err))
             end
             if was_hooked then
-                later(DeathLink.REHOOK_DELAY_MS, function()
-                    local okh, errh = pcall(register_hook)
-                    if not okh then print("[ERROR] [DEATHLINK] could not hook LevelDefeat again: " .. tostring(errh)) end
-                end)
+                -- The registration loop stopped when the hook first succeeded, so nothing else would ever put it back: a single failed attempt
+                -- here would silently end DeathLink sending for the rest of the session. Try a few times before giving up loudly.
+                local function rehook(attempt)
+                    local okh, result = pcall(register_hook)
+                    if okh and (state.hook_ids ~= nil or state.user_unhooked) then return end  -- hooked again, or the user unhooked it on purpose
+                    if attempt >= DeathLink.REHOOK_ATTEMPTS then
+                        print(string.format("[ERROR] [DEATHLINK] could not hook LevelDefeat again after %d tries (%s): your deaths are NOT sent until the game is restarted",
+                            attempt, tostring(result)))
+                        return
+                    end
+                    print(string.format("[WARN] [DEATHLINK] could not hook LevelDefeat again (try %d of %d): %s", attempt, DeathLink.REHOOK_ATTEMPTS,
+                        tostring(result)))
+                    later(DeathLink.REHOOK_DELAY_MS, function() rehook(attempt + 1) end)
+                end
+                later(DeathLink.REHOOK_DELAY_MS, function() rehook(1) end)
             end
         end)
         return true
@@ -263,6 +275,11 @@ function DeathLink.init(params)
             return true
         end)
 
+    end
+
+    -- Experiment commands act on the game (kill the player, unhook, call game functions): params.debug_commands = false (main.lua without
+    -- enable_debug_commands) leaves them out; not given at all (the tests) registers them.
+    if RegisterConsoleCommandHandler and params.debug_commands ~= false then
         -- Test without a friend: behaves like an incoming death (level only, cooldown), even when DeathLink is off for the slot.
         RegisterConsoleCommandHandler("ap_dl_kill", function()
             local was_enabled = state.enabled

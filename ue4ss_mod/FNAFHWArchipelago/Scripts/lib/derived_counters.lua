@@ -86,10 +86,11 @@ function DerivedCounters.init(params)
         return nil
     end
 
-    local function log_once(key, text)
+    -- The hooks below run every time the UI polls: the message is only built the first time its outcome is seen.
+    local function log_once(key, fmt, ...)
         if not state.logged[key] then
             state.logged[key] = true
-            print(text)
+            print(string.format(fmt, ...))
         end
     end
 
@@ -115,9 +116,9 @@ function DerivedCounters.init(params)
                     result = tostring(want) .. " (returned from the callback)"
                 end
                 -- the UI polls: log each distinct outcome once
-                log_once(counter.def.name .. vanilla .. result, string.format(
+                log_once(counter.def.name .. vanilla .. result,
                     "[GAME] %s observed (%s): extra_args=%d vanilla=%s -> %s",
-                    counter.def.name, short_name(path), args.n, vanilla, result))
+                    counter.def.name, short_name(path), args.n, vanilla, result)
             end)
             if not okc then print("[ERROR] Derived counter hook " .. counter.def.name .. ": " .. tostring(err)) end
             return returned
@@ -216,25 +217,29 @@ function DerivedCounters.init(params)
     end
 
     if RegisterConsoleCommandHandler then
-        RegisterConsoleCommandHandler("ap_counter_force", function(_, a1, a2)
-            local name, value
-            if type(a1) == "table" then name, value = a1[1], a1[2] else name, value = a1, a2 end
-            if not name or not state.counters[name] then
-                print("[WARN] [ARCHI] Usage: ap_counter_force <" .. table.concat(state.order, "|") .. "> <number>|off")
-                return true
-            end
-            if value == nil or value == "off" then
-                self.force(name, nil)
-            else
-                local n = tonumber(value)
-                if not n then
-                    print("[WARN] [ARCHI] Usage: ap_counter_force <name> <number>|off")
-                else
-                    self.force(name, math.floor(n))
+        -- ap_counter_force changes what the game shows: params.debug_commands = false (main.lua without enable_debug_commands) leaves it out;
+        -- not given at all (the tests) registers it.
+        if params.debug_commands ~= false then
+            RegisterConsoleCommandHandler("ap_counter_force", function(_, a1, a2)
+                local name, value
+                if type(a1) == "table" then name, value = a1[1], a1[2] else name, value = a1, a2 end
+                if not name or not state.counters[name] then
+                    print("[WARN] [ARCHI] Usage: ap_counter_force <" .. table.concat(state.order, "|") .. "> <number>|off")
+                    return true
                 end
-            end
-            return true
-        end)
+                if value == nil or value == "off" then
+                    self.force(name, nil)
+                else
+                    local n = tonumber(value)
+                    if not n then
+                        print("[WARN] [ARCHI] Usage: ap_counter_force <name> <number>|off")
+                    else
+                        self.force(name, math.floor(n))
+                    end
+                end
+                return true
+            end)
+        end
         RegisterConsoleCommandHandler("ap_counter_status", function()
             print("[ARCHI] Derived counters: " .. self.status())
             return true

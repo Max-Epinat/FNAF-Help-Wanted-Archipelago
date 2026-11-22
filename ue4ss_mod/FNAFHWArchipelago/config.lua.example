@@ -4,16 +4,15 @@ return {
     -- If configuring manually, give an absolute path with forward slashes to an existing folder.
     bridge_dir = "C:/path/to/the/bridge",
 
-    -- In-game UI toggle key (default F1)
-    ui_key = "F1",
-
-    -- Enable verbose debug logging in UE4SS console
-    debug_logging = true,
-
     -- Developer tools (console commands ap_scan / ap_watch, read-only). Off by default.
     -- enable_research_tools = true,
 
+    -- Debug commands. Off by default, because they change the multiworld and cannot be taken back: ap_check_name / ap_check_id (send any check),
+    -- ap_goal and the F7 key (send the goal), ap_gate_grant / ap_gate_revoke, ap_coin_force, ap_counter_force, ap_dl_kill / ap_dl_call / ap_dl_unhook.
+    -- The status commands (ap_status, ap_diag, ap_gate_status, ...) and the F1 connection panel are always on.
+    -- enable_debug_commands = true,
+
     -- Play the normal game: uncomment to turn the whole mod off (vanilla game, your normal Player00.sav). Restart the game after changing it.
-    -- Re-running install-mod.ps1 rewrites this file, so add the line again after an update.
+    -- Re-running install-mod.ps1 keeps this line (it only updates bridge_dir), and tells you at the end that the mod is off.
     -- archipelago_enabled = false,
 }

@@ -220,14 +220,14 @@ class TestTokenCountIsVanillaWhenTokensAreNotRandomized(RetHelper):
 
 
 class TestConnectionPanelTotal(LuaCase):
-    def test_the_panel_reads_the_real_total_and_keeps_153_without_one(self):
+    def test_the_panel_reads_the_real_total_and_keeps_146_without_one(self):
         source = (LIB / "connection_ui.lua").read_text(encoding="utf-8")
         self.assertIn('"total_count"', source)
-        self.assertNotIn("%d / 153", source)  # no hard-coded total in the drawing code any more
+        self.assertNotIn("%d / 146", source)  # no hard-coded total in the drawing code any more
         module = self.load("connection_ui.lua")
         with tempfile.TemporaryDirectory() as tmp:
             ui = module.init(self.lua.table(bridge_dir=tmp, APBridge=self.lua.table(), mod_dir=tmp))
-            self.assertIn("/ 153", str(module.counter_text()))  # nothing written yet: the old default
+            self.assertIn("/ 146", str(module.counter_text()))  # nothing written yet: the default (every group on)
             (Path(tmp) / "connection_state.json").write_text(
                 '{"status": "CONNECTED", "checked_count": 4, "received_count": 7, "total_count": 50}', encoding="utf-8")
             module.update_state()
@@ -237,6 +237,115 @@ class TestConnectionPanelTotal(LuaCase):
                 '{"status": "CONNECTED", "checked_count": 5, "received_count": 7}', encoding="utf-8")
             module.update_state()
             self.assertIn("5 / 50", str(module.counter_text()))  # a status file without the key keeps the last known total
+
+
+COUNT_FORMATS = """
+    __formats = 0
+    local real_format = string.format
+    string.format = function(...) __formats = __formats + 1 return real_format(...) end
+"""
+
+
+class TestPollingHooksDoNotRebuildTheirLogLine(RetHelper):
+    """The game's UI calls these hooks constantly. Each distinct outcome is logged once; the line must not be built again on every call."""
+
+    def formats(self):
+        return self.lua.globals()["__formats"]
+
+    def observed_lines(self):
+        return [line for line in self.log() if "observed" in str(line)]
+
+    def test_the_tape_count_hook(self):
+        module = self.load("derived_counters.lua")
+        instance = module.init()
+        self.lua.globals()["__loops"][1]()
+        instance.on_session_sync("seed_slot")
+        instance.on_snapshot(",".join(str(TAPE_ITEM + n) for n in range(2)))
+        hook = self.hooks()[GETTER]
+        self.lua.execute(COUNT_FORMATS)
+        self.assertEqual(hook(None), 2)
+        built_for_first_call = self.formats()
+        self.assertEqual(built_for_first_call, 1)
+        for _ in range(200):
+            self.assertEqual(hook(None), 2)
+        self.assertEqual(self.formats(), built_for_first_call)  # nothing built again for the same outcome
+        self.assertEqual(len(self.observed_lines()), 1)
+        instance.on_snapshot(",".join(str(TAPE_ITEM + n) for n in range(3)))  # a new outcome is logged again
+        self.assertEqual(hook(None), 3)
+        self.assertEqual(len(self.observed_lines()), 2)
+
+    def test_the_token_count_hook(self):
+        self.lua.execute("__gi = {PlayerCoins = 3}")
+        module = self.load("faz_tokens.lua")
+        instance = module.init(self.lua.table(game_instance=self.lua.eval("function() return __gi end")))
+        self.lua.globals()["__loops"][1]()
+        instance.on_session_sync("seed_slot")
+        instance.on_snapshot(",".join([str(TOKEN_ITEM)] * 5))
+        hook = self.hooks()[TOTAL_COINS]
+        self.lua.execute(COUNT_FORMATS)
+        ret = self.lua.eval("function() local r = {v = 2} function r:get() return self.v end function r:set(x) self.v = x end return r end")()
+        hook(None, ret)
+        built_for_first_call = self.formats()
+        self.assertGreaterEqual(built_for_first_call, 1)
+        for _ in range(200):
+            ret.v = 2
+            hook(None, ret)
+            self.assertEqual(ret.v, 5)
+        self.assertEqual(self.formats(), built_for_first_call)
+        self.assertEqual(len(self.observed_lines()), 1)
+
+
+class TestPanelStateIsNotReadEveryFrame(LuaCase):
+    def test_the_hud_refresh_is_at_most_twice_a_second(self):
+        module = self.load("connection_ui.lua")
+        with tempfile.TemporaryDirectory() as tmp:
+            module.init(self.lua.table(bridge_dir=tmp, APBridge=self.lua.table(), mod_dir=tmp))
+            state = Path(tmp) / "connection_state.json"
+            state.write_text('{"status": "CONNECTING", "checked_count": 1}', encoding="utf-8")
+            self.assertTrue(module.refresh_state_if_due(10.0))
+            self.assertEqual(str(module.status), "CONNECTING")
+            state.write_text('{"status": "CONNECTED", "checked_count": 2}', encoding="utf-8")
+            for frame in range(1, 30):  # a frame every 16 ms
+                self.assertFalse(module.refresh_state_if_due(10.0 + frame * 0.016))
+            self.assertEqual(str(module.status), "CONNECTING")  # not read again yet
+            self.assertTrue(module.refresh_state_if_due(10.51))
+            self.assertEqual(str(module.status), "CONNECTED")
+            self.assertEqual(module.checked_count, 2)
+
+    def test_a_missing_state_file_is_fine(self):
+        module = self.load("connection_ui.lua")
+        with tempfile.TemporaryDirectory() as tmp:
+            module.init(self.lua.table(bridge_dir=tmp, APBridge=self.lua.table(), mod_dir=tmp))
+            module.update_state()  # no connection_state.json yet: nothing changes, nothing raises
+            self.assertEqual(str(module.status), "DISCONNECTED")
+
+    def test_the_hud_hook_draws_every_row_and_never_the_password(self):
+        module = self.load("connection_ui.lua")
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "connection_secret.dat").write_text("plain:c2VjcmV0", encoding="utf-8")
+            module.init(self.lua.table(bridge_dir=tmp, APBridge=self.lua.table(), mod_dir=tmp))
+            self.lua.execute("""
+                __drawn = {}
+                __canvas = {}
+                function __canvas:IsValid() return true end
+                function __canvas:K2_DrawText(font, text) __drawn[#__drawn + 1] = text end
+                __hud = { Canvas = __canvas }
+            """)
+            hook = self.hooks()["/Script/Engine.HUD:ReceiveDrawHUD"]
+            hook(self.lua.globals()["__hud"], 1920, 1080)
+            self.assertEqual(len(self.lua.globals()["__drawn"]), 0)  # the panel is closed: nothing is drawn
+            module.is_visible = True
+            hook(self.lua.globals()["__hud"], 1920, 1080)  # must not raise
+            drawn = [str(self.lua.globals()["__drawn"][i]) for i in range(1, len(self.lua.globals()["__drawn"]) + 1)]
+            self.assertTrue(any("4. Password" in line and "(saved)" in line for line in drawn), drawn)
+            self.assertFalse(any("secret" in line.lower() and "Password" in line for line in drawn))
+            self.assertTrue(any("Locations Checked" in line for line in drawn))
+
+    def test_the_hud_hook_uses_the_throttled_refresh(self):
+        source = (LIB / "connection_ui.lua").read_text(encoding="utf-8")
+        hook_body = source.split('"/Script/Engine.HUD:ReceiveDrawHUD"', 1)[1]
+        self.assertIn("refresh_state_if_due(os.clock())", hook_body)
+        self.assertNotIn("ConnectionUI.update_state()", hook_body)
 
 
 if __name__ == "__main__":

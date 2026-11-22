@@ -32,6 +32,8 @@ NO_DRIVE_LETTERS = [
     project_root / "ap_client" / "main.py",
     project_root / "scripts" / "generator_check.py",
     project_root / "scripts" / "install-mod.ps1",
+    project_root / "scripts" / "launch-game.ps1",
+    project_root / "scripts" / "run-client.ps1",
     MOD_SOURCE / "Scripts" / "main.lua",
 ]
 DRIVE_PATH = re.compile(r"(?<![A-Za-z])[A-Za-z]:[\\/]")

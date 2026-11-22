@@ -158,32 +158,95 @@ New-Item -Path $targetMod -ItemType Directory -Force | Out-Null
 Get-ChildItem -Path $modSource -Force | Where-Object { $_.Name -ne "config.lua" } |
     ForEach-Object { Copy-Item -Path $_.FullName -Destination $targetMod -Recurse -Force }
 
+# Names of the files under a folder, relative to it, with forward slashes. Built while walking the tree, never by cutting a path prefix off a
+# FullName (a short 8.3 path and a long one name the same folder: the cut would land inside a name, and every file would look stale).
+function Get-RelativeFiles {
+    param([string]$Directory, [string]$Prefix = "")
+    foreach ($item in Get-ChildItem -LiteralPath $Directory -Force) {
+        if ($item.PSIsContainer) { Get-RelativeFiles -Directory $item.FullName -Prefix ($Prefix + $item.Name + "/") }
+        else { $Prefix + $item.Name }
+    }
+}
+
+# A module that an older version installed and this one no longer has (removed or renamed) would stay in Scripts\ for good. Only Scripts\ is
+# judged: it holds code and nothing else. The bridge folder, config.lua and the files the mod writes are never touched.
+$removedScripts = 0
+$sourceScripts = Join-Path $modSource "Scripts"
+$targetScripts = Join-Path $targetMod "Scripts"
+if ((Test-Path $sourceScripts) -and (Test-Path $targetScripts)) {
+    $current = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($relative in @(Get-RelativeFiles -Directory $sourceScripts)) { [void]$current.Add($relative) }
+    if ($current.Count -gt 0) {  # never judge against an empty list
+        foreach ($relative in @(Get-RelativeFiles -Directory $targetScripts)) {
+            if (-not $current.Contains($relative)) {
+                Remove-Item -LiteralPath (Join-Path $targetScripts $relative.Replace("/", "\")) -Force
+                $removedScripts++
+            }
+        }
+    }
+}
+
 New-Item -Path $bridge -ItemType Directory -Force | Out-Null
 $locations = Join-Path $modSource "locations.json"
 if (Test-Path $locations) { Copy-Item -Path $locations -Destination (Join-Path $bridge "locations.json") -Force }
 
+# config.lua is the player's: an update keeps every setting (archipelago_enabled, enable_debug_commands, ...) and only points bridge_dir at the
+# bridge folder of this install. A fresh file is written when there is none, or when it is not a table the mod could read.
 $bridgeLua = $bridge.Replace("\", "/")
-$config = @"
+$bridgeLine = "bridge_dir = `"$bridgeLua`","
+$configPath = Join-Path $targetMod "config.lua"
+$existingConfig = if (Test-Path $configPath) { [System.IO.File]::ReadAllText($configPath) } else { "" }
+$configKept = $false
+if ($existingConfig -match "return\s*\{") {
+    $configKept = $true
+    $bridgeRegex = [regex]'(?m)^([ \t]*)bridge_dir[ \t]*=[ \t]*"[^"]*"[ \t]*,?'
+    if ($bridgeRegex.IsMatch($existingConfig)) {
+        $config = $bridgeRegex.Replace($existingConfig, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $m.Groups[1].Value + $bridgeLine }, 1)
+    } else {
+        $config = ([regex]"return\s*\{").Replace($existingConfig, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $m.Value + "`r`n    " + $bridgeLine }, 1)
+    }
+} else {
+    $config = @"
 return {
     -- Folder shared by the game mod and the Archipelago client (written by install-mod.ps1).
     bridge_dir = "$bridgeLua",
 
-    -- In-game UI toggle key (default F1)
-    ui_key = "F1",
+    -- Debug commands (send any check or the goal, F7, grant a gate, force a count, ...). Off by default, they change the multiworld.
+    -- enable_debug_commands = true,
 
-    -- Verbose debug logging in the UE4SS console
-    debug_logging = true,
+    -- Play the normal game: uncomment to turn the whole mod off. Restart the game after changing it.
+    -- archipelago_enabled = false,
 }
 "@
-[System.IO.File]::WriteAllText((Join-Path $targetMod "config.lua"), $config, (New-Object System.Text.UTF8Encoding($false)))
+}
+[System.IO.File]::WriteAllText($configPath, $config, (New-Object System.Text.UTF8Encoding($false)))
 
+# mods.txt: add the entry once. An entry the player switched off (": 0") is theirs and stays; so does a line that is already ": 1".
 $modsTxt = Join-Path $modsDir "mods.txt"
+$modsTxtOff = $false
 if (-not (Test-Path $modsTxt)) {
     [System.IO.File]::WriteAllText($modsTxt, "FNAFHWArchipelago : 1`r`n")
-} elseif ((Get-Content $modsTxt -Raw) -notmatch "(?m)^\s*FNAFHWArchipelago\s*:\s*1\s*$") {
-    Add-Content -Path $modsTxt -Value "FNAFHWArchipelago : 1"
+} else {
+    $modsText = [System.IO.File]::ReadAllText($modsTxt)
+    if ($modsText -match "(?m)^\s*FNAFHWArchipelago\s*:\s*1\s*$") {
+        # already on
+    } elseif ($modsText -match "(?m)^\s*FNAFHWArchipelago\s*:\s*0\s*$") {
+        $modsTxtOff = $true
+    } else {
+        # a last line without a line break would swallow the new entry ("SomeMod : 1FNAFHWArchipelago : 1")
+        $separator = if ($modsText.Length -eq 0 -or $modsText.EndsWith("`n")) { "" } else { "`r`n" }
+        [System.IO.File]::AppendAllText($modsTxt, $separator + "FNAFHWArchipelago : 1`r`n")
+    }
 }
 Write-Status "Mod installed" $true $targetMod
+Write-Status "config.lua" $true $(if ($configKept) { "your settings were kept, only bridge_dir was updated" } else { "written" })
+if ($removedScripts -gt 0) { Write-Status "Old files" $true "$removedScripts file(s) of a previous version removed from Scripts\" }
+if ($config -match "(?m)^[ \t]*archipelago_enabled[ \t]*=[ \t]*false") {
+    Write-Host "NOTE: archipelago_enabled = false is set in config.lua, so the mod is switched OFF (you chose that earlier). Remove that line to play Archipelago." -ForegroundColor Yellow
+}
+if ($modsTxtOff) {
+    Write-Host "NOTE: mods.txt has 'FNAFHWArchipelago : 0', so the mod is switched OFF (you chose that earlier). Change it to 1 to play Archipelago." -ForegroundColor Yellow
+}
 Write-Status "Bridge folder" $true $bridge
 
 # ---- the apworld

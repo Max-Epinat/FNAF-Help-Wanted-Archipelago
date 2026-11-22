@@ -56,10 +56,11 @@ function FazTokens.init(params)
         return nil
     end
 
-    local function log_once(key, text)
+    -- The hooks below run every time the UI polls: the message is only built the first time its outcome is seen.
+    local function log_once(key, fmt, ...)
         if not state.logged[key] then
             state.logged[key] = true
-            print(text)
+            print(string.format(fmt, ...))
         end
     end
 
@@ -84,8 +85,8 @@ function FazTokens.init(params)
                     result = tostring(want)
                 end
                 -- the UI polls: log each distinct outcome once
-                log_once(target.name .. vanilla .. result, string.format(
-                    "[GAME] %s observed: extra_args=%d vanilla=%s -> %s", target.name, n, vanilla, result))
+                log_once(target.name .. vanilla .. result,
+                    "[GAME] %s observed: extra_args=%d vanilla=%s -> %s", target.name, n, vanilla, result)
             end)
             if not okc then print("[ERROR] Faz token hook " .. target.name .. ": " .. tostring(err)) end
         end)
@@ -202,20 +203,24 @@ function FazTokens.init(params)
     end
 
     if RegisterConsoleCommandHandler then
-        RegisterConsoleCommandHandler("ap_coin_force", function(_, a1)
-            local word = type(a1) == "table" and a1[1] or a1
-            if word == nil or word == "off" then
-                FazTokens.force(nil)
-            else
-                local n = tonumber(word)
-                if not n then
-                    print("[WARN] [ARCHI] Usage: ap_coin_force <number>|off")
+        -- ap_coin_force changes what the game shows and unlocks: params.debug_commands = false (main.lua without enable_debug_commands) leaves it
+        -- out; not given at all (the tests) registers it.
+        if params.debug_commands ~= false then
+            RegisterConsoleCommandHandler("ap_coin_force", function(_, a1)
+                local word = type(a1) == "table" and a1[1] or a1
+                if word == nil or word == "off" then
+                    FazTokens.force(nil)
                 else
-                    FazTokens.force(math.floor(n))
+                    local n = tonumber(word)
+                    if not n then
+                        print("[WARN] [ARCHI] Usage: ap_coin_force <number>|off")
+                    else
+                        FazTokens.force(math.floor(n))
+                    end
                 end
-            end
-            return true
-        end)
+                return true
+            end)
+        end
         RegisterConsoleCommandHandler("ap_coin_status", function()
             print("[ARCHI] Faz tokens: " .. FazTokens.status())
             return true

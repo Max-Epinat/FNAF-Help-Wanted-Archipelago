@@ -53,6 +53,11 @@ if user_config.archipelago_enabled == false then
     return
 end
 
+-- Debug commands: everything that changes the multiworld or the game by hand (send any check or the goal, grant a gate, force a coin or tape
+-- count, kill the player, F7 = goal). Off unless config.lua says enable_debug_commands = true: one stray key press or typed command must not
+-- finish a slot or hand out checks, which cannot be taken back. The read-only status commands do not depend on it.
+local debug_commands = user_config.enable_debug_commands == true
+
 if not bridge_dir or bridge_dir == "" or not file_exists(bridge_dir .. "/locations.json") then
     -- Check common relative locations or fallback
     local fallback_candidates = {
@@ -80,6 +85,11 @@ local inbox_path  = bridge_dir .. "/ap_inbox.txt"
 print("[FNAFHW AP] Initializing Archipelago Mod v2.0...")
 print("[FNAFHW AP] Mod Directory   : " .. mod_dir)
 print("[FNAFHW AP] Bridge Directory: " .. bridge_dir)
+if debug_commands then
+    print("[ARCHI] Debug commands are ON (enable_debug_commands = true in config.lua): ap_check_name, ap_check_id, ap_goal, F7, ap_gate_grant, ap_coin_force, ...")
+else
+    print("[ARCHI] Debug commands are off (enable_debug_commands is not set in config.lua)")
+end
 
 -- Load Locations Data
 local locations_data = dofile(mod_dir .. "/Scripts/lib/locations_data.lua")
@@ -179,13 +189,12 @@ exact_hooks = exact_hooks_builder.init({
     locations_data = locations_data,
     emitted_location_names = emitted_location_names,
     baseline_location_names = bridge_io.baseline_location_names,
-    mod_dir = mod_dir,
     game_instance = game_thread.game_instance,
 })
 
 -- Archipelago authority over vanilla level unlocks (FNAF 1 Night 2 first)
 local level_gate_ok, level_gate_or_err = pcall(function()
-    return dofile(mod_dir .. "/Scripts/lib/level_gate.lua").init({ every = game_thread.every })
+    return dofile(mod_dir .. "/Scripts/lib/level_gate.lua").init({ every = game_thread.every, debug_commands = debug_commands })
 end)
 if level_gate_ok then
     level_gate = level_gate_or_err
@@ -198,6 +207,7 @@ local death_link_ok, death_link_or_err = pcall(function()
     return dofile(mod_dir .. "/Scripts/lib/death_link.lua").init({
         every = game_thread.every,
         game_instance = game_thread.game_instance,
+        debug_commands = debug_commands,
         send = function(cause) APBridge.send_deathlink(cause) end,
         current_map = function()
             if not exact_hooks or not exact_hooks.current_map_name then return "" end
@@ -229,6 +239,7 @@ local faz_ok, faz_or_err = pcall(function()
     return dofile(mod_dir .. "/Scripts/lib/faz_tokens.lua").init({
         every = game_thread.every,
         game_instance = game_thread.game_instance,
+        debug_commands = debug_commands,
     })
 end)
 if faz_ok then
@@ -239,7 +250,7 @@ end
 
 -- Counters the game shows, derived from the items received (the tape count = how many of the 16 tape items arrived), see lib/derived_counters.lua
 local counters_ok, counters_or_err = pcall(function()
-    return dofile(mod_dir .. "/Scripts/lib/derived_counters.lua").init({ every = game_thread.every })
+    return dofile(mod_dir .. "/Scripts/lib/derived_counters.lua").init({ every = game_thread.every, debug_commands = debug_commands })
 end)
 if counters_ok then
     derived_counters = counters_or_err
@@ -297,27 +308,29 @@ if RegisterConsoleCommandHandler then
         return arg ~= nil and tostring(arg) or ""
     end
 
-    RegisterConsoleCommandHandler("ap_check_name", function(full_cmd, location_name)
-        local name = console_arg_string(location_name)
-        if name ~= "" then
-            APBridge.send_location_check_name(name)
-            print("[FNAFHW AP] Manual check requested: " .. name)
-            return true
-        end
-        print("[FNAFHW AP] Usage: ap_check_name <Exact Location Name>")
-        return false
-    end)
+    if debug_commands then
+        RegisterConsoleCommandHandler("ap_check_name", function(full_cmd, location_name)
+            local name = console_arg_string(location_name)
+            if name ~= "" then
+                APBridge.send_location_check_name(name)
+                print("[FNAFHW AP] Manual check requested: " .. name)
+                return true
+            end
+            print("[FNAFHW AP] Usage: ap_check_name <Exact Location Name>")
+            return false
+        end)
 
-    RegisterConsoleCommandHandler("ap_check_id", function(full_cmd, location_id)
-        local id_num = tonumber(console_arg_string(location_id))
-        if id_num then
-            APBridge.send_location_check(id_num)
-            print("[FNAFHW AP] Manual check requested: " .. tostring(id_num))
-            return true
-        end
-        print("[FNAFHW AP] Usage: ap_check_id <Numeric Location ID>")
-        return false
-    end)
+        RegisterConsoleCommandHandler("ap_check_id", function(full_cmd, location_id)
+            local id_num = tonumber(console_arg_string(location_id))
+            if id_num then
+                APBridge.send_location_check(id_num)
+                print("[FNAFHW AP] Manual check requested: " .. tostring(id_num))
+                return true
+            end
+            print("[FNAFHW AP] Usage: ap_check_id <Numeric Location ID>")
+            return false
+        end)
+    end
 
     RegisterConsoleCommandHandler("ap_items_status", function()
         if item_sync then
@@ -335,11 +348,13 @@ if RegisterConsoleCommandHandler then
         return true
     end)
 
-    RegisterConsoleCommandHandler("ap_goal", function()
-        APBridge.send_goal()
-        print("[FNAFHW AP] Manual goal status sent")
-        return true
-    end)
+    if debug_commands then
+        RegisterConsoleCommandHandler("ap_goal", function()
+            APBridge.send_goal()
+            print("[FNAFHW AP] Manual goal status sent")
+            return true
+        end)
+    end
 
     RegisterConsoleCommandHandler("ap_sync", function()
         APBridge.sync()
@@ -348,8 +363,8 @@ if RegisterConsoleCommandHandler then
     end)
 end
 
--- Keybinds (F1 for Connection UI, F7 for Goal test)
-if RegisterKeyBind and Key then
+-- Keybinds: F1 (connection panel, in connection_ui.lua) needs no flag; F7 sends the goal and only exists with enable_debug_commands
+if debug_commands and RegisterKeyBind and Key then
     RegisterKeyBind(Key.F7, function()
         APBridge.send_goal()
         print("[FNAFHW AP] Sent test goal")

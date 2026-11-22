@@ -459,10 +459,11 @@ class TestUndetectablePrizes(unittest.TestCase):
         self.assertEqual(active - created, set(data.NEVER_SENT_CHECKS) | (set(data.GOAL_CHECKS) - {data.GOAL_COMPLETE_ALL_MINIGAMES, data.GOAL_GLITCHTRAP_SURVIVE}))
 
     def test_the_location_counters_in_the_two_interfaces_match(self):
-        """Both interfaces show the real total of the seed (location groups can be off); 153 is only their default when none is known."""
+        """Both interfaces show the real total of the seed (location groups can be off); 146 (a full seed: every group on, the default goal) is only their default when none is known."""
         for path in ("ap_client/main.py", "ue4ss_mod/FNAFHWArchipelago/Scripts/lib/connection_ui.lua"):
             text = (project_root / path).read_text(encoding="utf-8")
-            self.assertIn(str(data.ACTIVE_LOCATION_COUNT), text, path)
+            self.assertIn("146", text, path)
+            self.assertNotIn("153", text, path)
             self.assertNotIn("177", text, path)
 
 

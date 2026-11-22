@@ -59,4 +59,5 @@ component (guarded) and imports `client.py` lazily, so generation never loads th
 The first live run used `ctx.seed_name`, which is not set when `Connected` arrives, so the core fell back to the id `unknown_seed_HWtest`,
 treated it as a new seed, archived the player's `Playerarchi.sav` and created a fresh one. Nothing was lost (the archive was copied back,
 byte-identical, hash checked), but the lesson is encoded in tests: the seed comes from `RoomInfo`, and without one nothing is started and no
-save is touched. Back up saves and session files before any live test of a new client.
+save is touched. Since 2026-11-01 the shared core itself refuses (`BridgeCore.on_connected` sets an `ERROR` status and starts no session), so the
+standalone client no longer has an `unknown_seed` fallback either. Back up saves and session files before any live test of a new client.

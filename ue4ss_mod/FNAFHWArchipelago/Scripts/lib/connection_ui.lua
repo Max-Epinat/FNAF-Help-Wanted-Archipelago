@@ -53,7 +53,13 @@ function ConnectionUI.init(params)
     ConnectionUI.status_msg = "Press F1 to open connection menu"
     ConnectionUI.checked_count = 0
     ConnectionUI.received_count = 0
-    ConnectionUI.total_count = 153 -- every group randomized; the client writes the real total of the seed into connection_state.json
+    ConnectionUI.total_count = 146 -- every group randomized; the client writes the real total of the seed into connection_state.json
+
+    -- What the password row shows: asterisks for one set in this panel, "(saved)" for one the client keeps, else "(none)".
+    function ConnectionUI.password_text()
+        if ConnectionUI.fields.password ~= "" then return string.rep("*", #ConnectionUI.fields.password) end
+        return ConnectionUI.password_saved and "(saved)" or "(none)"
+    end
 
     -- "Locations Checked: 4 / 50   |   Items Received: 7"
     function ConnectionUI.counter_text()
@@ -61,31 +67,85 @@ function ConnectionUI.init(params)
             ConnectionUI.checked_count, ConnectionUI.total_count, ConnectionUI.received_count)
     end
 
-    -- Simple JSON string decoder for key-value pairs
+    -- JSON string literal of `text`: quotes, backslashes and control characters are escaped, so a password like  a"b  cannot break the file.
+    local function json_string(text)
+        local escaped = tostring(text):gsub('[%c"\\]', function(c)
+            local named = { ['"'] = '\\"', ["\\"] = "\\\\", ["\n"] = "\\n", ["\r"] = "\\r", ["\t"] = "\\t" }
+            return named[c] or string.format("\\u%04x", c:byte())
+        end)
+        return '"' .. escaped .. '"'
+    end
+
+    -- The string value of `"key": "..."` in a JSON text, unescaped (what json.dumps in the client wrote, \uXXXX included), or nil.
+    local function json_string_field(content, key)
+        local i = content:match('"' .. key .. '"%s*:%s*"()')
+        if not i then return nil end
+        local out = {}
+        local single = { n = "\n", r = "\r", t = "\t", b = "\b", f = "\f" }
+        while i <= #content do
+            local c = content:sub(i, i)
+            if c == '"' then return table.concat(out) end
+            if c == "\\" then
+                local nxt = content:sub(i + 1, i + 1)
+                if nxt == "u" then
+                    local code = tonumber(content:sub(i + 2, i + 5), 16)
+                    out[#out + 1] = code and (utf8 and utf8.char(code) or "?") or "?"
+                    i = i + 6
+                else
+                    out[#out + 1] = single[nxt] or nxt
+                    i = i + 2
+                end
+            else
+                out[#out + 1] = c
+                i = i + 1
+            end
+        end
+        return nil  -- unterminated string: the file is cut off
+    end
+
+    -- The password is never in the profile. The client keeps it encrypted (connection_secret.dat); this panel cannot encrypt, so a password the
+    -- player sets here goes into the drop file, which the client encrypts and deletes as soon as it reads the profile.
+    local secret_path = bridge_dir .. "/connection_secret.dat"
+    local password_drop_path = bridge_dir .. "/connection_password.txt"
+    ConnectionUI.password_dirty = false  -- the player set (or cleared) the password in this panel and it is not handed over yet
+
+    -- true when a password is stored (or on its way): the panel then shows "(saved)" instead of "(none)". An empty drop file is a cleared password.
+    ConnectionUI.password_saved = false
+    local function password_is_saved()
+        local pending = read_file(password_drop_path)
+        if pending ~= nil then return pending ~= "" end
+        return file_exists(secret_path)
+    end
+    ConnectionUI.password_saved = password_is_saved()
+
     local function parse_profile(content)
         if not content then return end
-        local host = content:match('"server_host"%s*:%s*"([^"]+)"')
+        local host = json_string_field(content, "server_host")
         local port = content:match('"server_port"%s*:%s*(%d+)')
-        local slot = content:match('"slot"%s*:%s*"([^"]+)"')
-        local pwd  = content:match('"password"%s*:%s*"([^"]*)"')
+        local slot = json_string_field(content, "slot")
 
         if host and host ~= "" then ConnectionUI.fields.host = host end
         if port and port ~= "" then ConnectionUI.fields.port = tostring(port) end
         if slot and slot ~= "" then ConnectionUI.fields.slot = slot end
-        if pwd then ConnectionUI.fields.password = pwd end
+        -- a password in an old profile is left for the client to move into its encrypted store; it is not read here
     end
 
     local function save_profile()
         local json_str = string.format([[
 {
-  "server_host": "%s",
+  "server_host": %s,
   "server_port": %d,
-  "slot": "%s",
-  "password": "%s",
+  "slot": %s,
   "auto_connect": true
 }
-]], ConnectionUI.fields.host, tonumber(ConnectionUI.fields.port) or 38281, ConnectionUI.fields.slot, ConnectionUI.fields.password)
+]], json_string(ConnectionUI.fields.host), tonumber(ConnectionUI.fields.port) or 38281, json_string(ConnectionUI.fields.slot))
         write_file(profile_path, json_str)
+        if ConnectionUI.password_dirty then
+            write_file(password_drop_path, ConnectionUI.fields.password)  -- an empty file means "no password"
+            ConnectionUI.password_dirty = false
+            ConnectionUI.fields.password = ""  -- not kept here once it is handed over
+            ConnectionUI.password_saved = password_is_saved()
+        end
         print("[FNAFHW AP] Saved connection profile to " .. profile_path)
     end
 
@@ -113,13 +173,9 @@ function ConnectionUI.init(params)
         save_profile()
         ConnectionUI.status = "CONNECTING"
         ConnectionUI.status_msg = "Connecting to " .. ConnectionUI.fields.host .. ":" .. ConnectionUI.fields.port .. "..."
-        local cmd = string.format("CONNECT %s %s %s %s",
-            ConnectionUI.fields.host,
-            ConnectionUI.fields.port,
-            ConnectionUI.fields.slot,
-            ConnectionUI.fields.password
-        )
-        APBridge.append_outbox(cmd)
+        -- Settings go through the profile file written just above, never through the command: the outbox is an append-only file that nothing
+        -- truncates, so a password put there would stay in it for good. A client that predates this still gets what it needs from the profile.
+        APBridge.append_outbox("CONNECT")
         print_screen("[Archipelago] Connecting to " .. ConnectionUI.fields.host .. ":" .. ConnectionUI.fields.port .. " as " .. ConnectionUI.fields.slot, {R=0.2, G=0.8, B=1.0, A=1.0}, 5.0)
     end
 
@@ -157,22 +213,31 @@ function ConnectionUI.init(params)
 
     -- Read live connection state from bridge
     function ConnectionUI.update_state()
-        if file_exists(state_path) then
-            local raw = read_file(state_path)
-            if raw then
-                local st = raw:match('"status"%s*:%s*"([^"]+)"')
-                local msg = raw:match('"last_message"%s*:%s*"([^"]+)"')
-                local chk = raw:match('"checked_count"%s*:%s*(%d+)')
-                local rcv = raw:match('"received_count"%s*:%s*(%d+)')
-                local total = raw:match('"total_count"%s*:%s*(%d+)')
+        ConnectionUI.password_saved = password_is_saved()
+        local raw = read_file(state_path)  -- nil when the client has not written it yet
+        if raw then
+            local st = raw:match('"status"%s*:%s*"([^"]+)"')
+            local msg = raw:match('"last_message"%s*:%s*"([^"]+)"')
+            local chk = raw:match('"checked_count"%s*:%s*(%d+)')
+            local rcv = raw:match('"received_count"%s*:%s*(%d+)')
+            local total = raw:match('"total_count"%s*:%s*(%d+)')
 
-                if st then ConnectionUI.status = st end
-                if msg then ConnectionUI.status_msg = msg end
-                if chk then ConnectionUI.checked_count = tonumber(chk) or 0 end
-                if rcv then ConnectionUI.received_count = tonumber(rcv) or 0 end
-                if total then ConnectionUI.total_count = tonumber(total) or ConnectionUI.total_count end
-            end
+            if st then ConnectionUI.status = st end
+            if msg then ConnectionUI.status_msg = msg end
+            if chk then ConnectionUI.checked_count = tonumber(chk) or 0 end
+            if rcv then ConnectionUI.received_count = tonumber(rcv) or 0 end
+            if total then ConnectionUI.total_count = tonumber(total) or ConnectionUI.total_count end
         end
+    end
+
+    -- The HUD hook runs every frame while the panel is open; the client rewrites the state file at most a few times a second.
+    local STATE_REFRESH_SECONDS = 0.5
+    local last_state_refresh = nil
+    function ConnectionUI.refresh_state_if_due(now)
+        if last_state_refresh and now - last_state_refresh < STATE_REFRESH_SECONDS then return false end
+        last_state_refresh = now
+        ConnectionUI.update_state()
+        return true
     end
 
     -- Register console commands
@@ -185,16 +250,24 @@ function ConnectionUI.init(params)
             ConnectionUI.toggle()
             return true
         end)
-        RegisterConsoleCommandHandler("ap_connect", function(full_cmd, params_str)
+        RegisterConsoleCommandHandler("ap_connect", function(full_cmd, params)
+            -- UE4SS hands the parameters over as a table of words (empty for a bare command); a string is accepted too
             local parts = {}
-            for w in string.gmatch(params_str or "", "%S+") do
-                table.insert(parts, w)
+            if type(params) == "table" then
+                for _, w in ipairs(params) do
+                    table.insert(parts, tostring(w))
+                end
+            else
+                for w in string.gmatch(params or "", "%S+") do
+                    table.insert(parts, w)
+                end
             end
             if #parts >= 3 then
                 ConnectionUI.fields.host = parts[1]
                 ConnectionUI.fields.port = parts[2]
                 ConnectionUI.fields.slot = parts[3]
-                ConnectionUI.fields.password = parts[4] or ""
+                ConnectionUI.fields.password = parts[4] or ""  -- the full form sets the password, so leaving it out means none
+                ConnectionUI.password_dirty = true
             end
             ConnectionUI.connect()
             return true
@@ -248,6 +321,10 @@ function ConnectionUI.init(params)
             local f = key_map[ConnectionUI.selected_index]
             if f and #ConnectionUI.fields[f] > 0 then
                 ConnectionUI.fields[f] = ConnectionUI.fields[f]:sub(1, -2)
+                if f == "password" then ConnectionUI.password_dirty = true end
+            elseif f == "password" and ConnectionUI.password_saved then
+                ConnectionUI.password_dirty = true  -- Backspace on the "(saved)" row forgets the saved password at the next connect
+                ConnectionUI.password_saved = false
             end
         end)
 
@@ -276,7 +353,7 @@ function ConnectionUI.init(params)
                 if ok and f and f:IsValid() then cached_font = f end
             end
 
-            ConnectionUI.update_state()
+            ConnectionUI.refresh_state_if_due(os.clock())
 
             local x = 60.0
             local y = 60.0
@@ -324,7 +401,7 @@ function ConnectionUI.init(params)
                 { label = "1. Server Host : ", val = ConnectionUI.fields.host },
                 { label = "2. Server Port : ", val = ConnectionUI.fields.port },
                 { label = "3. Player Slot : ", val = ConnectionUI.fields.slot },
-                { label = "4. Password    : ", val = (ConnectionUI.fields.password == "" and "(none)" or string.rep("*", #ConnectionUI.fields.password)) },
+                { label = "4. Password    : ", val = ConnectionUI.password_text() },
                 { label = "5. [ CLICK TO CONNECT / DISCONNECT ]", val = "" },
             }
 

@@ -77,6 +77,7 @@ class FNAFHWContext(CommonContext):
         self.instance_lock: InstanceLock | None = None
         self.bridge_error = ""
         self._room_seed = ""  # from RoomInfo: the session id is seed + slot, so it must never be guessed
+        self._send_tasks: set[asyncio.Task] = set()  # asyncio keeps only a weak reference to a task: one nobody holds can vanish before it ends
         self._open_bridge()
 
     # -- bridge setup --
@@ -112,7 +113,14 @@ class FNAFHWContext(CommonContext):
 
     def _send(self, packets: list[dict[str, typing.Any]]) -> None:
         if packets:
-            asyncio.create_task(self.send_msgs(packets))
+            task = asyncio.create_task(self.send_msgs(packets))
+            self._send_tasks.add(task)
+            task.add_done_callback(self._send_finished)
+
+    def _send_finished(self, task: "asyncio.Task") -> None:
+        self._send_tasks.discard(task)
+        if not task.cancelled() and task.exception() is not None:  # reading it also marks it as seen: no "never retrieved" noise at exit
+            logger.warning(f"FNAF Help Wanted: could not send to the server: {task.exception()!r}")
 
     # -- Archipelago callbacks --
 

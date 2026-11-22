@@ -261,8 +261,15 @@ return function(env)
         end
 
         -- the inbox is append-only and read from the start at every game launch: the first pass is history
-        local is_replay = not first_poll_done
         local size = f:seek("end")
+        -- A client that starts while the game runs compacts the file (it keeps the last connect block only, see BridgeIO.compact_inbox): the file is
+        -- then SHORTER than what was read. Read it again from the start, as history (a death in it must not hit the player a second time).
+        local shrunk = first_poll_done and size < inbox_position
+        if shrunk then
+            print(string.format("[SYNC] The inbox was compacted by the client (%d bytes, was read up to %d): reading it again from the start", size, inbox_position))
+            inbox_position = 0
+        end
+        local is_replay = not first_poll_done or shrunk
         if not is_replay and size == inbox_position then
             f:close()
             return

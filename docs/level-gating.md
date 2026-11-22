@@ -44,7 +44,7 @@ The first FNAF 1 night list asks `IsLevelUnlocked` for rows 4, 5, 6, 7 (`LevelID
 
 | Command | Effect |
 | :--- | :--- |
-| `ap_gate_grant [GATE]` | Debug-authorize a gate (default `FNAF1_NIGHT2`). Cleared when the session id changes. |
+| `ap_gate_grant [GATE]` | Debug-authorize a gate (default `FNAF1_NIGHT2`). Cleared when the session id changes. Needs `enable_debug_commands = true` in `config.lua`. |
 | `ap_gate_revoke [GATE]` | Remove a debug grant. |
 | `ap_gate_status` | Session, item count, item-derived and debug authorizations. |
 | `ap_items_status` | Item sync: session, applied count, received count. |

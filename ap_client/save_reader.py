@@ -162,22 +162,73 @@ DEFAULT_PRIZE_MAP: dict[str, str] = {
 }
 
 
+class GvasError(ValueError):
+    """The bytes are not a save this reader can walk: truncated, or a length or count that points outside the file."""
+
+
+# A real save is about 15 KB. Nothing is read from a file far beyond that.
+MAX_SAVE_BYTES = 16 * 1024 * 1024
+# Property names, type names and the inner types of arrays and sets are short; anything longer is garbage, not a name.
+MAX_NAME_BYTES = 1000
+
+
+def _take(data: bytes, pos: int, size: int, what: str) -> bytes:
+    """`size` bytes at `pos`, or GvasError when they are not all inside the file."""
+    if pos < 0 or size < 0 or pos + size > len(data):
+        raise GvasError(f"{what}: {size} byte(s) at offset {pos} are outside the {len(data)}-byte save")
+    return data[pos:pos + size]
+
+
+def _i32(data: bytes, pos: int, what: str) -> int:
+    return struct.unpack("<i", _take(data, pos, 4, what))[0]
+
+
+def _u32(data: bytes, pos: int, what: str) -> int:
+    return struct.unpack("<I", _take(data, pos, 4, what))[0]
+
+
+def _read_fstring(data: bytes, pos: int, what: str) -> tuple[str, int]:
+    """An Unreal FString at `pos`: (text, offset after it). A positive length is Latin-1 bytes with a trailing NUL, a negative one is UTF-16."""
+    length = _i32(data, pos, what)
+    pos += 4
+    if length == 0:
+        return "", pos
+    if length > 0:
+        return _take(data, pos, length, what).decode("latin-1").rstrip("\x00"), pos + length
+    size = -length * 2
+    return _take(data, pos, size, what).decode("utf-16-le", errors="replace").rstrip("\x00"), pos + size
+
+
+def _name_length(data: bytes, pos: int, what: str) -> int:
+    """The length prefix of a type name: a small positive number, else the data is not what the walk thinks it is."""
+    length = _i32(data, pos, what)
+    if not 0 <= length <= MAX_NAME_BYTES:
+        raise GvasError(f"{what}: implausible length {length} at offset {pos}")
+    return length
+
+
+def _skip_header(data: bytes) -> int:
+    """Offset of the first property: after the magic, versions, engine version, build id, custom versions and the class name."""
+    pos = 4 + 4 + 4 + 6 + 4
+    pos += 4 + _u32(data, pos, "build id length")
+    pos += 4  # custom version format
+    pos += 4 + _u32(data, pos, "custom version count") * 20
+    pos += 4 + _u32(data, pos, "class name length")
+    return pos
+
+
 def parse_gvas_save(data: bytes) -> dict[str, Any]:
-    """Parse UE4.23 GVAS savegame binary into a dictionary of properties."""
+    """Parse UE4.23 GVAS savegame binary into a dictionary of properties.
+
+    Returns {} for something that is not a GVAS file. Raises GvasError for a save that is cut off or whose lengths and counts point outside
+    it (a half-written or corrupt file): the caller tries again later instead of working from half a save.
+    """
     if len(data) < 24 or data[:4] != b"GVAS":
         return {}
+    if len(data) > MAX_SAVE_BYTES:
+        raise GvasError(f"{len(data)} bytes is far more than a save")
 
-    pos = 4  # skip 'GVAS'
-    # save_version (4), pkg_version (4), engine_version (6), engine_build (4)
-    pos += 4 + 4 + 6 + 4
-    # custom_format_id (4), custom_count (4)
-    build_id_len = struct.unpack("<I", data[pos:pos + 4])[0]
-    pos += 4 + build_id_len
-    pos += 4  # custom format
-    custom_count = struct.unpack("<I", data[pos:pos + 4])[0]
-    pos += 4 + custom_count * 20
-    class_len = struct.unpack("<I", data[pos:pos + 4])[0]
-    pos += 4 + class_len
+    pos = _skip_header(data)
 
     parsed: dict[str, Any] = {}
     while pos < len(data):
@@ -185,7 +236,7 @@ def parse_gvas_save(data: bytes) -> dict[str, Any]:
             break
         name_len = struct.unpack("<i", data[pos:pos + 4])[0]
         pos += 4
-        if name_len <= 0 or name_len > 1000 or pos + name_len > len(data):
+        if name_len <= 0 or name_len > MAX_NAME_BYTES or pos + name_len > len(data):
             break
         name = data[pos:pos + name_len].decode("latin-1").rstrip("\x00")
         pos += name_len
@@ -196,7 +247,7 @@ def parse_gvas_save(data: bytes) -> dict[str, Any]:
             break
         type_len = struct.unpack("<i", data[pos:pos + 4])[0]
         pos += 4
-        if type_len <= 0 or type_len > 1000 or pos + type_len > len(data):
+        if type_len <= 0 or type_len > MAX_NAME_BYTES or pos + type_len > len(data):
             break
         prop_type = data[pos:pos + type_len].decode("latin-1").rstrip("\x00")
         pos += type_len
@@ -207,44 +258,52 @@ def parse_gvas_save(data: bytes) -> dict[str, Any]:
         pos += 8
 
         if prop_type == "ArrayProperty":
-            it_len = struct.unpack("<i", data[pos:pos + 4])[0]
-            pos += 4 + it_len + 1
-            arr_count = struct.unpack("<I", data[pos:pos + 4])[0]
-            arr_pos = pos + 4
-            elements = []
-            for _ in range(arr_count):
-                el_len = struct.unpack("<i", data[arr_pos:arr_pos + 4])[0]
-                arr_pos += 4
-                el_str = data[arr_pos:arr_pos + el_len].decode("latin-1").rstrip("\x00")
-                arr_pos += el_len
-                elements.append(el_str)
-            parsed[name] = elements
+            _name_length(data, pos, f"{name} inner type")
+            inner, pos = _read_fstring(data, pos, f"{name} inner type")
+            pos += 1
+            if inner in ("NameProperty", "StrProperty"):
+                arr_count = _u32(data, pos, f"{name} count")
+                arr_pos = pos + 4
+                if arr_count > (len(data) - arr_pos) // 4:  # every element has at least its own 4-byte length
+                    raise GvasError(f"{name}: {arr_count} elements cannot fit in the {len(data) - arr_pos} bytes left")
+                elements = []
+                for _ in range(arr_count):
+                    el_str, arr_pos = _read_fstring(data, arr_pos, f"{name} element")
+                    elements.append(el_str)
+                parsed[name] = elements
+            else:
+                parsed[name] = []  # an array of something else (structs, numbers): not read, skipped by its size
             pos += size
         elif prop_type == "SetProperty":
-            it_len = struct.unpack("<i", data[pos:pos + 4])[0]
-            pos += 4 + it_len + 1
-            _, num_el = struct.unpack("<II", data[pos:pos + 8])
-            el_pos = pos + 8
-            elements = []
-            for _ in range(num_el):
-                val = struct.unpack("<i", data[el_pos:el_pos + 4])[0]
-                el_pos += 4
-                elements.append(val)
-            parsed[name] = elements
+            _name_length(data, pos, f"{name} inner type")
+            inner, pos = _read_fstring(data, pos, f"{name} inner type")
+            pos += 1
+            if inner == "IntProperty":
+                num_el = _u32(data, pos + 4, f"{name} count")
+                el_pos = pos + 8
+                if num_el > (len(data) - el_pos) // 4:
+                    raise GvasError(f"{name}: {num_el} elements cannot fit in the {len(data) - el_pos} bytes left")
+                elements = []
+                for _ in range(num_el):
+                    elements.append(_i32(data, el_pos, f"{name} element"))
+                    el_pos += 4
+                parsed[name] = elements
+            else:
+                parsed[name] = []  # a set of objects or names: not read, skipped by its size
             pos += size
         elif prop_type == "MapProperty":
-            kt_len = struct.unpack("<i", data[pos:pos + 4])[0]
-            pos += 4 + kt_len
-            vt_len = struct.unpack("<i", data[pos:pos + 4])[0]
-            pos += 4 + vt_len + 1
-            _, num_el = struct.unpack("<II", data[pos:pos + 8])
+            _name_length(data, pos, f"{name} key type")
+            _, pos = _read_fstring(data, pos, f"{name} key type")
+            _name_length(data, pos, f"{name} value type")
+            _, pos = _read_fstring(data, pos, f"{name} value type")
+            pos += 1
+            num_el = _u32(data, pos + 4, f"{name} count")
             m_pos = pos + 8
+            if num_el > (len(data) - m_pos) // 9:  # a key's length prefix and the "None\0" that ends its struct
+                raise GvasError(f"{name}: {num_el} entries cannot fit in the {len(data) - m_pos} bytes left")
             entries = {}
             for _ in range(num_el):
-                k_len = struct.unpack("<i", data[m_pos:m_pos + 4])[0]
-                m_pos += 4
-                key = data[m_pos:m_pos + k_len].decode("latin-1").rstrip("\x00")
-                m_pos += k_len
+                key, m_pos = _read_fstring(data, m_pos, f"{name} key")
                 none_idx = data.find(b"None\x00", m_pos)
                 if none_idx == -1:
                     break
@@ -256,19 +315,19 @@ def parse_gvas_save(data: bytes) -> dict[str, Any]:
                     c_idx = struct_chunk.find(b"Completed_7_")
                     b_idx = struct_chunk.find(b"BoolProperty\x00", c_idx)
                     if b_idx != -1:
-                        val_byte = struct_chunk[b_idx + len(b"BoolProperty\x00") + 8]
-                        is_comp = (val_byte != 0)
+                        value_at = b_idx + len(b"BoolProperty\x00") + 8
+                        if value_at < len(struct_chunk):
+                            is_comp = (struct_chunk[value_at] != 0)
                 entries[key] = is_comp
             parsed[name] = entries
             pos += size
         elif prop_type == "BoolProperty":
-            val = (data[pos] != 0)
+            parsed[name] = (_take(data, pos, 1, name)[0] != 0)
             pos += 2
-            parsed[name] = val
         elif prop_type in ("IntProperty", "FloatProperty"):
             pos += 1
             if prop_type == "IntProperty":
-                parsed[name] = struct.unpack("<i", data[pos:pos + 4])[0]
+                parsed[name] = _i32(data, pos, name)
             pos += 4
         else:
             pos += 1 + size
@@ -315,14 +374,12 @@ def load_prize_checks() -> list[str]:
 
 def extract_earned_locations(
     parsed: dict[str, Any],
-    prize_list: list[str] | None = None,
     row_to_minigame: dict[int, str] | None = None,
 ) -> list[str]:
     """Convert parsed savegame properties into list of Archipelago location check names."""
     if not parsed:
         return []
 
-    prizes_order = prize_list if prize_list is not None else load_prize_checks()
     row_map = row_to_minigame or DEFAULT_ROW_MAP
     earned: list[str] = []
 
@@ -455,7 +512,12 @@ def create_clean_playerarchi_data(template_data: bytes) -> bytes:
     - ObjectsEaten: empty SetProperty (ObjectProperty)
     - NumberOfGamesWon: 0
     Everything else (settings, EULA, menu flags, statistics) is kept from the template. The template is only read.
+    Raises GvasError when the template is not a GVAS save or its lengths point outside it; nothing is written then.
     """
+    if template_data[:4] != b"GVAS":
+        raise GvasError("the template is not a GVAS save")
+    if len(template_data) > MAX_SAVE_BYTES:
+        raise GvasError(f"{len(template_data)} bytes is far more than a save")
     buf = bytearray(template_data)
 
     # 1. Reset all LevelInfo Completed booleans to False
@@ -467,23 +529,19 @@ def create_clean_playerarchi_data(template_data: bytes) -> bytes:
         b_idx = buf.find(b"BoolProperty\x00", c_idx)
         if b_idx != -1 and b_idx - c_idx < 100:
             val_offset = b_idx + len(b"BoolProperty\x00") + 8
-            buf[val_offset] = 0
+            if val_offset < len(buf):  # a cut-off file may end before the value
+                buf[val_offset] = 0
         pos = c_idx + 1
 
     # 2. Reset NumberOfGamesWon to 0
     w_idx = buf.find(b"NumberOfGamesWon\x00")
     if w_idx != -1:
         val_idx = w_idx + len(b"NumberOfGamesWon\x00") + 4 + len(b"IntProperty\x00") + 4 + 4 + 1
-        buf[val_idx : val_idx + 4] = b"\x00\x00\x00\x00"
+        if val_idx + 4 <= len(buf):  # assigning past the end of a bytearray would APPEND instead of resetting
+            buf[val_idx : val_idx + 4] = b"\x00\x00\x00\x00"
 
     # 3. Dynamically parse top-level properties and replace Prizes, CollectedGlitches, CollectedCoins
-    pos = 4 + 4 + 4 + 6 + 4
-    build_id_len = struct.unpack("<I", buf[pos : pos + 4])[0]
-    pos += 4 + build_id_len + 4
-    custom_count = struct.unpack("<I", buf[pos : pos + 4])[0]
-    pos += 4 + custom_count * 20
-    class_len = struct.unpack("<I", buf[pos : pos + 4])[0]
-    pos += 4 + class_len
+    pos = _skip_header(buf)
 
     output = bytearray(buf[:pos])
 
@@ -521,22 +579,20 @@ def create_clean_playerarchi_data(template_data: bytes) -> bytes:
         pos += 8
 
         if prop_type == "ArrayProperty":
-            it_len = struct.unpack("<i", buf[pos : pos + 4])[0]
-            pos += 4 + it_len + 1 + size
+            pos += 4 + _name_length(buf, pos, f"{name} inner type") + 1 + size
         elif prop_type == "SetProperty":
-            it_len = struct.unpack("<i", buf[pos : pos + 4])[0]
-            pos += 4 + it_len + 1 + size
+            pos += 4 + _name_length(buf, pos, f"{name} inner type") + 1 + size
         elif prop_type == "MapProperty":
-            kt_len = struct.unpack("<i", buf[pos : pos + 4])[0]
-            pos += 4 + kt_len
-            vt_len = struct.unpack("<i", buf[pos : pos + 4])[0]
-            pos += 4 + vt_len + 1 + size
+            pos += 4 + _name_length(buf, pos, f"{name} key type")
+            pos += 4 + _name_length(buf, pos, f"{name} value type") + 1 + size
         elif prop_type == "BoolProperty":
             pos += 2
         elif prop_type in ("IntProperty", "FloatProperty"):
             pos += 1 + 4
         else:
             pos += 1 + size
+        if pos <= start:  # every property moves forward; anything else would walk the same bytes for ever
+            raise GvasError(f"{name}: the walk did not advance")
 
         prop_block = buf[start:pos]
 
@@ -559,6 +615,18 @@ def create_clean_playerarchi_data(template_data: bytes) -> bytes:
     return bytes(output)
 
 
+def _write_bytes_atomic(path: Path, data: bytes) -> None:
+    """Write the save through a temp file and os.replace, so an interrupted write never leaves a truncated save for the game to load.
+    If Windows refuses the replace (the game has the file open) the bytes are written in place, as before."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(data)
+    try:
+        os.replace(tmp, path)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        path.write_bytes(data)
+
+
 def ensure_clean_archipelago_save(
     target_path: Path | None = None,
     template_path: Path | None = None,
@@ -579,10 +647,14 @@ def ensure_clean_archipelago_save(
         template_path = get_normal_savegame_path()
 
     if template_path and template_path.exists():
-        template_bytes = template_path.read_bytes()
-        clean_bytes = create_clean_playerarchi_data(template_bytes)
-        target_path.write_bytes(clean_bytes)
-        print(f"[Save Manager] Created clean Archipelago save '{target_path.name}' ({len(clean_bytes)} bytes).")
+        try:
+            clean_bytes = create_clean_playerarchi_data(template_path.read_bytes())
+        except GvasError as e:
+            # A damaged Player00.sav must not take the connection down with it: say so and write nothing, as when there is no template.
+            print(f"[Save Manager] Warning: {template_path.name} could not be used as the template ({e}); no clean save was written for {target_path.name}.")
+        else:
+            _write_bytes_atomic(target_path, clean_bytes)
+            print(f"[Save Manager] Created clean Archipelago save '{target_path.name}' ({len(clean_bytes)} bytes).")
     else:
         print(f"[Save Manager] Warning: Template save not found to generate {target_path.name}.")
 

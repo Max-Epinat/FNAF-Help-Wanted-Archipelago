@@ -264,15 +264,18 @@ function LevelGate.init(params)
             if type(a1) == "table" then return a1[1] end
             return a1
         end
-        -- Debug only, until an Archipelago item is chosen to authorize each gate.
-        RegisterConsoleCommandHandler("ap_gate_grant", function(_, a1)
-            LevelGate.authorize(arg1(a1) or "FNAF1_NIGHT2")
-            return true
-        end)
-        RegisterConsoleCommandHandler("ap_gate_revoke", function(_, a1)
-            LevelGate.revoke(arg1(a1) or "FNAF1_NIGHT2")
-            return true
-        end)
+        -- Debug only: a grant opens a level without its item. params.debug_commands = false (main.lua without enable_debug_commands) leaves them out;
+        -- not given at all (the tests) registers them.
+        if params.debug_commands ~= false then
+            RegisterConsoleCommandHandler("ap_gate_grant", function(_, a1)
+                LevelGate.authorize(arg1(a1) or "FNAF1_NIGHT2")
+                return true
+            end)
+            RegisterConsoleCommandHandler("ap_gate_revoke", function(_, a1)
+                LevelGate.revoke(arg1(a1) or "FNAF1_NIGHT2")
+                return true
+            end)
+        end
         RegisterConsoleCommandHandler("ap_gate_status", function()
             print(string.format("[ARCHI] Level gate: session=%s items=%d from_items=[%s] debug=[%s]",
                 tostring(state.session_id), #state.item_ids, names(state.item_authorized), names(state.debug_authorized)))
@@ -280,7 +283,8 @@ function LevelGate.init(params)
         end)
     end
 
-    print("[ARCHI] Level gate loaded (gated rows: FNAF1_NIGHT2). Debug: ap_gate_grant / ap_gate_revoke / ap_gate_status")
+    print("[ARCHI] Level gate loaded (gated rows: FNAF1_NIGHT2). Console: ap_gate_status" ..
+        (params.debug_commands ~= false and " (debug: ap_gate_grant / ap_gate_revoke)" or ""))
     return LevelGate
 end
 

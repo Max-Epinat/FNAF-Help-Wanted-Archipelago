@@ -302,6 +302,38 @@ class TestSessionSafety(LauncherTestCase):
         self.assertEqual([p.name for p in sav_dir.iterdir() if p.name.endswith(".bak")], [])
 
 
+class TestSendTasksAreKept(LauncherTestCase):
+    """asyncio keeps only a weak reference to a task: a send nobody holds can be collected before it ends, and its error is never seen."""
+
+    async def test_a_send_is_held_until_it_ends_then_released(self):
+        ctx = self.make_ctx()
+        ctx._send([{"cmd": "Say", "text": "hi"}])
+        self.assertEqual(len(ctx._send_tasks), 1)
+        await asyncio.wait(list(ctx._send_tasks))
+        await asyncio.sleep(0)  # the done callbacks run on the next loop pass
+        self.assertEqual(ctx._send_tasks, set())
+        self.assertEqual(ctx.sent, [[{"cmd": "Say", "text": "hi"}]])
+
+    async def test_nothing_is_held_when_there_is_nothing_to_send(self):
+        ctx = self.make_ctx()
+        ctx._send([])
+        self.assertEqual(ctx._send_tasks, set())
+
+    async def test_a_failed_send_is_logged_and_released(self):
+        ctx = self.make_ctx()
+
+        async def broken(msgs):
+            raise ConnectionError("socket closed")
+
+        ctx.send_msgs = broken
+        with self.assertLogs("fnafhw-launcher-test", level="WARNING") as logs:
+            ctx._send([{"cmd": "Say", "text": "hi"}])
+            await asyncio.wait(list(ctx._send_tasks))
+            await asyncio.sleep(0)
+        self.assertTrue(any("socket closed" in line for line in logs.output))
+        self.assertEqual(ctx._send_tasks, set())
+
+
 class TestPackets(LauncherTestCase):
     async def test_connected_starts_the_session_and_tells_the_game(self):
         ctx = self.make_ctx()

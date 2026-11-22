@@ -94,7 +94,7 @@ unmodified game on your normal save (`Player00.sav`), turn the mod off. Both way
 
 Notes:
 
-- **Updating turns the mod back on.** `install-mod.ps1` rewrites `config.lua` and adds `FNAFHWArchipelago : 1` to `mods.txt` when it is missing, so redo your choice after an update.
+- **Updating keeps your choice.** `install-mod.ps1` keeps every setting in `config.lua` (it only updates the `bridge_dir` line), adds `FNAFHWArchipelago : 1` to `mods.txt` only when there is no entry, and leaves a `: 0` entry alone. If you switched the mod off, the installer says so at the end: undo it (see above) to play Archipelago again. It also removes files from `Scripts\` that an older version installed and the new one no longer has.
 - There is no automatic switch when the client is closed: the mod cannot tell a closed client from a running one, and play on the normal save would not count for the room.
   Start the client and connect first, then the game, as in the steps above.
 - To go back to Archipelago, remove the line, start the client, connect, then start the game. Your Archipelago save and its progress were not touched.

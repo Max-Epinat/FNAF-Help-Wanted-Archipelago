@@ -3,9 +3,12 @@ inbox-line formatters. Nothing here imports websockets, tkinter or Archipelago, 
 transport (the standalone websockets client today, an Archipelago launcher client later) and unit-tested alone.
 """
 
+import base64
+import codecs
 import json
 import os
 import re
+import threading
 import time
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -117,6 +120,86 @@ def format_items_snapshot_line(item_ids: list[int]) -> str:
     return "RECEIVED_SNAPSHOT " + ",".join(str(i) for i in item_ids)
 
 
+def write_text_atomic(path: Path, text: str) -> None:
+    """Write `path` through a temp file and os.replace, so a crash or a power cut mid-write never leaves a half-written (then unreadable) file.
+    Windows refuses to replace a file another process has open (the game mod reads some of these): then the text is written in place, as before."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    try:
+        os.replace(tmp, path)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+
+SECRET_ENTROPY = b"FNAFHW-Archipelago-connection"  # DPAPI mixes it in: a blob made for another program's purpose does not open here
+
+
+_dpapi_api = None
+_dpapi_lock = threading.Lock()
+
+
+def _dpapi_setup():
+    """The DPAPI functions with their argument types, set up once: the window thread and the client thread can both save a password, and
+    changing a shared function's argtypes while another thread calls it makes that call fail."""
+    global _dpapi_api
+    with _dpapi_lock:
+        if _dpapi_api is None:
+            import ctypes
+            from ctypes import wintypes
+
+            class Blob(ctypes.Structure):
+                _fields_ = [("cbData", wintypes.DWORD), ("pbData", ctypes.c_void_p)]
+
+            crypt32, kernel32 = ctypes.windll.crypt32, ctypes.windll.kernel32
+            for function in (crypt32.CryptProtectData, crypt32.CryptUnprotectData):
+                function.argtypes = [ctypes.POINTER(Blob), ctypes.c_void_p, ctypes.POINTER(Blob), ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD,
+                                     ctypes.POINTER(Blob)]
+                function.restype = wintypes.BOOL
+            kernel32.LocalFree.argtypes = [ctypes.c_void_p]
+            kernel32.LocalFree.restype = ctypes.c_void_p
+            _dpapi_api = (ctypes, Blob, crypt32.CryptProtectData, crypt32.CryptUnprotectData, kernel32.LocalFree)
+        return _dpapi_api
+
+
+def _dpapi(data: bytes, protect: bool) -> bytes:
+    """Windows DPAPI for the current user (CryptProtectData / CryptUnprotectData): only this Windows account can read the result."""
+    ctypes, Blob, crypt_protect, crypt_unprotect, local_free = _dpapi_setup()
+    function = crypt_protect if protect else crypt_unprotect
+    source = ctypes.create_string_buffer(data, len(data))
+    entropy = ctypes.create_string_buffer(SECRET_ENTROPY, len(SECRET_ENTROPY))
+    blob_in = Blob(len(data), ctypes.cast(source, ctypes.c_void_p))
+    blob_entropy = Blob(len(SECRET_ENTROPY), ctypes.cast(entropy, ctypes.c_void_p))
+    blob_out = Blob()
+    CRYPTPROTECT_UI_FORBIDDEN = 0x1
+    if not function(ctypes.byref(blob_in), None, ctypes.byref(blob_entropy), None, None, CRYPTPROTECT_UI_FORBIDDEN, ctypes.byref(blob_out)):
+        raise ctypes.WinError()
+    try:
+        return ctypes.string_at(blob_out.pbData, blob_out.cbData)
+    finally:
+        local_free(blob_out.pbData)
+
+
+def protect_secret(text: str) -> str:
+    """`dpapi:<base64>` on Windows. Elsewhere (the game is Windows only; this is for running the tests and the client on another system) there
+    is no per-account store: `plain:<base64>` is not encryption, the file's 0600 mode is all that protects it."""
+    raw = text.encode("utf-8")
+    if os.name == "nt":
+        return "dpapi:" + base64.b64encode(_dpapi(raw, True)).decode("ascii")
+    return "plain:" + base64.b64encode(raw).decode("ascii")
+
+
+def unprotect_secret(stored: str) -> str:
+    """The text `protect_secret` made. Raises ValueError / OSError when it cannot be read (another Windows account, a damaged file)."""
+    kind, _, payload = stored.strip().partition(":")
+    raw = base64.b64decode(payload, validate=True)
+    if kind == "dpapi":
+        return _dpapi(raw, False).decode("utf-8")
+    if kind == "plain":
+        return raw.decode("utf-8")
+    raise ValueError(f"unknown secret format {kind!r}")
+
+
 class BridgeIO:
     def __init__(self, bridge_dir: Path):
         self.bridge_dir = bridge_dir
@@ -125,6 +208,10 @@ class BridgeIO:
         self.state_path = bridge_dir / "ap_state.json"
         self.status_path = bridge_dir / "connection_state.json"
         self.profile_path = bridge_dir / "connection_profile.json"
+        # The password is never in the profile. This client keeps it encrypted in the secret file; the game panel cannot encrypt, so it leaves a
+        # newly typed password in the drop file, which the client encrypts and deletes the next time it reads the profile.
+        self.secret_path = bridge_dir / "connection_secret.dat"
+        self.password_drop_path = bridge_dir / "connection_password.txt"
         self.sessions_dir = bridge_dir / "sessions"
 
         self.bridge_dir.mkdir(parents=True, exist_ok=True)
@@ -167,7 +254,8 @@ class BridgeIO:
                 savegame_baseline=baseline,
                 save_slot=str(raw.get("save_slot", "") or ""),
             )
-        except Exception:
+        except Exception as e:
+            print(f"[WARN] [BRIDGE] Could not read the session file {path.name}, starting that session from scratch: {e}")
             return None
 
     def save_session(self, state: BridgeState, loc_id_to_name: dict[int, str] | None = None) -> None:
@@ -189,16 +277,18 @@ class BridgeIO:
             "savegame_baseline": sorted(state.savegame_baseline),
             "save_slot": state.save_slot,
         }
+        text = json.dumps(raw, indent=2)
         if state.session_id:
-            try:
-                session_file = self.get_session_path(state.session_id)
-                session_file.write_text(json.dumps(raw, indent=2), encoding="utf-8")
-            except Exception:
-                pass
+            self._write_json(self.get_session_path(state.session_id), text)
+        self._write_json(self.state_path, text)
+
+    @staticmethod
+    def _write_json(path: Path, text: str) -> None:
+        """Atomic write; a failure is reported (a lost state file means a lost session) but never stops the client."""
         try:
-            self.state_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
-        except Exception:
-            pass
+            write_text_atomic(path, text)
+        except Exception as e:
+            print(f"[WARN] [BRIDGE] Could not write {path.name}: {e}")
 
     def load_state(self) -> BridgeState:
         if not self.state_path.exists():
@@ -224,7 +314,8 @@ class BridgeIO:
                 savegame_baseline=baseline,
                 save_slot=str(raw.get("save_slot", "") or ""),
             )
-        except Exception:
+        except Exception as e:
+            print(f"[WARN] [BRIDGE] Could not read {self.state_path.name}, starting from an empty state: {e}")
             return BridgeState()
 
     def save_state(self, state: BridgeState, loc_id_to_name: dict[int, str] | None = None) -> None:
@@ -244,36 +335,94 @@ class BridgeIO:
         }
         if total_count is not None:  # how many locations this seed has (the in-game panel shows "checked / total"); left out when unknown
             data["total_count"] = total_count
-        try:
-            self.status_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        except Exception:
-            pass
+        self._write_json(self.status_path, json.dumps(data, indent=2))
 
-    def load_profile(self) -> dict[str, Any]:
+    # ---- the saved password: encrypted, never in connection_profile.json ----
+
+    def _store_password(self, password: str) -> bool:
+        """Encrypt `password` into the secret file (an empty one removes it). False, after saying why, when it could not be kept."""
+        try:
+            if password == "":
+                self.secret_path.unlink(missing_ok=True)
+                return True
+            write_text_atomic(self.secret_path, protect_secret(password))
+            if os.name != "nt":
+                os.chmod(self.secret_path, 0o600)
+            return True
+        except Exception as e:
+            print(f"[WARN] [BRIDGE] Could not keep the password safely, so it was not saved and will not be used: {e}")
+            return False
+
+    def read_password(self) -> str:
+        """The saved password, or "" when there is none or it cannot be read (it was saved by another Windows account)."""
+        if not self.secret_path.exists():
+            return ""
+        try:
+            return unprotect_secret(self.secret_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            print(f"[WARN] [BRIDGE] The saved password in {self.secret_path.name} cannot be read here ({e}); enter it again.")
+            return ""
+
+    def _take_password_drop(self) -> str | None:
+        """What the game panel left in the drop file (None: nothing there). It is encrypted into the secret file and the drop file deleted."""
+        try:
+            if not self.password_drop_path.exists():
+                return None
+            password = self.password_drop_path.read_bytes().decode("utf-8", errors="replace")
+        except OSError as e:
+            print(f"[WARN] [BRIDGE] Could not read {self.password_drop_path.name}: {e}")
+            return None
+        if self._store_password(password):
+            try:
+                self.password_drop_path.unlink()
+            except OSError as e:
+                print(f"[WARN] [BRIDGE] Could not delete {self.password_drop_path.name} (delete it by hand, it holds the password): {e}")
+        return password
+
+    def load_profile(self, fallback: dict[str, Any] | None = None) -> dict[str, Any]:
+        """The connection settings, with "password" filled in from the encrypted store (it is not in the file). `fallback` is returned when the
+        file cannot be read (the settings already in use), instead of the defaults."""
         default_profile = {
             "server_host": "archipelago.gg",
             "server_port": 38281,
             "slot": "Player1",
-            "password": "",
             "game": "Five Nights at Freddy's: Help Wanted",
             "auto_connect": False,
         }
+        dropped = self._take_password_drop()
         if not self.profile_path.exists():
-            self.profile_path.write_text(json.dumps(default_profile, indent=2), encoding="utf-8")
-            return default_profile
+            self._write_json(self.profile_path, json.dumps(default_profile, indent=2))
+            return {**default_profile, "password": self.read_password()}
         try:
             raw = json.loads(self.profile_path.read_text(encoding="utf-8"))
-            for k, v in default_profile.items():
-                raw.setdefault(k, v)
-            return raw
-        except Exception:
-            return default_profile
+            if not isinstance(raw, dict):
+                raise ValueError("not a JSON object")
+        except Exception as e:
+            print(f"[WARN] [BRIDGE] Could not read {self.profile_path.name}, using the {'settings in use' if fallback else 'default connection settings'}: {e}")
+            return fallback if fallback is not None else {**default_profile, "password": self.read_password()}
+        for k, v in default_profile.items():
+            raw.setdefault(k, v)
+
+        # A password in the file comes from a version before the encrypted store: move it. A newer one from the drop file wins over it.
+        in_file = raw.pop("password", None)
+        if in_file is not None:
+            if in_file == "" or dropped is not None:
+                self._write_json(self.profile_path, json.dumps(raw, indent=2))
+            elif self._store_password(str(in_file)):
+                self._write_json(self.profile_path, json.dumps(raw, indent=2))
+                print(f"[BRIDGE] Moved the password out of {self.profile_path.name} into {self.secret_path.name} (encrypted for this Windows account)")
+            else:
+                raw["password"] = str(in_file)  # could not be kept safely: leave it where it was rather than lose it
+                return raw
+        raw["password"] = self.read_password()
+        return raw
 
     def save_profile(self, profile: dict[str, Any]) -> None:
-        try:
-            self.profile_path.write_text(json.dumps(profile, indent=2), encoding="utf-8")
-        except Exception:
-            pass
+        """The settings into the profile file, without the password; the password (when the dict has one) into the encrypted store."""
+        self._write_json(self.profile_path, json.dumps({k: v for k, v in profile.items() if k != "password"}, indent=2))
+        if "password" in profile:
+            if self._store_password(str(profile["password"])):
+                self.password_drop_path.unlink(missing_ok=True)  # an older password from the panel is replaced by this one
 
     def read_outbox_lines(self, state: BridgeState) -> list[str]:
         if not self.outbox_path.exists():
@@ -281,19 +430,102 @@ class BridgeIO:
         file_size = self.outbox_path.stat().st_size
         if state.outbox_position > file_size:
             state.outbox_position = 0
+        if state.outbox_position == file_size:
+            return []  # nothing was added: this runs 20 times a second, so do not open the file for it
 
-        with self.outbox_path.open("r", encoding="utf-8") as handle:
+        with self.outbox_path.open("rb") as handle:
             handle.seek(state.outbox_position)
-            chunk = handle.read()
-            state.outbox_position = handle.tell()
+            data = handle.read()
 
+        # A line the game is still writing can stop in the middle of a multibyte character: leave that whole line for the next pass (it is read
+        # complete then) instead of cutting it. A final line without a line break that is whole is read now, as before.
+        cut = data.rfind(b"\n") + 1
+        if cut < len(data):
+            decoder = codecs.getincrementaldecoder("utf-8")("replace")
+            decoder.decode(data[cut:])
+            if decoder.getstate()[0]:  # bytes of an unfinished character are buffered
+                data = data[:cut]
+        state.outbox_position += len(data)
+
+        # Bytes that are not valid UTF-8 must not stop the client (a strict decode raised here and ended its loop): read them as U+FFFD, the line
+        # is then an unknown command and is ignored.
+        chunk = data.decode("utf-8", errors="replace")
         lines = [line.strip() for line in chunk.splitlines()]
-        return [l for l in lines if l]
+        lines = [l for l in lines if l]
+        damaged = sum("�" in l for l in lines)
+        if damaged:
+            print(f"[WARN] [OUTBOX] {damaged} line(s) in {self.outbox_path.name} were not valid UTF-8; read with replacement characters")
+        return lines
+
+    # `CONNECT <host> <port> <slot> <password>` / `SAVE_PROFILE ...`: what mods before the bare CONNECT appended to the outbox, which nothing truncates.
+    _OUTBOX_PASSWORD = re.compile(rb"(?m)^[ \t]*(?:CONNECT|SAVE_PROFILE)[ \t]+\S+[ \t]+\S+[ \t]+\S+[ \t]+([^\r\n]+)")
+
+    def scrub_outbox_passwords(self, upto: int) -> int:
+        """Overwrite with `*` the passwords of such lines in the first `upto` bytes (the part already executed; the saved read position says how
+        far that is). Same length, in place, so the position stays valid and a mod appending at the end is not disturbed. Returns the lines masked."""
+        try:
+            end = min(int(upto), self.outbox_path.stat().st_size)
+            if end <= 0:
+                return 0
+            with self.outbox_path.open("r+b") as handle:
+                data = handle.read(end)
+                masked = 0
+                for match in self._OUTBOX_PASSWORD.finditer(data):
+                    start, stop = match.span(1)
+                    if data[start:stop].strip(b"*"):  # not masked already
+                        handle.seek(start)
+                        handle.write(b"*" * (stop - start))
+                        masked += 1
+            return masked
+        except FileNotFoundError:
+            return 0
+        except OSError as e:
+            print(f"[WARN] [BRIDGE] Could not mask old passwords in {self.outbox_path.name}: {e}")
+            return 0
 
     def write_inbox_line(self, text: str) -> None:
         line = text.replace("\n", " ").strip() + "\n"
         with self.inbox_path.open("a", encoding="utf-8") as handle:
             handle.write(line)
+
+    # The inbox is append-only while a client runs, and every ReceivedItems packet adds a snapshot of the WHOLE item list, so a long session
+    # grows it quadratically. The mod replays only the last connect block at launch (bridge_io.lua replay_start), so at client start everything
+    # before that block is dead weight, and inside the block only the newest snapshot / applied count and the lines that carry state matter.
+    # Not worth a rewrite below this many bytes saved. It also keeps the file well clear of the position a running mod has already read to, so
+    # the mod always sees the file shrink (its poll is every 250 ms; the client writes a few dozen bytes before the mod can look again).
+    INBOX_COMPACT_MIN_SAVED = 4096
+    _INBOX_LAST_WINS = ("RECEIVED_SNAPSHOT", "APPLIED_ITEMS")  # each replaces the previous one
+    _INBOX_NEWS_ONLY = ("STATUS", "PRINT")  # shown in the log, never state
+
+    def compact_inbox(self) -> int:
+        """Rewrite the inbox as what the mod would end up with anyway: from the last connect block on, without STATUS / PRINT lines and with only
+        the newest RECEIVED_SNAPSHOT and APPLIED_ITEMS. Returns the bytes saved (0 when it was left alone). Call it only when nothing is being
+        written, that is at client start."""
+        try:
+            text = self.inbox_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return 0
+        lines = [line.strip() for line in text.split("\n")]  # the mod splits on \n only
+        lines = [line for line in lines if line]
+        last_sync = next((i for i in range(len(lines) - 1, -1, -1) if lines[i].startswith("SESSION_SYNC")), None)
+        if last_sync is None:
+            return 0  # no connect block yet: nothing to cut, and the file is tiny
+        start = last_sync - 1 if last_sync > 0 and lines[last_sync - 1] == "CONNECTED" else last_sync
+        block = lines[start:]
+        newest = {prefix: max((i for i, line in enumerate(block) if line.split(" ", 1)[0] == prefix), default=-1) for prefix in self._INBOX_LAST_WINS}
+        kept = [line for i, line in enumerate(block)
+                if line.split(" ", 1)[0] not in self._INBOX_NEWS_ONLY
+                and not (line.split(" ", 1)[0] in newest and newest[line.split(" ", 1)[0]] != i)]
+        compact = "\n".join(kept) + "\n"
+        if len(text.encode("utf-8")) - len(compact.encode("utf-8")) < self.INBOX_COMPACT_MIN_SAVED:
+            return 0
+        try:
+            size_before = self.inbox_path.stat().st_size  # on disk: Windows writes the lines with CRLF, which the decoded text does not show
+            write_text_atomic(self.inbox_path, compact)
+            return max(0, size_before - self.inbox_path.stat().st_size)
+        except OSError as e:
+            print(f"[WARN] [BRIDGE] Could not compact {self.inbox_path.name}: {e}")
+            return 0
 
 
 # ---- finding the bridge folder -----------------------------------------------------------------------------
@@ -495,9 +727,15 @@ class BridgeCore:
         self.bridge_dir = bridge_dir
         self.bridge = bridge or BridgeIO(bridge_dir)
         self.save_api = save_api or SaveAPI()
+        saved = self.bridge.compact_inbox()  # at start only: the caller holds the instance lock, so nothing else is writing the inbox
+        if saved:
+            print(f"[AP Client] Compacted ap_inbox.txt: {saved} bytes of superseded history removed")
 
         self.profile = self.bridge.load_profile()
         self.state = self.bridge.load_state()
+        masked = self.bridge.scrub_outbox_passwords(self.state.outbox_position)
+        if masked:
+            print(f"[AP Client] Masked {masked} password(s) that an older mod had left in ap_outbox.txt")
         self.current_seed_name = self.state.seed_name or ""
         self.location_name_to_id: dict[str, int] = {}
         self.location_id_to_name: dict[int, str] = {}
@@ -647,9 +885,17 @@ class BridgeCore:
     def on_connected(self, packet: dict[str, Any]) -> list[dict[str, Any]]:
         """Handle the server's Connected packet. Returns the packets to send (pending checks to flush)."""
         outgoing: list[dict[str, Any]] = []
+        seed_name = self.current_seed_name
+        if not seed_name:
+            # The session id is seed + slot. A made-up seed would give every such room the same id, so two rooms would share one session and one save
+            # (the first live run of the launcher client did exactly that, see docs/launcher-client.md). Refuse instead of guessing.
+            message = "the server did not tell the seed name; not starting a session (your saves were not touched)"
+            print(f"[SESSION] {message}")
+            self.update_status(STATUS_ERROR, error=message, message=message)
+            self.disconnect_requested = True
+            return []
         server_checked = {int(x) for x in packet.get("checked_locations", [])}
         slot_name = self.slot or "Player"
-        seed_name = self.current_seed_name or "unknown_seed"
         session_id = f"{seed_name}_{slot_name}"
 
         existing_session = self.bridge.load_session(session_id)
@@ -690,7 +936,9 @@ class BridgeCore:
                 pending_locations=surviving_pending,
                 next_item_index=existing_session.next_item_index,
                 applied_item_count=existing_session.applied_item_count,
-                outbox_position=existing_session.outbox_position,
+                # never behind what this client already consumed: after playing another room the saved position of this one is old, and the
+                # lines between were that room's game, not this one's
+                outbox_position=max(existing_session.outbox_position, self.state.outbox_position),
                 savegame_baseline=baseline,
                 save_slot=save_slot,
             )

@@ -48,7 +48,7 @@ what a game function does, or how the real UE4SS behaves: those are verified **i
   `printf 'GATE_TABLE 4=FNAF1_NIGHT1,5=FNAF1_NIGHT2\n' >> <bridge>/ap_inbox.txt`, then rebuild the hub and read `UE4SS.log`
   (`[SESSION]`, `[GAME]`, `[ARCHI]`, `[SYNC]` lines).
 - **Send a real check** through the bridge: `printf 'LOCATION_CHECK <id>\n' >> <bridge>/ap_outbox.txt` (affects the real room).
-- Use the console: `ap_gate_status`, `ap_items_status`, `ap_gate_grant`, `ap_gate_revoke`.
+- Use the console: `ap_gate_status`, `ap_items_status`, `ap_gate_grant`, `ap_gate_revoke` (the last two, and every other command that changes the game or the room, need `enable_debug_commands = true` in the installed `config.lua`; the installer keeps your settings when it updates the mod).
 - **Restart check**: restart both the game and the client and confirm state (`applied=N of N`, no re-applied items).
 
 Restart the Python client after changing `ap_client/main.py`; `launch-*.bat` re-syncs the Lua files.

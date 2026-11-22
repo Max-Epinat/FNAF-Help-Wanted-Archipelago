@@ -76,7 +76,7 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
   (The refusal calls the framework's `disconnect()`: if it does not close the connection, the error is still shown and nothing is written, which is the part that matters.)
 
 - **Location group toggles** (**VERIFIED by the user in real rooms, case by case, 2026-10-10**; the list below is kept as the regression checklist, only the room built by a 0.3.1 version and the "everything off" case may not have been run). One room per case, DeathLink off to keep it simple:
-  1. All three on: behaviour exactly as before (checks sent, `[SESSION]` shows no "Not randomized" line, panel total 153, tape room and TV follow the items).
+  1. All three on: behaviour exactly as before (checks sent, `[SESSION]` shows no "Not randomized" line, panel total 146, tape room and TV follow the items).
   2. `randomize_glitch_tapes: false`: play to a tape (the intro tape is the easy one) and confirm no tape check is sent (`[ARCHI] Ignoring 'Collect ...' ... not part of this multiworld` once, nothing in the room's checks, no error in the client log),
      `ap_counter_status` shows `randomized=false effective=nil`, and the tape room shows the tapes you picked up (not an empty room, not the item count). Also confirm there is no Glitch Tape item in the room.
   3. `randomize_faz_tokens: false`: pick up a token, no check sent, the TV shows the real count (`ap_coin_status`: `randomized=false effective=nil`), no Faz Token item is received at all (level and prize checks give other items, the filler is `Faz Coupon`), the 5/10/... coin prizes behave as vanilla.
@@ -101,8 +101,8 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
 
 ## Ideas
 
-- **Mod off switch** (done 2026-10-05): `archipelago_enabled = false` in `config.lua`, documented in the install guide (with the `mods.txt` way). Not done: `install-mod.ps1` rewrites `config.lua` and re-adds `FNAFHWArchipelago : 1`
-  to `mods.txt`, so an update turns the mod back on (preserve the line in the installer?), and an automatic switch when the client is closed (needs a client heartbeat; the mod cannot tell a closed client from a running one, and play on the normal save would queue false checks and never reach the room).
+- **Mod off switch** (done 2026-10-05): `archipelago_enabled = false` in `config.lua`, documented in the install guide (with the `mods.txt` way). An update keeps both choices now (`install-mod.ps1` only updates `bridge_dir` and leaves a `: 0` entry alone, and says the mod is off). Not done: 
+  an automatic switch when the client is closed (needs a client heartbeat; the mod cannot tell a closed client from a running one, and play on the normal save would queue false checks and never reach the room).
 - A `host.yaml` setting for the bridge folder, as an alternative to reading the mod's `config.lua`.
 - Packaging the UE4SS install (it is currently checked and linked, never bundled).
 - Retire the tkinter standalone client once the launcher client has been used for a while.
@@ -110,10 +110,15 @@ Confidence labels (**VERIFIED**, **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **
 
 ## Open issues
 
+- **Standalone window: the password box does not follow the game panel (found 2026-11-01, sized 2026-11-22; not fixed).** After the in-game panel sets a new password (drop file), the window's password box still shows the old text, and clicking Connect in the window saves that old text over the new one. A fix is about 15-25 lines: refill the window's fields when a bare `CONNECT` re-reads the profile, and do not re-save the box when the user has not edited it (`DesktopGUI.on_connect_toggle`, `APBridgeClient._execute_command`), plus 2-3 tests.
+- **`scripts/launch-game.ps1` flat mode does not start the game here (seen 2026-11-22; cause not proven).** It runs `freddys-Win64-Shipping.exe -nohmd` directly; the game exited within seconds on this machine (no crash report, UE4SS never finished its scan). Starting it through Steam works: `steam://run/732690//-nohmd/` passes the argument without changing the Steam launch options. Consider using that URL for the flat mode.
+- **After an unsaved server restart the client and the panel still show the old item count (seen 2026-11-22; cosmetic).** The room restarted with 2 items, the mod correctly clamped to 2 and re-granted nothing, but the status line said "Received item #6" and the panel showed `Items Received: 6` (the count follows the session's remembered `next_item_index`, not the server's list).
+- (Fixed 2026-11-22) `ap_connect <host> <port> <slot> [password]` failed in the real game with `bad argument #1 to 'gmatch' (string expected, got table)`: UE4SS passes the parameters as a table. It takes both forms now, and the bare command connects with the saved settings. Also fixed: an outbox line that is not valid UTF-8 (or a multibyte character cut in half by a mid-write read) ended the standalone client's loop; the reader now decodes with replacement characters, leaves a half-written line for the next pass, and the poll survives a failed read.
+
 - One game run on a seed (2026-10-04) never acknowledged any item (`[SYNC] Item sync` / `ITEMS_APPLIED` missing for ~27 minutes). Cause unknown, not
   reproduced in later runs. If it returns: add a log line in `ItemSync.tick` and check `ap_items_status`.
 - Prize locations: the mod's own prize poll only counts the prizes (it must never decode them: that crashed the game); the client's save poll is the real source.
-- `lib/auto_map_poller.lua`, `lib/collectible_hooks.lua`, `lib/check_awards.lua` are shipped but never loaded by `main.lua` (dead code). They also loop and scan: delete them before anyone loads them.
+- Dead code is gone (2026-11-01): `lib/auto_map_poller.lua`, `collectible_hooks.lua`, `check_awards.lua`, `console_commands.lua`, `default_tables.lua`, `prize_id_to_location.lua` and `prize_location_names.lua` were shipped but never loaded (the first three also looped and scanned). A test now fails when a file in `lib/` is not loaded by the mod. `Scripts/dump_names.lua` (a standalone name-dump utility, not loaded by `main.lua`) is still shipped.
 - `connection_ui.lua` looks up a font with `FindFirstOf` inside the HUD hook while its panel is open and no font is cached (game thread, only while the panel is visible).
 - The inbox reader consumes a half-written last line as if it were complete (client writes mid-poll); never seen, not guarded.
 - The `SaveLevelVictory` hook often cannot resolve the level row (`RowID=nil`); checks still arrive through the client's save poll. Root cause unknown.

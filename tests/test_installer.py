@@ -101,6 +101,108 @@ class TestInstall(InstallerTestCase):
         self.assertEqual(code, 0, out)
 
 
+class TestUpdateKeepsThePlayersChoices(InstallerTestCase):
+    """Re-running the installer (an update) must not throw away what the player set up."""
+
+    def config(self):
+        return (self.mod / "config.lua").read_text(encoding="utf-8")
+
+    def test_config_settings_survive_and_only_bridge_dir_moves(self):
+        self.assertEqual(self.run_installer()[0], 0)
+        (self.mod / "config.lua").write_text(
+            f'return {{\n    -- my notes\n    bridge_dir = "{(self.mod / "bridge").as_posix()}",\n    enable_debug_commands = true,\n'
+            '    -- bridge_dir = "this comment is not the setting",\n    enable_research_tools = true,\n}\n', encoding="utf-8")
+        custom = self.tmp / "my bridge"
+        code, out = self.run_installer("-BridgeDir", str(custom))
+        self.assertEqual(code, 0, out)
+        config = self.config()
+        self.assertIn(f'bridge_dir = "{custom.as_posix()}",', config)
+        self.assertEqual(config.count(f'bridge_dir = "{custom.as_posix()}"'), 1)
+        for kept in ("-- my notes", "enable_debug_commands = true,", "enable_research_tools = true,", '-- bridge_dir = "this comment is not the setting",'):
+            self.assertIn(kept, config)
+        self.assertIn("your settings were kept", out)
+
+    def test_a_config_without_bridge_dir_gets_one_and_keeps_its_other_lines(self):
+        self.assertEqual(self.run_installer()[0], 0)
+        (self.mod / "config.lua").write_text("return {\n    enable_debug_commands = true,\n}\n", encoding="utf-8")
+        self.assertEqual(self.run_installer()[0], 0)
+        config = self.config()
+        self.assertIn(f'bridge_dir = "{(self.mod / "bridge").as_posix()}",', config)
+        self.assertIn("enable_debug_commands = true,", config)
+
+    def test_a_config_the_mod_could_not_read_is_replaced_by_a_fresh_one(self):
+        self.assertEqual(self.run_installer()[0], 0)
+        (self.mod / "config.lua").write_text("this is not lua config at all", encoding="utf-8")
+        self.assertEqual(self.run_installer()[0], 0)
+        config = self.config()
+        self.assertTrue(config.startswith("return {"))
+        self.assertIn(f'bridge_dir = "{(self.mod / "bridge").as_posix()}"', config)
+        self.assertNotIn("ui_key", config)  # keys nothing ever read are not written any more
+
+    def test_a_mod_the_player_switched_off_stays_off_and_the_installer_says_so(self):
+        self.assertEqual(self.run_installer()[0], 0)
+        (self.mod / "config.lua").write_text(
+            f'return {{\n    bridge_dir = "{(self.mod / "bridge").as_posix()}",\n    archipelago_enabled = false,\n}}\n', encoding="utf-8")
+        mods_txt = self.win64 / "Mods" / "mods.txt"
+        mods_txt.write_text("SomeOtherMod : 1\r\nFNAFHWArchipelago : 0\r\n", encoding="utf-8")
+        code, out = self.run_installer()
+        self.assertEqual(code, 0, out)
+        self.assertIn("archipelago_enabled = false,", self.config())
+        text = mods_txt.read_text(encoding="utf-8")
+        self.assertEqual(text.count("FNAFHWArchipelago"), 1)  # no second line next to the ": 0" one
+        self.assertIn("FNAFHWArchipelago : 0", text)
+        self.assertIn("archipelago_enabled = false", out)
+        self.assertIn("mods.txt has 'FNAFHWArchipelago : 0'", out)
+
+    def test_mods_txt_without_a_final_line_break_keeps_its_last_entry_intact(self):
+        mods_txt = self.win64 / "Mods" / "mods.txt"
+        mods_txt.write_bytes(b"SomeOtherMod : 1")
+        self.assertEqual(self.run_installer()[0], 0)
+        lines = mods_txt.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(lines, ["SomeOtherMod : 1", "FNAFHWArchipelago : 1"])
+
+    def test_files_of_a_previous_version_are_removed_from_scripts_and_nothing_else(self):
+        self.assertEqual(self.run_installer()[0], 0)
+        stale = self.mod / "Scripts" / "lib" / "module_removed_in_a_later_version.lua"
+        stale_dir_file = self.mod / "Scripts" / "old_folder" / "old.lua"
+        stale_dir_file.parent.mkdir()
+        keep = [self.mod / "bridge" / "ap_inbox.txt", self.mod / "ap_name_dump.txt", self.mod / "UE4SS_notes.txt"]
+        for path in (stale, stale_dir_file, *keep):
+            path.write_text("x", encoding="utf-8")
+        code, out = self.run_installer()
+        self.assertEqual(code, 0, out)
+        self.assertFalse(stale.exists())
+        self.assertFalse(stale_dir_file.exists())
+        for path in keep:
+            self.assertTrue(path.exists(), path.name)
+        for module in (MOD_SOURCE / "Scripts").rglob("*.lua"):
+            self.assertTrue((self.mod / "Scripts" / module.relative_to(MOD_SOURCE / "Scripts")).is_file(), module.name)
+        self.assertIn("2 file(s) of a previous version removed", out)
+
+
+class TestScripts(unittest.TestCase):
+    SCRIPTS = project_root / "scripts"
+
+    @unittest.skipUnless(sys.platform == "win32", "PowerShell")
+    def test_every_powershell_script_parses(self):
+        for script in sorted(self.SCRIPTS.glob("*.ps1")):
+            command = ("$e = $null; $t = $null; [void][System.Management.Automation.Language.Parser]::ParseFile("
+                       f"'{script}', [ref]$t, [ref]$e); $e | ForEach-Object {{ $_.Message + ' @' + $_.Extent.StartLineNumber }}")
+            result = subprocess.run(["powershell", "-NoProfile", "-Command", command], capture_output=True, text=True, encoding="utf-8", errors="replace")
+            self.assertEqual(result.stdout.strip(), "", f"{script.name}: {result.stdout}")
+
+    def test_a_virtual_environment_is_only_deleted_after_checking_it_is_this_repositorys(self):
+        for name in ("launch-game.ps1", "run-client.ps1"):
+            text = (self.SCRIPTS / name).read_text(encoding="utf-8")
+            self.assertLess(text.index("Refusing to delete"), text.index("Remove-Item -Path $venvDir"), name)
+
+    def test_the_client_script_installs_dependencies_only_when_they_changed(self):
+        text = (self.SCRIPTS / "run-client.ps1").read_text(encoding="utf-8")
+        self.assertNotIn("--upgrade pip", text)
+        self.assertIn("requirements.sha256", text)
+        self.assertLess(text.index("Get-FileHash"), text.index("pip install -r"))
+
+
 class TestPrerequisites(InstallerTestCase):
     def test_missing_ue4ss_stops_with_a_link_and_installs_nothing(self):
         (self.win64 / "UE4SS.dll").unlink()

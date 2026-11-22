@@ -79,17 +79,17 @@ by a received item, whatever the game's own answer was. See [level-gating.md](le
 | `Scripts/main.lua` | Loads everything, wires the bridge callbacks, starts the timers. |
 | `lib/game_thread.lua` | Every periodic job runs on the **game thread** (`every`), the game instance is found once and cached, and `[DIAG]` map-change and heartbeat lines. See "Threads" below. |
 | `lib/bridge_io.lua` | Reads the inbox, writes the outbox. |
-| `lib/exact_hooks.lua`, `lib/collectible_hooks.lua`, `lib/check_awards.lua` | Event hooks that produce location checks. |
+| `lib/exact_hooks.lua` | Event hooks and the save poll that produce location checks. |
 | `lib/level_gate.lua`, `lib/item_sync.lua`, `lib/faz_tokens.lua` | Level unlocks, exactly-once item effects, the coin count. |
 | `lib/derived_counters.lua` | Table-driven "the game shows the item count" engine; today its one entry is the tape count on `GetGlitchCount`. Console: `ap_counter_force <name> <n>\|off`, `ap_counter_status`. |
 | `lib/death_link.lua` | DeathLink: sends a death when `LevelDefeat` fires (not when it fires on the map `Level_Victory`, the prize gift box jumpscare, if the slot turned `death_link_gift_box` off); an incoming death makes the player lose the level they are in (levels only, never replayed history). Console: `ap_dl_status`, `ap_dl_kill`, experiment commands `ap_dl_*`. See [TODO](TODO.md). |
 | `lib/research_tools.lua` | Opt-in, read-only console tools for finding things in the game: `ap_class <class path>`, `ap_instances <ClassName>`, `ap_hookclass <class path>` / `ap_hookfn <function path> [force]` (log only; functions that drive level loading, fades or text/delegate parameters are skipped or refused: they blacked out the tape area), `ap_watch <word>` (heavy), `ap_watch_clear`, `ap_watch_status`, and the heavy `ap_scan <word>` (froze the game in the hub: avoid). |
-| `lib/connection_ui.lua`, `lib/console_commands.lua` | `F1` connection panel (standalone client) and console commands. |
+| `lib/connection_ui.lua` | `F1` connection panel (standalone client) and its console commands (`ap_connect`, `ap_status`, ...); the other console commands are in `main.lua` and the module each one belongs to. |
 | `lib/locations_data.lua`, `locations.json` | Generated from the world data by `scripts/generate_locations_*.py`. |
 
 Console commands (UE4SS console): `ap_counter_status`, `ap_counter_force`, `ap_diag` (the `[DIAG]` status line), `ap_status`, `ap_items_status`, `ap_gate_status`, `ap_gate_grant|revoke <GATE>` (debug), `ap_coin_status`,
 `ap_coin_force <n>|off`, `ap_check_id <id>`, `ap_check_name <name>`, `ap_goal`, `ap_say`, `ap_sync`, `ap_connect`, `ap_disconnect`, `ap_menu`/`ap_ui`,
-and a few dump/scan helpers for research.
+and a few dump/scan helpers for research. **The ones that change the multiworld or the game** (`ap_check_id`, `ap_check_name`, `ap_goal` and the F7 key, `ap_gate_grant|revoke`, `ap_coin_force`, `ap_counter_force`, `ap_dl_kill|call|unhook|rehook`) exist only with `enable_debug_commands = true` in `config.lua`; the status commands and F1 are always on.
 
 ## Threads
 
@@ -110,8 +110,15 @@ destroying and creating objects (a crash dump showed a worker thread inside the 
 | Connection | Archipelago's own UI | Its window, or the in-game `F1` panel / `ap_connect` |
 | Dependencies | None (Archipelago's own) | `websockets` |
 | Bridge folder | Found from the mod's `config.lua` (or `FNAFHW_BRIDGE_DIR`) | The same |
+| Lost connection | Archipelago's own reconnect | Reconnects by itself (below) |
 
 Only one may run at a time (`bridge/ap_client.lock`).
+
+**The standalone client reconnects after a lost session.** When a session that had started is lost (the server restarts, the network drops) it connects
+again after 2, 5, 10, 30 s and then every 60 s, until you press Disconnect (or Connect, which starts a fresh attempt). The room is resumed, not restarted:
+the same session and save are used, checks earned meanwhile wait in the pending queue and are sent on reconnect. It does **not** retry when you
+disconnected, when the room refused the connection (wrong password, taken slot), or when no session ever started (a wrong host or port): those stop
+with the error shown, since they would fail the same way again.
 
 ## Regenerating data
 
