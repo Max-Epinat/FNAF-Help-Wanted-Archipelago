@@ -116,6 +116,10 @@ scripts\build-release.ps1                              # dist\FNAF-HW-Archipelag
 
 See [docs/testing.md](docs/testing.md) for what the tests cover and what only an in-game run can verify.
 
+### AI Disclosure
+
+See [docs/AI_DISCLOSURE.md](docs/AI_DISCLOSURE.md) for information about AI usage in this project.
+
 ## License
 
 [MIT](LICENSE). Archipelago and UE4SS are separate projects with their own licenses.
