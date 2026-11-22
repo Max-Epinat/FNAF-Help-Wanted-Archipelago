@@ -10,5 +10,6 @@
 | [game-research.md](game-research.md) | Developers | Facts learned about the game and UE4SS, each with its confidence level. |
 | [testing.md](testing.md) | Developers | What the tests cover, and what only an in-game run can verify. |
 | [TODO.md](TODO.md) | Everyone | Open work and open questions. |
+| [AI_DISCLOSURE.md](AI_DISCLOSURE.md) | Everyone | All infornations about how AI was used for development. |
 
 Confidence labels used throughout: **VERIFIED** (seen in game or in the game's data), **PARTIAL**, **HYPOTHESIS**, **UNVERIFIED**, **BLOCKED**.
